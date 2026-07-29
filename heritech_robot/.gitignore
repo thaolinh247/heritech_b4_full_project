@@ -1,0 +1,8 @@
+.pio/
+.pio-build/
+build/
+*.bin
+*.elf
+*.hex
+.DS_Store
+Thumbs.db
