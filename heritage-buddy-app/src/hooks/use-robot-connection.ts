@@ -35,7 +35,6 @@ export function useRobotConnection() {
     setConnected,
     setCurrentDevice,
     setCurrentStop,
-    setIsMoving,
     setPirDetected,
     setGesture,
     addRobotMessage,
@@ -167,11 +166,11 @@ export function useRobotConnection() {
     }
 
     return () => {
-      // Cleanup on unmount
       if (bleIsConnected()) {
         bleDisconnect();
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {

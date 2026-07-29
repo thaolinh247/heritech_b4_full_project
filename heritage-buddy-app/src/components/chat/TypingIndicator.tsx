@@ -9,6 +9,7 @@ import Animated, {
   withSequence,
   withDelay,
   Easing,
+  type SharedValue,
 } from "react-native-reanimated";
 import { useEffect } from "react";
 
@@ -18,7 +19,7 @@ export function TypingIndicator() {
   const dot3 = useSharedValue(0.3);
 
   useEffect(() => {
-    const animation = (sv: Animated.SharedValue<number>, delay: number) =>
+    const animation = (sv: SharedValue<number>, delay: number) =>
       withDelay(
         delay,
         withRepeat(

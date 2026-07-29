@@ -17,7 +17,7 @@ export default function ChatScreen() {
   const router = useRouter();
   const node = MUSEUM_NODES.find((n) => n.id === nodeId) ?? null;
   const { state, messages, transcript, serverStatus, toggleListening, sendMessage } = useVoiceAssistant(node);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [text, setText] = useState("");
 
   useEffect(() => {

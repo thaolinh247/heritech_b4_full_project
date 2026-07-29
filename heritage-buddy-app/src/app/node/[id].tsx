@@ -106,13 +106,6 @@ function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[nu
     }
   }, [node.id, isAlreadyCompleted, isLastNode, node.order, completeNode, router, sendCommand, isConnected]);
 
-  const handleContinue = useCallback(async () => {
-    if (isConnected) {
-      await sendCommand("NEXT_NODE");
-    }
-    handleComplete();
-  }, [sendCommand, isConnected, handleComplete]);
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FDF3E7" }}>
       <Pressable

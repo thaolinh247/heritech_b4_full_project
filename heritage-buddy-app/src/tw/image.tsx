@@ -20,15 +20,15 @@ function CSSImage(props: React.ComponentProps<typeof AnimatedExpoImage>) {
       source={
         typeof props.source === "string" ? { uri: props.source } : props.source
       }
-      // @ts-expect-error: Style is remapped above
-      style={style}
+      style={style as any}
     />
   );
 }
 
 export const Image = (
   props: React.ComponentProps<typeof CSSImage> & { className?: string }
-) => {
+): React.ReactElement => {
+  // @ts-expect-error - complex union type from useCssElement
   return useCssElement(CSSImage, props, { className: "style" });
 };
 

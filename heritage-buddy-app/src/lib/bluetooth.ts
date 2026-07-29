@@ -1,8 +1,5 @@
 // ─── BLE UUIDs (Nordic UART Service) ────────
 
-const SERVICE_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
-const TX_CHAR_UUID = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E";
-const RX_CHAR_UUID = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E";
 const DEVICE_NAME = "HeritageBuddy";
 
 // ─── Types ──────────────────────────────────
@@ -79,7 +76,7 @@ export async function scanAndConnect(): Promise<boolean> {
         resolve(false);
       }, 10000);
 
-      manager.startDeviceScan(null, null, async (error, device) => {
+      manager.startDeviceScan(null, null, async (error: any, device: any) => {
         if (error) {
           console.error("[BLE] Scan error:", error);
           clearTimeout(timeout);

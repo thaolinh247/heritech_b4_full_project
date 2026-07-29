@@ -37,7 +37,6 @@ export function ChatHeader({ title, onBack }: ChatHeaderProps) {
           fontFamily: "Helvetica-Bold",
           fontSize: 18,
           color: "#5C3A21",
-          numberOfLines: 1,
         }}
         numberOfLines={1}
       >

@@ -62,10 +62,10 @@ export function useVoiceAssistant(node: MapNode | null) {
   const { play: playTTS, stop: stopTTS } = useTTS();
 
   // Conversational mode: restart mic after bot finishes speaking
-  const startListeningAfterSpeaking = useCallback(() => {
+  const startListeningAfterSpeaking = useCallback(async () => {
     if (inputLockRef.current) return;
     if (canUseSpeech) {
-      const granted = startSTT();
+      const granted = await startSTT();
       if (granted) setState("listening");
     } else {
       startRecording();

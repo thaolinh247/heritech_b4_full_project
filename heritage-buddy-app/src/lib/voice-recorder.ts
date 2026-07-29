@@ -64,7 +64,8 @@ export function useVoiceRecorder(onAutoStop?: () => void) {
 
       let lastMeteringAboveThreshold = Date.now();
       meteringIntervalRef.current = setInterval(() => {
-        const m = recorder.metering;
+        const status = recorder.getStatus();
+        const m = status.metering;
         if (typeof m === "number" && m > SILENCE_THRESHOLD_DB) {
           lastMeteringAboveThreshold = Date.now();
           if (silenceTimerRef.current) {

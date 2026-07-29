@@ -4,10 +4,10 @@ const VIETNAMESE_CONFIG = {
   lang: "vi-VN",
   continuous: true,
   interimResults: true,
-  contextualStrings: ["Hey Buddy", "Buddy", "buddy"],
+  contextualStrings: ["Hey Buddy", "Buddy", "buddy"] as string[],
   iosVoiceProcessingEnabled: true,
   addsPunctuation: true,
-} as const;
+};
 
 // Use require() inside try-catch — the standard pattern for optional native modules.
 // Metro bundles require() synchronously; if requireNativeModule throws, catch blocks it.
