@@ -11,12 +11,14 @@ import { MicButton } from "@/components/chat/MicButton";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { useRef, useEffect, useState } from "react";
 import { TextInput, Pressable } from "react-native";
+import { useRobotConnection } from "@/hooks/use-robot-connection";
 
 export default function ChatScreen() {
-  const { nodeId } = useLocalSearchParams<{ nodeId: string }>();
+  const { nodeId, autoMic } = useLocalSearchParams<{ nodeId: string; autoMic?: string }>();
   const router = useRouter();
   const node = MUSEUM_NODES.find((n) => n.id === nodeId) ?? null;
   const { state, messages, transcript, serverStatus, toggleListening, sendMessage } = useVoiceAssistant(node);
+  const { onSwitchPress } = useRobotConnection();
   const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [text, setText] = useState("");
 
@@ -25,6 +27,21 @@ export default function ChatScreen() {
       scrollRef.current?.scrollToEnd({ animated: true });
     }, 100);
   }, [messages, state]);
+
+  // Auto-start mic on mount if triggered by switch
+  useEffect(() => {
+    if (autoMic === "1") {
+      const timer = setTimeout(() => toggleListening(), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [autoMic, toggleListening]);
+
+  // Switch → ask Buddy (toggle mic / send)
+  useEffect(() => {
+    return onSwitchPress(() => {
+      toggleListening();
+    });
+  }, [onSwitchPress, toggleListening]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FDF3E7" }}>

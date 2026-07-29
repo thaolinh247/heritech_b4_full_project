@@ -9,7 +9,7 @@ import { useGestureNavigation } from "@/hooks/use-gesture-navigation";
 import { useRobotConnection } from "@/hooks/use-robot-connection";
 import { images } from "@/constants/images";
 import { Image } from "expo-image";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 
 export default function NodeVideoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -59,7 +59,7 @@ export default function NodeVideoScreen() {
 function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[number]> }) {
   const router = useRouter();
   const { completeNode, getNodeStatus } = useMapProgress();
-  const { sendCommand, isConnected } = useRobotConnection();
+  const { sendCommand, isConnected, onSwitchPress } = useRobotConnection();
   useGestureNavigation(node.id);
 
   const player = useVideoPlayer(node.videoSource, (player) => {
@@ -77,6 +77,13 @@ function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[nu
   const isLastNode = node.order === 13;
   const isAlreadyCompleted = status === "completed";
 
+  // Switch → mở "Hỏi Buddy" + tự động bắt đầu ghi âm
+  useEffect(() => {
+    return onSwitchPress(() => {
+      router.push(`/chat/${node.id}?autoMic=1`);
+    });
+  }, [node.id, router, onSwitchPress]);
+
   const handleComplete = useCallback(async () => {
     if (isAlreadyCompleted) {
       router.back();
@@ -91,7 +98,6 @@ function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[nu
     await completeNode(node.id);
 
     if (isLastNode) {
-      // Send ALL_DONE to robot
       if (isConnected) {
         await sendCommand("NEXT_NODE");
       }
@@ -171,38 +177,20 @@ function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[nu
             </Text>
           </Pressable>
 
-          {/* Hoàn thành node Button */}
-          {!isAlreadyCompleted && (
-            <Pressable
-              onPress={handleComplete}
-              className="w-full py-4 mb-3 rounded-2xl active:opacity-80"
-              style={{
-                backgroundColor: "#2E8B7E",
-                shadowColor: "#2E8B7E",
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 8,
-                elevation: 5,
-              }}
-              accessibilityLabel="Hoàn thành node hiện tại"
-              accessibilityRole="button"
-            >
-              <Text
-                className="text-white text-lg text-center"
-                style={{ fontFamily: "Helvetica-Bold" }}
-              >
-                Hoàn thành node
-              </Text>
-            </Pressable>
-          )}
-
-          {/* Primary Action Button */}
+          {/* Đi tiếp Button */}
           <Pressable
-            onPress={isLastNode ? () => router.replace("/celebration") : handleComplete}
+            onPress={handleComplete}
             className="w-full py-4 rounded-2xl active:opacity-80"
             style={{
-              backgroundColor: isAlreadyCompleted ? "#D4C5B6" : "#E8935E",
+              backgroundColor: isAlreadyCompleted ? "#D4C5B6" : "#2E8B7E",
+              shadowColor: isAlreadyCompleted ? "#D4C5B6" : "#2E8B7E",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: isAlreadyCompleted ? 0 : 0.3,
+              shadowRadius: 8,
+              elevation: isAlreadyCompleted ? 0 : 5,
             }}
+            accessibilityLabel="Đi tiếp"
+            accessibilityRole="button"
           >
             <Text
               className="text-white text-lg text-center"
@@ -212,7 +200,7 @@ function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[nu
                 ? "Kết thúc hành trình"
                 : isAlreadyCompleted
                   ? "Quay lại bản đồ"
-                  : "Tiếp theo"}
+                  : "Đi tiếp"}
             </Text>
           </Pressable>
         </View>

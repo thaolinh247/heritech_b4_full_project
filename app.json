@@ -4,26 +4,26 @@
     "slug": "heritage-buddy",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/heritech.png",
     "scheme": "heritagebuddy",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/heritech.png",
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#FDF3E7",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "foregroundImage": "./assets/images/heritech.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "monochromeImage": "./assets/images/heritech.png"
       },
       "package": "com.heritagebuddy.app",
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/heritech.png"
     },
     "plugins": [
       "expo-router",
@@ -31,7 +31,7 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#FDF3E7",
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/heritech.png",
           "imageWidth": 76
         }
       ],
@@ -43,6 +43,11 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {
+        "root": "heritage-buddy-app/src/app"
+      }
     }
   }
 }

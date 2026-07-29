@@ -1,10 +1,11 @@
 {
-  "extends": "expo/tsconfig.base",
+  "extends": "./node_modules/expo/tsconfig.base.json",
   "compilerOptions": {
     "strict": true,
+    "jsx": "react-jsx",
     "paths": {
       "@/*": [
-        "./src/*"
+        "./heritage-buddy-app/src/*"
       ],
       "@/assets/*": [
         "./assets/*"

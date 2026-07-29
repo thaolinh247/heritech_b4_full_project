@@ -8,10 +8,10 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    "Helvetica-Regular": require("../../assets/fonts/Helvetica-Regular.ttf"),
-    "Helvetica-Bold": require("../../assets/fonts/Helvetica-Bold.ttf"),
-    "Helvetica-Italic": require("../../assets/fonts/Helvetica-Italic.ttf"),
-    "Helvetica-BoldItalic": require("../../assets/fonts/Helvetica-BoldItalic.ttf"),
+    "Helvetica-Regular": require("../../../assets/fonts/Helvetica-Regular.ttf"),
+    "Helvetica-Bold": require("../../../assets/fonts/Helvetica-Bold.ttf"),
+    "Helvetica-Italic": require("../../../assets/fonts/Helvetica-Italic.ttf"),
+    "Helvetica-BoldItalic": require("../../../assets/fonts/Helvetica-BoldItalic.ttf"),
   });
 
   useEffect(() => {

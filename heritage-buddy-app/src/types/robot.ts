@@ -7,11 +7,9 @@ export type RobotToAppCommand =
   | "ALL_DONE"
   | "ALARM"
   | "SWITCH_PRESS"
+
   | "VOICE_STOP"
-  | "GESTURE:SWIPE_RIGHT"
-  | "GESTURE:SWIPE_LEFT"
-  | "GESTURE:SWIPE_UP"
-  | "GESTURE:SWIPE_DOWN";
+  | "GESTURE:SWIPE_UP";
 
 // App → Robot commands
 export type AppToRobotCommand =

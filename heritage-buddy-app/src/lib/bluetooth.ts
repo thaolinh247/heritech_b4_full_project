@@ -1,3 +1,5 @@
+import { PermissionsAndroid, Platform } from "react-native";
+
 // ─── BLE UUIDs (Nordic UART Service) ────────
 
 const DEVICE_NAME = "HeritageBuddy";
@@ -5,6 +7,7 @@ const DEVICE_NAME = "HeritageBuddy";
 // ─── Types ──────────────────────────────────
 
 type MessageCallback = (message: string) => void;
+type DisconnectCallback = () => void;
 
 interface BLEState {
   device: any | null;
@@ -13,6 +16,7 @@ interface BLEState {
   isConnected: boolean;
   isScanning: boolean;
   messageCallbacks: MessageCallback[];
+  disconnectCallbacks: DisconnectCallback[];
 }
 
 // ─── BLE Singleton ──────────────────────────
@@ -24,6 +28,7 @@ const bleState: BLEState = {
   isConnected: false,
   isScanning: false,
   messageCallbacks: [],
+  disconnectCallbacks: [],
 };
 
 // ─── Lazy load BLE module ───────────────────
@@ -42,6 +47,34 @@ async function getBLEModule() {
   }
 }
 
+// ─── Android Permissions ────────────────────
+
+async function requestAndroidPermissions(): Promise<boolean> {
+  if (Platform.OS !== "android") return true;
+
+  try {
+    const granted = await PermissionsAndroid.requestMultiple([
+      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+      PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+      PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+    ]);
+
+    const allGranted = Object.values(granted).every(
+      (status) => status === PermissionsAndroid.RESULTS.GRANTED,
+    );
+
+    if (!allGranted) {
+      console.error("[BLE] Permissions denied");
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("[BLE] Permission request error:", error);
+    return false;
+  }
+}
+
 // ─── Main Functions ─────────────────────────
 
 export async function scanAndConnect(): Promise<boolean> {
@@ -57,10 +90,9 @@ export async function scanAndConnect(): Promise<boolean> {
     // Create BLE manager
     const manager = new BLEModule.BleManager();
 
-    // Request permissions
-    const permissions = await manager.requestPermissionsForAndroid();
+    // Request Android permissions
+    const permissions = await requestAndroidPermissions();
     if (!permissions) {
-      console.error("[BLE] Permissions denied");
       bleState.isScanning = false;
       return false;
     }
@@ -100,24 +132,25 @@ export async function scanAndConnect(): Promise<boolean> {
             await connectedDevice.discoverAllServicesAndCharacteristics();
 
             // Find UART service
-            const services = await connectedDevice.servicesForDevice();
+            const services = await connectedDevice.services();
 
             for (const service of services) {
               if (service.uuid.toUpperCase().includes("6E400001")) {
-                const characteristics =
-                  await service.characteristicsForService();
+                  const characteristics =
+                    await service.characteristics();
 
                 for (const char of characteristics) {
                   if (char.uuid.toUpperCase().includes("6E400003")) {
                     bleState.txCharacteristic = char;
                     // Subscribe to notifications
-                    char.monitorCharacteristic((error: any, value: any) => {
+                    char.monitor((error: any, characteristic: any) => {
                       if (error) {
-                        console.error("[BLE] Monitor error:", error);
+                        console.warn("[BLE] Monitor disconnected");
+                        resetConnection();
                         return;
                       }
-                      if (value) {
-                        const message = value.value;
+                      if (characteristic?.value) {
+                        const message = atob(characteristic.value);
                         console.log("[BLE RX]", message);
                         bleState.messageCallbacks.forEach((cb) => cb(message));
                       }
@@ -157,11 +190,11 @@ export async function sendCommand(cmd: string): Promise<void> {
   }
 
   try {
-    const bytes = new TextEncoder().encode(cmd);
-    await bleState.rxCharacteristic.writeWithResponse(bytes);
+    const base64 = btoa(cmd);
+    await bleState.rxCharacteristic.writeWithResponse(base64);
     console.log("[BLE TX]", cmd);
-  } catch (error) {
-    console.error("[BLE] Send error:", error);
+  } catch {
+    console.warn("[BLE] Send failed — device disconnected");
   }
 }
 
@@ -176,20 +209,38 @@ export function onMessage(callback: MessageCallback): () => void {
   };
 }
 
+export function onDisconnect(callback: DisconnectCallback): () => void {
+  bleState.disconnectCallbacks.push(callback);
+
+  return () => {
+    const index = bleState.disconnectCallbacks.indexOf(callback);
+    if (index > -1) {
+      bleState.disconnectCallbacks.splice(index, 1);
+    }
+  };
+}
+
+export function resetConnection(): void {
+  bleState.device = null;
+  bleState.txCharacteristic = null;
+  bleState.rxCharacteristic = null;
+  bleState.isConnected = false;
+  bleState.isScanning = false;
+
+  bleState.disconnectCallbacks.forEach((cb) => cb());
+}
+
 export async function disconnect(): Promise<void> {
   if (bleState.device) {
     try {
       await bleState.device.cancelConnection();
       console.log("[BLE] Disconnected");
-    } catch (error) {
-      console.warn("[BLE] Disconnect error:", error);
+    } catch {
+      // Device already disconnected
     }
   }
 
-  bleState.device = null;
-  bleState.txCharacteristic = null;
-  bleState.rxCharacteristic = null;
-  bleState.isConnected = false;
+  resetConnection();
 }
 
 export function isConnected(): boolean {

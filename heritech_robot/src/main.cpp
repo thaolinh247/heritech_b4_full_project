@@ -26,6 +26,28 @@ void handleFollowLine();
 void handleAtNode();
 void handleEnd();
 
+unsigned long beepUntil = 0;
+
+void playConnectSound() {
+    MiniR4.Buzzer.NoTone();
+    MiniR4.Buzzer.Tone(523, 150);  // C5
+    delay(150);
+    MiniR4.Buzzer.Tone(659, 150);  // E5
+    delay(150);
+    MiniR4.Buzzer.Tone(784, 2000); // G5 for 2s
+    beepUntil = millis() + 2000;
+}
+
+void playDisconnectSound() {
+    MiniR4.Buzzer.NoTone();
+    MiniR4.Buzzer.Tone(784, 150);  // G5
+    delay(150);
+    MiniR4.Buzzer.Tone(659, 150);  // E5
+    delay(150);
+    MiniR4.Buzzer.Tone(523, 2000); // C5 for 2s
+    beepUntil = millis() + 2000;
+}
+
 void setup() {
     Serial.begin(115200);
     while (!Serial);
@@ -44,17 +66,39 @@ void setup() {
 void loop() {
     ble.update();
 
+    // Connection state change → sound
+    if (ble.wasConnected()) {
+        if (ble.isConnected()) {
+            MiniR4.LED.setColor(1, 0, 255, 0);
+            playConnectSound();
+            Serial.println("[BLE] Connected");
+        } else {
+            MiniR4.LED.setColor(1, 255, 0, 0);
+            playDisconnectSound();
+            Serial.println("[BLE] Disconnected");
+        }
+    }
+
+    // Keep buzzer on for 2s duration
+    if (beepUntil > 0 && millis() >= beepUntil) {
+        MiniR4.Buzzer.NoTone();
+        beepUntil = 0;
+    }
+
     checkButton();
 
     if (!ble.isConnected()) {
-        MiniR4.LED.setColor(1, 0, 0, 0);
-        delay(100);
-        MiniR4.LED.setColor(1, 0, 0, 255);
-        delay(100);
+        static unsigned long lastBlink = 0;
+        unsigned long now = millis();
+        if (now - lastBlink >= 500) {
+            lastBlink = now;
+            static bool ledOn = false;
+            ledOn = !ledOn;
+            MiniR4.LED.setColor(1, 0, 0, ledOn ? 255 : 0);
+        }
+        delay(LOOP_DELAY_MS);
         return;
     }
-
-    MiniR4.LED.setColor(1, 0, 255, 0);
 
     checkBLECommands();
     checkPIR();
@@ -92,7 +136,6 @@ void checkButton() {
         MiniR4.LED.setColor(1, 255, 0, 0);
         MiniR4.Buzzer.Tone(200, 100);
         Serial.println("[BTN] DOWN -> STOP");
-        delay(200);
     }
     // Released (UP): start robot if IDLE
     if (!current && lastState) {
@@ -104,11 +147,10 @@ void checkButton() {
             motors.setSpeed(BASE_SPEED);
             MiniR4.LED.setColor(1, 0, 255, 0);
             MiniR4.Buzzer.Tone(400, 100);
-            delay(100);
+            delay(50);
             MiniR4.Buzzer.NoTone();
             Serial.println("[BTN] UP -> START");
         }
-        delay(200);
     }
 
     lastState = current;
@@ -201,7 +243,6 @@ void checkSwitch() {
     if (lastSwitchState == HIGH && current == LOW) {
         ble.sendMessage("SWITCH_PRESS");
         Serial.println("[SWITCH] Pressed");
-        delay(200);
     }
     lastSwitchState = current;
 }
@@ -212,37 +253,23 @@ void checkGesture() {
     int gesture = sensors.readGesture();
     if (gesture == 0) return;
 
-    switch (gesture) {
-        case 0x01:
-            ble.sendMessage("GESTURE:SWIPE_RIGHT");
-            if (state.getState() == RobotState::AT_NODE) {
-                nodes.completeCurrentNode();
-                if (nodes.isLastNode()) {
-                    state.setState(RobotState::END);
-                    ble.sendMessage("ALL_DONE");
-                } else {
-                    nodes.nextNode();
-                    motors.setSpeed(BASE_SPEED);
-                    state.setState(RobotState::FOLLOW_LINE);
-                    ble.sendMessage("NODE_COMPLETE:" + String(nodes.getCurrentNode()));
-                }
+    if (gesture == 0x04) {
+        // Swipe Up → next node
+        ble.sendMessage("GESTURE:SWIPE_UP");
+        if (state.getState() == RobotState::AT_NODE) {
+            nodes.completeCurrentNode();
+            if (nodes.isLastNode()) {
+                state.setState(RobotState::END);
+                ble.sendMessage("ALL_DONE");
+            } else {
+                nodes.nextNode();
+                motors.setSpeed(BASE_SPEED);
+                state.setState(RobotState::FOLLOW_LINE);
+                ble.sendMessage("NODE_COMPLETE:" + String(nodes.getCurrentNode()));
             }
-            Serial.println("[GESTURE] Swipe Right");
-            break;
-        case 0x02:
-            ble.sendMessage("GESTURE:SWIPE_LEFT");
-            Serial.println("[GESTURE] Swipe Left");
-            break;
-        case 0x04:
-            ble.sendMessage("GESTURE:SWIPE_UP");
-            Serial.println("[GESTURE] Swipe Up");
-            break;
-        case 0x08:
-            ble.sendMessage("GESTURE:SWIPE_DOWN");
-            Serial.println("[GESTURE] Swipe Down");
-            break;
+        }
+        Serial.println("[GESTURE] Swipe Up → Next node");
     }
-    delay(200);
 }
 
 // --- IDLE -------------------------------------

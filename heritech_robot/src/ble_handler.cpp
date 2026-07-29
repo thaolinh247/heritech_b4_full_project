@@ -32,7 +32,15 @@ bool BLEHandler::hasCentral() {
     return (bool)_central;
 }
 
+bool BLEHandler::wasConnected() {
+    bool changed = _prevConnected != isConnected();
+    _prevConnected = isConnected();
+    return changed;
+}
+
 void BLEHandler::update() {
+    BLE.poll();
+
     if (!_central) {
         _central = BLE.central();
         if (_central) {
@@ -46,8 +54,6 @@ void BLEHandler::update() {
         Serial.println("[BLE] Disconnected");
         _central = BLEDevice();
     }
-
-    BLE.poll();
 }
 
 void BLEHandler::sendMessage(const String& msg) {

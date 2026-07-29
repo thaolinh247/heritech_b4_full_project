@@ -16,6 +16,8 @@ public:
     bool hasReceivedMessage();
     String getReceivedMessage();
 
+    bool wasConnected();
+
 private:
     BLEService service{SERVICE_UUID};
     BLECharacteristic txChar{TX_CHAR_UUID, BLERead | BLENotify, 20};
@@ -24,6 +26,7 @@ private:
     BLEDevice _central;
     String _rxBuffer;
     bool _msgReady = false;
+    bool _prevConnected = false;
 
     static void onRXWritten(BLEDevice central, BLECharacteristic characteristic);
 };

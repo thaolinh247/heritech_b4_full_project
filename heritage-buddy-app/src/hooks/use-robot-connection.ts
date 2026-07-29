@@ -5,6 +5,7 @@ import {
   scanAndConnect as bleConnect,
   sendCommand as bleSend,
   onMessage,
+  onDisconnect as bleOnDisconnect,
   disconnect as bleDisconnect,
   isConnected as bleIsConnected,
 } from "@/lib/bluetooth";
@@ -21,7 +22,7 @@ function parseRobotMessage(msg: string): RobotToAppCommand | null {
   if (trimmed === "ALARM") return "ALARM";
   if (trimmed === "SWITCH_PRESS") return "SWITCH_PRESS";
   if (trimmed === "VOICE_STOP") return "VOICE_STOP";
-  if (trimmed.startsWith("GESTURE:")) return trimmed as RobotToAppCommand;
+  if (trimmed === "GESTURE:SWIPE_UP") return "GESTURE:SWIPE_UP";
 
   return null;
 }
@@ -80,9 +81,12 @@ export function useRobotConnection() {
     []
   );
 
-  // Register switch press callback
-  const onSwitchPress = useCallback((callback: () => void) => {
+  // Register switch press callbacks (returns cleanup)
+  const onSwitchPress = useCallback((callback: (() => void) | null) => {
     onSwitchPressRef.current = callback;
+    return () => {
+      onSwitchPressRef.current = null;
+    };
   }, []);
 
   // Register voice stop callback
@@ -137,18 +141,8 @@ export function useRobotConnection() {
             const nodeId = command.split(":")[1];
             setCurrentStop(parseInt(nodeId, 10) || 0);
           }
-          if (command.startsWith("GESTURE:")) {
-            const gesturePart = command.split(":")[1];
-            const gestureMap: Record<string, "swipe_right" | "swipe_left" | "swipe_up" | "swipe_down"> = {
-              SWIPE_RIGHT: "swipe_right",
-              SWIPE_LEFT: "swipe_left",
-              SWIPE_UP: "swipe_up",
-              SWIPE_DOWN: "swipe_down",
-            };
-            const gesture = gestureMap[gesturePart];
-            if (gesture) {
-              setGesture(gesture);
-            }
+          if (command === "GESTURE:SWIPE_UP") {
+            setGesture("swipe_up");
           }
           break;
       }
@@ -159,13 +153,19 @@ export function useRobotConnection() {
     };
   }, [addRobotMessage, setPirDetected, setCurrentStop, setGesture]);
 
-  // Auto-reconnect on mount
+  // Auto-reconnect on mount & listen for unexpected disconnection
   useEffect(() => {
     if (connectionStatus === "disconnected") {
       connect();
     }
 
+    const unsubDisconnect = bleOnDisconnect(() => {
+      setConnectionStatus("disconnected");
+      setConnected(false);
+    });
+
     return () => {
+      unsubDisconnect();
       if (bleIsConnected()) {
         bleDisconnect();
       }
