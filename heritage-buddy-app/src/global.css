@@ -1,0 +1,119 @@
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css";
+
+@import "nativewind/theme";
+
+/* ─── Heritage Buddy Design Tokens ─── */
+@layer theme {
+  @theme {
+    /* ── Brand Colors ── */
+    --color-orange: #E8935E;
+    --color-orange-light: #F2B892;
+    --color-orange-dark: #D47A45;
+
+    --color-cream: #FDF3E7;
+    --color-cream-dark: #F5E6D0;
+
+    --color-brown: #5C3A21;
+    --color-brown-light: #7A5233;
+    --color-brown-dark: #3D2514;
+
+    --color-jade: #2E8B7E;
+    --color-jade-light: #4AA398;
+    --color-jade-dark: #1F6B5F;
+
+    --color-coral: #E85D4E;
+    --color-coral-light: #F08C7F;
+    --color-coral-dark: #D44435;
+
+    /* ── Neutral Colors ── */
+    --color-white: #FFFFFF;
+    --color-black: #000000;
+    --color-transparent: transparent;
+
+    /* ── Semantic Colors ── */
+    --color-success: #2E8B7E;
+    --color-success-light: #4AA398;
+    --color-error: #E85D4E;
+    --color-error-light: #F08C7F;
+    --color-warning: #E8935E;
+    --color-warning-light: #F2B892;
+    --color-info: #2E8B7E;
+    --color-info-light: #4AA398;
+
+    /* ── Font Families ── */
+    --font-helvetica: "Helvetica-Bold";
+    --font-helvetica-bold: "Helvetica-Bold";
+    --font-helvetica-italic: "Helvetica-Italic";
+    --font-helvetica-bold-italic: "Helvetica-BoldItalic";
+
+    /* ── Shadows ── */
+    --shadow-xs: 0 1px 2px rgba(92, 58, 33, 0.05);
+    --shadow-sm: 0 2px 4px rgba(92, 58, 33, 0.08);
+    --shadow-md: 0 4px 8px rgba(92, 58, 33, 0.1);
+    --shadow-lg: 0 8px 16px rgba(92, 58, 33, 0.12);
+    --shadow-xl: 0 12px 24px rgba(92, 58, 33, 0.15);
+    --shadow-2xl: 0 16px 32px rgba(92, 58, 33, 0.2);
+
+    /* ── Brand Shadows (colored) ── */
+    --shadow-orange: 0 4px 12px rgba(232, 147, 94, 0.3);
+    --shadow-jade: 0 4px 12px rgba(46, 139, 126, 0.3);
+    --shadow-coral: 0 4px 12px rgba(232, 93, 78, 0.3);
+    --shadow-brown: 0 4px 12px rgba(92, 58, 33, 0.25);
+
+    /* ── Border Radius ── */
+    --radius-xs: 2px;
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-2xl: 20px;
+    --radius-3xl: 24px;
+    --radius-full: 9999px;
+
+    /* ── Z-Index Scale ── */
+    --z-behind: -1;
+    --z-base: 0;
+    --z-raised: 10;
+    --z-dropdown: 100;
+    --z-sticky: 200;
+    --z-overlay: 300;
+    --z-modal: 400;
+    --z-popover: 500;
+    --z-toast: 600;
+    --z-tooltip: 700;
+  }
+}
+
+/* ─── Platform Font Defaults ─── */
+@media android {
+  :root {
+    --font-mono: monospace;
+    --font-rounded: normal;
+    --font-serif: serif;
+    --font-sans: "Helvetica-Bold", normal;
+  }
+}
+
+@media ios {
+  :root {
+    --font-mono: ui-monospace;
+    --font-serif: ui-serif;
+    --font-sans: "Helvetica-Bold", system-ui;
+    --font-rounded: ui-rounded;
+  }
+}
+
+/* ─── Global Base Styles ─── */
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    font-family: "Helvetica-Bold", system-ui, sans-serif;
+    background-color: #FDF3E7;
+    color: #5C3A21;
+  }
+}
