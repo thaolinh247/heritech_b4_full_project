@@ -46,6 +46,7 @@ export function useRobotConnection() {
 
   const onSwitchPressRef = useRef<(() => void) | null>(null);
   const onVoiceStopRef = useRef<(() => void) | null>(null);
+  const lastSwitchPressRef = useRef(0);
 
   // Connect to robot
   const connect = useCallback(async () => {
@@ -125,9 +126,17 @@ export function useRobotConnection() {
           break;
 
         case "SWITCH_PRESS":
-          console.log("[useRobotConnection] Switch pressed");
-          if (onSwitchPressRef.current) {
-            onSwitchPressRef.current();
+          {
+            const now = Date.now();
+            if (now - lastSwitchPressRef.current < 500) {
+              console.log("[useRobotConnection] Switch press debounced");
+              break;
+            }
+            lastSwitchPressRef.current = now;
+            console.log("[useRobotConnection] Switch pressed");
+            if (onSwitchPressRef.current) {
+              onSwitchPressRef.current();
+            }
           }
           break;
 

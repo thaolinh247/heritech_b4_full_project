@@ -8,7 +8,6 @@ import { useTTS } from "@/lib/tts";
 import { askBuddy, askBuddyWithAudio, checkServerHealth } from "@/lib/llm";
 import { buildArtifactContext } from "@/lib/contextBuilder";
 import { useMapProgress } from "@/hooks/use-map-progress";
-import { MUSEUM_NODES } from "@/data/museum-map";
 import type { MapNode } from "@/types/museum-map";
 import type { ChatMessage } from "@/types/voice-assistant";
 
@@ -116,13 +115,11 @@ export function useVoiceAssistant(node: MapNode | null) {
   const navigateToNextNode = useCallback(() => {
     const current = nodeRef.current;
     if (!current) return;
-    const next = MUSEUM_NODES.find((n) => n.order === current.order + 1);
     completeNode(current.id);
     stopListening();
     stopTTS();
-    if (next) {
-      router.replace(`/node/${next.id}`);
-    }
+    // Điều hướng về bản đồ — robot tự chạy, app mở node khi nhận NODE_START
+    router.replace("/museum-map");
   }, [completeNode, router, stopTTS]);
 
   const handleUserMessage = useCallback(
