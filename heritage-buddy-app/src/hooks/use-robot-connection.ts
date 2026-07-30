@@ -1,6 +1,8 @@
 import { useEffect, useCallback, useRef } from "react";
 import { Alert, Vibration } from "react-native";
+import { useRouter } from "expo-router";
 import { useRobotStore } from "@/store/robot";
+import { MUSEUM_NODES } from "@/data/museum-map";
 import {
   scanAndConnect as bleConnect,
   sendCommand as bleSend,
@@ -30,6 +32,7 @@ function parseRobotMessage(msg: string): RobotToAppCommand | null {
 // ─── Hook ───────────────────────────────────
 
 export function useRobotConnection() {
+  const router = useRouter();
   const {
     connectionStatus,
     setConnectionStatus,
@@ -138,8 +141,20 @@ export function useRobotConnection() {
         default:
           // NODE_START or NODE_COMPLETE - handled elsewhere
           if (command.startsWith("NODE_START:")) {
-            const nodeId = command.split(":")[1];
-            setCurrentStop(parseInt(nodeId, 10) || 0);
+            const nodeParam = command.split(":")[1];
+            setCurrentStop(parseInt(nodeParam, 10) || 0);
+
+            // Auto-navigate to node screen (robot has arrived at a stop)
+            const nodeIndex = parseInt(nodeParam, 10);
+            if (!isNaN(nodeIndex) && MUSEUM_NODES[nodeIndex]) {
+              router.replace(`/node/${MUSEUM_NODES[nodeIndex].id}`);
+            } else {
+              // Fallback: try direct node ID lookup
+              const node = MUSEUM_NODES.find((n) => n.id === nodeParam);
+              if (node) {
+                router.replace(`/node/${node.id}`);
+              }
+            }
           }
           if (command === "GESTURE:SWIPE_UP") {
             setGesture("swipe_up");
@@ -151,7 +166,7 @@ export function useRobotConnection() {
     return () => {
       unsubscribe();
     };
-  }, [addRobotMessage, setPirDetected, setCurrentStop, setGesture]);
+  }, [addRobotMessage, setPirDetected, setCurrentStop, setGesture, router]);
 
   // Auto-reconnect on mount & listen for unexpected disconnection
   useEffect(() => {

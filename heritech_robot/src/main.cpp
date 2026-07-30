@@ -16,6 +16,11 @@ unsigned long lastPIRAlarm = 0;
 int redStableCount = 0;
 bool nodeNotified = false;
 
+// ─── Test Mode ─────────────────────────────
+unsigned long testMoveStart = 0;
+int testPhase = 0; // 0=idle, 1=moving_to_1, 2=at_1, 3=moving_to_2, 4=at_2
+bool testTurnedLeft = false;
+
 void checkButton();
 void checkBLECommands();
 void checkPIR();
@@ -25,6 +30,7 @@ void handleIdle();
 void handleFollowLine();
 void handleAtNode();
 void handleEnd();
+void handleTestMovement();
 
 unsigned long beepUntil = 0;
 
@@ -143,6 +149,8 @@ void checkButton() {
             nodes.reset();
             redStableCount = 0;
             nodeNotified = false;
+            testPhase = 0;
+            testMoveStart = 0;
             state.setState(RobotState::FOLLOW_LINE);
             motors.setSpeed(BASE_SPEED);
             MiniR4.LED.setColor(1, 0, 255, 0);
@@ -169,6 +177,8 @@ void checkBLECommands() {
         nodes.reset();
         redStableCount = 0;
         nodeNotified = false;
+        testPhase = 0;
+        testMoveStart = 0;
         state.setState(RobotState::FOLLOW_LINE);
         motors.setSpeed(BASE_SPEED);
         Serial.println("[CMD] START -> FOLLOW_LINE");
@@ -285,20 +295,24 @@ void handleFollowLine() {
         Serial.println("[STATE] FOLLOW_LINE");
     }
 
-    float lineError = sensors.readLineError();
-    motors.followLine(lineError);
+    // // ─── REAL LINE FOLLOWING + COLOR SENSOR (commented for test) ─────
+    // float lineError = sensors.readLineError();
+    // motors.followLine(lineError);
+    //
+    // if (sensors.isRedDetected()) {
+    //     redStableCount++;
+    //     if (redStableCount >= COLOR_STABLE_COUNT) {
+    //         motors.stop();
+    //         nodeNotified = false;
+    //         state.setState(RobotState::AT_NODE);
+    //         Serial.println("[STATE] Red detected -> AT_NODE");
+    //     }
+    // } else {
+    //     redStableCount = 0;
+    // }
 
-    if (sensors.isRedDetected()) {
-        redStableCount++;
-        if (redStableCount >= COLOR_STABLE_COUNT) {
-            motors.stop();
-            nodeNotified = false;
-            state.setState(RobotState::AT_NODE);
-            Serial.println("[STATE] Red detected -> AT_NODE");
-        }
-    } else {
-        redStableCount = 0;
-    }
+    // ─── TEST MODE: simulated movement ─────
+    handleTestMovement();
 }
 
 // --- AT_NODE ----------------------------------
@@ -328,5 +342,62 @@ void handleEnd() {
         delay(150);
         MiniR4.Buzzer.Tone(1500, 300);
         Serial.println("[STATE] END - All nodes completed");
+    }
+}
+
+// ─── TEST MODE MOVEMENT ─────────────────────
+// Simulates robot movement without line tracer or color sensor.
+// Phase 0→1: move straight 5s → "arrive" at node 1 (NODE_START:0)
+// Phase 2→3: turn left 1s → move straight 5s → "arrive" at node 2 (NODE_START:1)
+
+void handleTestMovement() {
+    if (state.isStateChanged()) {
+        if (testPhase == 0) {
+            testPhase = 1;
+            testMoveStart = millis();
+            motors.setSpeed(BASE_SPEED);
+            motors.move(BASE_SPEED, BASE_SPEED);
+            Serial.println("[TEST] Phase 1: Moving straight to node 1");
+        } else if (testPhase == 2) {
+            testPhase = 3;
+            testMoveStart = millis();
+            testTurnedLeft = false;
+            Serial.println("[TEST] Phase 3: Moving to node 2");
+        }
+    }
+
+    if (testPhase == 1) {
+        // Moving straight to node 1
+        motors.move(BASE_SPEED, BASE_SPEED);
+        if (millis() - testMoveStart >= 5000) {
+            motors.stop();
+            nodeNotified = true;              // prevent handleAtNode re-send
+            ble.sendMessage("NODE_START:0");  // index 0 = ancient-01
+            testPhase = 2;
+            state.setState(RobotState::AT_NODE);
+            Serial.println("[TEST] Phase 2: Arrived at node 1");
+        }
+    } else if (testPhase == 3) {
+        if (!testTurnedLeft) {
+            // Turn left for 1 second
+            motors.move(-BASE_SPEED, BASE_SPEED);
+            if (millis() - testMoveStart >= 1000) {
+                testTurnedLeft = true;
+                testMoveStart = millis();
+                motors.move(BASE_SPEED, BASE_SPEED);
+                Serial.println("[TEST] Turned left, now moving straight");
+            }
+        } else {
+            // Moving straight to node 2
+            motors.move(BASE_SPEED, BASE_SPEED);
+            if (millis() - testMoveStart >= 5000) {
+                motors.stop();
+                nodeNotified = true;
+                ble.sendMessage("NODE_START:1");  // index 1 = ancient-02
+                testPhase = 4;
+                state.setState(RobotState::AT_NODE);
+                Serial.println("[TEST] Phase 4: Arrived at node 2");
+            }
+        }
     }
 }

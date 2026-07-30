@@ -1,7 +1,7 @@
 # PLAN DỰ ÁN: HERITECH ROBOT + HERITAGE BUDDY APP
 
 > **Ngày tạo:** 2026-07-27
-> **Trạng thái:** Draft — chờ review
+> **Trạng thái:** Đang thực hiện — Stage 1-4 hoàn tất, Stage 5 đang test
 
 ---
 
@@ -668,65 +668,67 @@ useEffect(() => {
 
 ## 7. DANH SÁCH FILE CẦN TẠO/SỬA
 
-| # | File | Hành động | Mô tả |
-|---|---|---|---|
-| 1 | `heritage_robot/platformio.ini` | SỬA | Đảm bảo đủ thư viện BLE |
-| 2 | `heritage_robot/src/main.cpp` | VIẾT LẠI | Toàn bộ logic robot |
-| 3 | `heritage_robot/src/config.h` | TẠO MỚI | Constants, pin definitions |
-| 4 | `heritage_robot/src/ble_handler.h/.cpp` | TẠO MỚI | BLE communication |
-| 5 | `heritage_robot/src/motor_control.h/.cpp` | TẠO MỚI | Motor + line following |
-| 6 | `heritage_robot/src/sensor_manager.h/.cpp` | TẠO MỚI | Đọc cảm biến |
-| 7 | `heritage_robot/src/state_machine.h/.cpp` | TẠO MỚI | State machine |
-| 8 | `heritage_robot/src/node_manager.h/.cpp` | TẠO MỚI | Node logic |
-| 9 | `heritage-buddy-app/src/types/robot.ts` | SỬA | BLE commands |
-| 10 | `heritage-buddy-app/src/store/robot.ts` | SỬA | BLE state |
-| 11 | `heritage-buddy-app/src/lib/bluetooth.ts` | TẠO MỚI | BLE service |
-| 12 | `heritage-buddy-app/src/hooks/use-robot-connection.ts` | TẠO MỚI | BLE hook |
-| 13 | `heritage-buddy-app/src/hooks/use-voice-assistant.ts` | SỬA | Voice → BLE |
-| 14 | `heritage-buddy-app/src/hooks/use-gesture-navigation.ts` | SỬA | Gesture từ BLE |
-| 15 | `heritage-buddy-app/src/app/museum-map.tsx` | SỬA | BLE + nút xuất phát |
-| 16 | `heritage-buddy-app/src/app/node/[id].tsx` | SỬA | "Hoàn thành" + BLE |
-| 17 | `heritage-buddy-app/src/app/chat/[nodeId].tsx` | SỬA | Voice → BLE |
-| 18 | `heritage-buddy-app/src/app/celebration.tsx` | SỬA | Gửi STOP |
+| # | File | Hành động | Mô tả | Trạng thái |
+|---|---|---|---|---|
+| 1 | `heritage_robot/platformio.ini` | SỬA | Đảm bảo đủ thư viện BLE | ✅ Hoàn tất |
+| 2 | `heritage_robot/src/main.cpp` | VIẾT LẠI | Toàn bộ logic robot | ✅ Hoàn tất (+ test mode) |
+| 3 | `heritage_robot/src/config.h` | TẠO MỚI | Constants, pin definitions | ✅ Hoàn tất |
+| 4 | `heritage_robot/src/ble_handler.h/.cpp` | TẠO MỚI | BLE communication | ✅ Hoàn tất |
+| 5 | `heritage_robot/src/motor_control.h/.cpp` | TẠO MỚI | Motor + line following | ✅ Hoàn tất |
+| 6 | `heritage_robot/src/sensor_manager.h/.cpp` | TẠO MỚI | Đọc cảm biến | ✅ Hoàn tất |
+| 7 | `heritage_robot/src/state_machine.h/.cpp` | TẠO MỚI | State machine | ✅ Hoàn tất |
+| 8 | `heritage_robot/src/node_manager.h/.cpp` | TẠO MỚI | Node logic | ✅ Hoàn tất |
+| 9 | `heritage-buddy-app/src/types/robot.ts` | SỬA | BLE commands | ✅ Hoàn tất |
+| 10 | `heritage-buddy-app/src/store/robot.ts` | SỬA | BLE state | ✅ Hoàn tất |
+| 11 | `heritage-buddy-app/src/lib/bluetooth.ts` | TẠO MỚI | BLE service | ✅ Hoàn tất |
+| 12 | `heritage-buddy-app/src/hooks/use-robot-connection.ts` | TẠO MỚI | BLE hook + auto-navigate NODE_START | ✅ Hoàn tất |
+| 13 | `heritage-buddy-app/src/hooks/use-voice-assistant.ts` | SỬA | Voice → BLE | ✅ Hoàn tất |
+| 14 | `heritage-buddy-app/src/hooks/use-gesture-navigation.ts` | SỬA | Gesture từ BLE, navigate về map | ✅ Hoàn tất |
+| 15 | `heritage-buddy-app/src/app/museum-map.tsx` | SỬA | BLE + nút xuất phát | ✅ Hoàn tất |
+| 16 | `heritage-buddy-app/src/app/node/[id].tsx` | SỬA | "Hoàn thành" + BLE | ✅ Hoàn tất |
+| 17 | `heritage-buddy-app/src/app/chat/[nodeId].tsx` | SỬA | Voice → BLE | ✅ Hoàn tất |
+| 18 | `heritage-buddy-app/src/app/celebration.tsx` | SỬA | Gửi STOP | ✅ Hoàn tất |
 
-**Tổng:** 7 files tạo mới + 9 files sửa + 2 files giữ nguyên
+**Tổng:** 7 files tạo mới + 9 files sửa + 2 files giữ nguyên  
+**✅ Tất cả 18 files đã hoàn tất.**
 
 ---
 
 ## 8. THỨ TỰ THỰC HIỆN
 
-### Stage 1: Robot Firmware (heritage_robot/)
-1. Viết `config.h` — constants, pin definitions
-2. Viết `ble_handler.h/.cpp` — BLE communication
-3. Viết `sensor_manager.h/.cpp` — đọc cảm biến
-4. Viết `motor_control.h/.cpp` — điều khiển motor + line following
-5. Viết `state_machine.h/.cpp` — quản lý trạng thái
-6. Viết `node_manager.h/.cpp` — quản lý node
-7. Viết lại `main.cpp` — tích hợp tất cả
+### Stage 1: Robot Firmware (heritage_robot/) ✅ Hoàn tất
+1. ✅ Viết `config.h` — constants, pin definitions
+2. ✅ Viết `ble_handler.h/.cpp` — BLE communication
+3. ✅ Viết `sensor_manager.h/.cpp` — đọc cảm biến
+4. ✅ Viết `motor_control.h/.cpp` — điều khiển motor + line following
+5. ✅ Viết `state_machine.h/.cpp` — quản lý trạng thái
+6. ✅ Viết `node_manager.h/.cpp` — quản lý node
+7. ✅ Viết lại `main.cpp` — tích hợp tất cả
 
-### Stage 2: App Types + Stores (heritage-buddy-app/)
-1. Sửa `types/robot.ts` — BLE commands
-2. Sửa `store/robot.ts` — BLE state
-3. Tạo `lib/bluetooth.ts` — BLE service
-4. Tạo `hooks/use-robot-connection.ts` — BLE hook
+### Stage 2: App Types + Stores (heritage-buddy-app/) ✅ Hoàn tất
+1. ✅ Sửa `types/robot.ts` — BLE commands
+2. ✅ Sửa `store/robot.ts` — BLE state
+3. ✅ Tạo `lib/bluetooth.ts` — BLE service
+4. ✅ Tạo `hooks/use-robot-connection.ts` — BLE hook
 
-### Stage 3: App Screens (heritage-buddy-app/)
-1. Sửa `app/museum-map.tsx` — BLE + nút xuất phát
-2. Sửa `app/node/[id].tsx` — "Hoàn thành" + BLE signals
-3. Sửa `app/chat/[nodeId].tsx` — Voice → BLE
-4. Sửa `app/celebration.tsx` — Gửi STOP
+### Stage 3: App Screens (heritage-buddy-app/) ✅ Hoàn tất
+1. ✅ Sửa `app/museum-map.tsx` — BLE + nút xuất phát
+2. ✅ Sửa `app/node/[id].tsx` — "Hoàn thành" + BLE signals
+3. ✅ Sửa `app/chat/[nodeId].tsx` — Voice → BLE
+4. ✅ Sửa `app/celebration.tsx` — Gửi STOP
 
-### Stage 4: App Hooks (heritage-buddy-app/)
-1. Sửa `hooks/use-voice-assistant.ts` — tích hợp BLE
-2. Sửa `hooks/use-gesture-navigation.ts` — gesture từ BLE
+### Stage 4: App Hooks (heritage-buddy-app/) ✅ Hoàn tất
+1. ✅ Sửa `hooks/use-voice-assistant.ts` — tích hợp BLE
+2. ✅ Sửa `hooks/use-gesture-navigation.ts` — gesture từ BLE, navigate về map
 
-### Stage 5: Testing & Debug
-1. Test kết nối BLE robot ↔ app
-2. Test luồng hoạt động hoàn chỉnh
-3. Test voice commands → BLE
-4. Test gesture → BLE
-5. Test PIR alarm
-6. Test switch press
+### Stage 5: Testing & Debug 🔄 Đang thực hiện
+1. 🔄 Test kết nối BLE robot ↔ app
+2. 🔄 Test luồng hoạt động hoàn chỉnh (bao gồm test mode)
+3. 🔄 Test voice commands → BLE
+4. 🔄 Test gesture → BLE (→ map → auto-move → auto-open node)
+5. 🔄 Test PIR alarm
+6. 🔄 Test switch press
+7. 🔄 Test function `handleTestMovement()` — di chuyển mô phỏng 2 node
 
 ---
 
@@ -780,3 +782,124 @@ npx expo run:android       # Chạy trên device
 - [ ] Switch press mở mic voice chat
 - [ ] Node cuối → ALL_DONE → celebration screen
 - [ ] Robot dừng khi app gửi STOP
+
+---
+
+## 11. KHÁC BIỆT GIỮA DỰ ÁN THỰC TẾ VÀ PLAN
+
+### 11.1 Gesture Sensor — Loại cử chỉ khác
+
+| Mục | Plan gốc | Thực tế |
+|-----|----------|---------|
+| Gesture để đi tiếp | Swipe Right (`eGestureRight = 0x01`) | Swipe Up (`0x04`) |
+| Lý do | Theo spec Matrix Mini R4 | Swipe Up hoạt động ổn định hơn trong test, `0x04` là giá trị đo được từ gesture sensor |
+
+### 11.2 Luồng Gesture → Navigation khác
+
+**Plan gốc:**
+```
+Gesture → app nhận → completeNode() → VOICE_NEXT → navigate đến /node/:next
+```
+
+**Thực tế:**
+```
+Gesture → app nhận → completeNode() → VOICE_NEXT → navigate đến /museum-map
+  → robot tự động chạy (FOLLOW_LINE)
+  → robot đến node → gửi NODE_START:<index>
+  → app auto-navigate đến /node/:id
+```
+
+**Lý do:** UX tốt hơn — người dùng thấy robot di chuyển trên bản đồ, không bị "teleport" đến node tiếp theo.
+
+### 11.3 Định dạng NODE_START
+
+| Mục | Plan gốc | Thực tế |
+|-----|----------|---------|
+| Format | `NODE_START:<string-id>` (vd: `ancient-01`) | `NODE_START:<numeric-index>` (vd: `NODE_START:0`) |
+| App xử lý | Parse `nodeId` string trực tiếp | Parse số → map qua `MUSEUM_NODES[index]` → lấy `id` string |
+
+### 11.4 Test Mode (không có trong plan)
+
+- **Function mới:** `handleTestMovement()` trong `main.cpp`
+- **Mục đích:** Mô phỏng di chuyển khi chưa có line tracer + color sensor
+- **Luồng test:**
+  1. Move straight 5s → NODE_START:0 (node 1)
+  2. Chờ gesture/VOICE_NEXT/NODE_DONE
+  3. Turn left 1s → move straight 5s → NODE_START:1 (node 2)
+- **Code line-following + color-sensor:** Đã comment để chuyển sang test mode
+
+### 11.5 Auto-navigate khi nhận NODE_START
+
+**Mới so với plan:**
+- `use-robot-connection.ts` tự động gọi `router.replace()` khi nhận `NODE_START`
+- Plan gốc chỉ định xử lý `NODE_START` trong hook nhưng không nói rõ auto-navigate
+- Thực tế: khi robot đến node, app tự mở node screen — không cần user nhấn gì
+
+### 11.6 Robot Gesture Handler
+
+**Plan gốc:** Gesture sensor gửi `GESTURE:SWIPE_RIGHT` → robot tự chuyển state `AT_NODE → FOLLOW_LINE`
+
+**Thực tế:** Gesture sensor gửi `GESTURE:SWIPE_UP` → app nhận → app gửi `VOICE_NEXT` → robot chuyển state
+
+**Lý do:** App cần biết gesture đã xảy ra (để navigate về map). Nếu robot tự chuyển state, app không kịp phản ứng.
+
+### 11.7 NODE_DONE Handler — Bug tiềm ẩn
+
+**Plan gốc:** `NODE_DONE` hoàn thành node hiện tại và chuyển sang node tiếp theo
+
+**Thực tế:** `NODE_DONE` handler gọi `completeCurrentNode()` nhưng **không** gọi `nextNode()`. Kết quả:
+- Giá trị `nodes.getCurrentNode()` không thay đổi
+- Khi vào `AT_NODE` lần tiếp theo, `handleAtNode()` gửi `NODE_START:X` với index cũ
+
+**Các handler khác (VOICE_NEXT, GESTURE) gọi đúng `nextNode()`.**
+
+### 11.8 Expo SDK Version
+
+| Mục | Plan gốc | Thực tế |
+|-----|----------|---------|
+| Expo SDK | SDK 57 | SDK 54 |
+| React Native | RN 0.81.x (SDK 57 spec) | RN 0.81.5 |
+
+Project thực tế được khởi tạo với Expo SDK 54, không nâng cấp lên 57.
+
+### 11.9 Video Playback
+
+**Plan gốc:** Không đề cập cụ thể cách phát media tại node
+
+**Thực tế:** Dùng `expo-video` với `useVideoPlayer` + `VideoView`, hỗ trợ native controls và auto-play
+
+### 11.10 State Machine — Không có PIR_CHECK state riêng
+
+**Plan gốc:** Có `PIR_CHECK` state riêng trong sơ đồ state machine
+
+**Thực tế:** PIR alarm được xử lý bên ngoài state machine (trong `loop()`, gọi `checkPIR()` song song với state handler). Không có `PIR_CHECK` state riêng.
+
+### 11.11 Thư viện BLE
+
+| Mục | Plan gốc | Thực tế |
+|-----|----------|---------|
+| BLE Android | `expo-bluetooth` | `react-native-ble-plx` |
+| Lý do | Plan dự kiến dùng expo-native | `ble-plx` là thư viện BLE phổ biến và ổn định nhất cho RN |
+
+### 11.12 Gesture Types (type định nghĩa)
+
+**Plan gốc:** 10 loại gesture (`right`, `left`, `up`, `down`, `forward`, `backward`, `clockwise`, `anticlockwise`, `wave`, `null`)
+
+**Thực tế:** Chỉ dùng 4 loại (`swipe_right`, `swipe_left`, `swipe_up`, `swipe_down`, `null`). Các loại khác không cần thiết cho WRO 2026.
+
+### 11.13 Tổng kết khác biệt
+
+| # | Khác biệt | Ảnh hưởng |
+|---|-----------|------------|
+| 1 | Swipe Up (0x04) thay vì Swipe Right (0x01) | Cần calibrate gesture sensor với giá trị đúng |
+| 2 | Gesture → map (không phải → node trực tiếp) | UX tốt hơn, cần auto-navigate trên app |
+| 3 | Node index numeric trong BLE message | App phải map index → ID string |
+| 4 | Test mode thay thế line-following + color sensor | Chạy test được ngay không cần line đen + màu đỏ |
+| 5 | Auto-navigate NODE_START | Không cần user nhấn gì khi robot đến node |
+| 6 | Gesture → app → VOICE_NEXT (2 bước) | App biết gesture xảy ra để navigate |
+| 7 | NODE_DONE không gọi nextNode() | Bug tiềm ẩn — cần sửa khi dùng NODE_DONE |
+| 8 | Expo SDK 54 | Một số API có thể khác SDK 57 |
+| 9 | expo-video cho media | Phát video mượt, native controls |
+| 10 | PIR xử lý ngoài state machine | Đơn giản hơn, không ảnh hưởng logic chính |
+| 11 | react-native-ble-plx | Cần permissions Android 12+ |
+| 12 | Gesture type đơn giản hơn | Đủ dùng cho WRO 2026 |
