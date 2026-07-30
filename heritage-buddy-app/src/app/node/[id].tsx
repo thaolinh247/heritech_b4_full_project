@@ -80,7 +80,7 @@ function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[nu
   // Switch → mở "Hỏi Buddy" + tự động bắt đầu ghi âm
   useEffect(() => {
     return onSwitchPress(() => {
-      router.push(`/chat/${node.id}?autoMic=1`);
+      router.replace(`/chat/${node.id}?autoMic=1`);
     });
   }, [node.id, router, onSwitchPress]);
 
@@ -92,7 +92,7 @@ function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[nu
 
     // Send NODE_DONE to robot via BLE
     if (isConnected) {
-      await sendCommand(`NODE_DONE:${node.id}`);
+      await sendCommand(`NODE_DONE:${node.order - 1}`);
     }
 
     await completeNode(node.id);

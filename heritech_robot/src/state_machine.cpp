@@ -27,7 +27,11 @@ const char* StateMachine::getStateName() {
 }
 
 bool StateMachine::isStateChanged() {
-    return _currentState != _previousState;
+    bool changed = (_currentState != _previousState);
+    if (changed) {
+        _previousState = _currentState;
+    }
+    return changed;
 }
 
 void StateMachine::update() {

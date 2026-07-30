@@ -2,6 +2,7 @@ import { useEffect, useCallback, useRef } from "react";
 import { Alert, Vibration } from "react-native";
 import { useRouter } from "expo-router";
 import { useRobotStore } from "@/store/robot";
+import { useMapProgressStore } from "@/store/map-progress";
 import { MUSEUM_NODES } from "@/data/museum-map";
 import {
   scanAndConnect as bleConnect,
@@ -113,6 +114,7 @@ export function useRobotConnection() {
       switch (command) {
         case "ALL_DONE":
           console.log("[useRobotConnection] All nodes completed");
+          router.replace("/celebration");
           break;
 
         case "ALARM":
@@ -134,8 +136,11 @@ export function useRobotConnection() {
             }
             lastSwitchPressRef.current = now;
             console.log("[useRobotConnection] Switch pressed");
+            Vibration.vibrate(50); // haptic feedback so user "sees" it
             if (onSwitchPressRef.current) {
               onSwitchPressRef.current();
+            } else {
+              console.warn("[useRobotConnection] onSwitchPressRef is null — no handler registered");
             }
           }
           break;
@@ -149,6 +154,17 @@ export function useRobotConnection() {
 
         default:
           // NODE_START or NODE_COMPLETE - handled elsewhere
+          if (command.startsWith("NODE_COMPLETE:")) {
+            const nodeIndex = parseInt(command.split(":")[1], 10);
+            if (!isNaN(nodeIndex) && MUSEUM_NODES[nodeIndex]) {
+              const nodeId = MUSEUM_NODES[nodeIndex].id;
+              const { completedNodeIds, addCompletedNode } = useMapProgressStore.getState();
+              if (!completedNodeIds.includes(nodeId)) {
+                addCompletedNode(nodeId);
+              }
+            }
+          }
+
           if (command.startsWith("NODE_START:")) {
             const nodeParam = command.split(":")[1];
             setCurrentStop(parseInt(nodeParam, 10) || 0);
@@ -177,9 +193,11 @@ export function useRobotConnection() {
     };
   }, [addRobotMessage, setPirDetected, setCurrentStop, setGesture, router]);
 
-  // Auto-reconnect on mount & listen for unexpected disconnection
+  // Auto-connect on mount (only if BLE not already connected at module level)
+  // IMPORTANT: cleanup does NOT call bleDisconnect — BLE lifecycle is managed
+  // by the singleton in bluetooth.ts, not by component mount/unmount.
   useEffect(() => {
-    if (connectionStatus === "disconnected") {
+    if (connectionStatus === "disconnected" && !bleIsConnected()) {
       connect();
     }
 
@@ -190,9 +208,7 @@ export function useRobotConnection() {
 
     return () => {
       unsubDisconnect();
-      if (bleIsConnected()) {
-        bleDisconnect();
-      }
+      // Do NOT call bleDisconnect() here — would disconnect BLE for all screens
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
