@@ -7,6 +7,8 @@ export interface MapNode {
   y: number;
   videoSource: string;
   thumbnail: string;
+  description?: string;
+  funFact?: string;
 }
 
 export interface MuseumSection {

@@ -122,9 +122,9 @@ void loop() {
         case RobotState::IDLE:        // Robot đang dừng, chờ lệnh
             handleIdle();
             break;
-        case RobotState::FOLLOW_LINE: // Robot đang chạy giữa các node
+        //case RobotState::FOLLOW_LINE: // Robot đang chạy giữa các node
             handleFollowLine();
-            break;
+            //break;
         case RobotState::AT_NODE:     // Robot đã tới điểm dừng
             handleAtNode();
             break;

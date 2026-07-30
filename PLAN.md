@@ -2,6 +2,8 @@
 
 > **Ngày tạo:** 2026-07-27
 > **Trạng thái:** Đang thực hiện — Stage 1-4 hoàn tất, Stage 5 đang test
+>
+> **Cập nhật 2026-07-30:** backend Gemini đã được cấu hình, context cho từng artifact đã được bổ sung, và môi trường local đã chuyển về localhost:3000.
 
 ---
 

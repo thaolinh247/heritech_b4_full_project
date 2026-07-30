@@ -27,6 +27,8 @@ export const MUSEUM_NODES: MapNode[] = [
     y: 6,
     videoSource: "https://drive.google.com/uc?export=download&id=1BVLYXbK_THS2JpiE218LWA0PiRrNL8lJ",
     thumbnail: "",
+    description: "Bức tượng chân dung Chủ tịch Hồ Chí Minh là hình ảnh tượng trưng cho sự nghiệp cách mạng và lòng yêu nước của dân tộc Việt Nam.",
+    funFact: "Bác Hồ luôn được nhắc đến như biểu tượng của lòng nhân ái và tinh thần đoàn kết.",
   },
   {
     id: "ancient-02",
@@ -37,6 +39,8 @@ export const MUSEUM_NODES: MapNode[] = [
     y: 14,
     videoSource: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
     thumbnail: "",
+    description: "Trống đồng Đông Sơn là một hiện vật tiêu biểu của nền văn hóa cổ đại, nổi bật với hoa văn trang trí tinh xảo.",
+    funFact: "Những đường nét trên mặt trống thường mô tả người, thú vật và các nghi lễ truyền thống.",
   },
   {
     id: "ancient-03",
@@ -47,6 +51,8 @@ export const MUSEUM_NODES: MapNode[] = [
     y: 24,
     videoSource: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
     thumbnail: "",
+    description: "Văn hóa Sa Huỳnh phản ánh đời sống, tín ngưỡng và các hoạt động trao đổi ở khu vực duyên hải miền Trung thời cổ đại.",
+    funFact: "Các di vật Sa Huỳnh cho thấy cư dân xưa rất giỏi trong chế tác đồ trang sức và đồ dùng sinh hoạt.",
   },
   {
     id: "medieval-01",
@@ -57,6 +63,8 @@ export const MUSEUM_NODES: MapNode[] = [
     y: 33,
     videoSource: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
     thumbnail: "",
+    description: "Thời kỳ Bắc thuộc là giai đoạn lịch sử dài, nơi các giá trị văn hóa bản địa vẫn được giữ gìn và phát triển.",
+    funFact: "Giai đoạn này giúp du khách hiểu rõ hơn về sự tiếp biến giữa văn hóa bản địa và văn hóa bên ngoài.",
   },
   {
     id: "medieval-02",
@@ -67,6 +75,8 @@ export const MUSEUM_NODES: MapNode[] = [
     y: 44,
     videoSource: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
     thumbnail: "",
+    description: "Chiến thắng Bạch Đằng là một dấu mốc quan trọng trong lịch sử chống ngoại xâm của dân tộc Việt Nam.",
+    funFact: "Chiến công này gắn liền với sự sáng tạo trong chiến thuật quân sự và lòng yêu nước của nhân dân.",
   },
   {
     id: "medieval-03",
@@ -77,6 +87,8 @@ export const MUSEUM_NODES: MapNode[] = [
     y: 52,
     videoSource: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
     thumbnail: "",
+    description: "Triều Lý và Trần là hai thời kỳ rực rỡ trong lịch sử Việt Nam, nổi tiếng với việc xây dựng đất nước và phát triển văn hóa.",
+    funFact: "Những triều đại này để lại nhiều công trình kiến trúc và bản sắc văn hóa sâu sắc.",
   },
   {
     id: "medieval-04",
@@ -87,6 +99,8 @@ export const MUSEUM_NODES: MapNode[] = [
     y: 62,
     videoSource: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4",
     thumbnail: "",
+    description: "Văn miếu Quốc Tử Giám là trung tâm học thuật và giáo dục nổi tiếng, thể hiện giá trị của nền văn minh Việt Nam.",
+    funFact: "Nơi đây từng là biểu tượng cho sự tôn trọng tri thức và những thế hệ học trò tài năng.",
   },
   {
     id: "early-modern-01",
@@ -97,6 +111,8 @@ export const MUSEUM_NODES: MapNode[] = [
     y: 70,
     videoSource: "https://drive.google.com/uc?export=download&id=1ciNnXvFb49osyY9M4U298YG_TW3ElN1T",
     thumbnail: "",
+    description: "Lá cờ Bình dân học vụ gắn liền với phong trào giáo dục dân tộc và ý chí đổi mới tri thức.",
+    funFact: "Biểu tượng này nhắc đến một thời kỳ mà giáo dục trở thành công cụ nâng cao dân trí.",
   },
   {
     id: "early-modern-02",
@@ -107,6 +123,8 @@ export const MUSEUM_NODES: MapNode[] = [
     y: 80,
     videoSource: "https://drive.google.com/uc?export=download&id=12Tf1bH7wHdWXFEfQmdgN3wVn_R1NaR60",
     thumbnail: "",
+    description: "Khăn len quàng cổ của Mary Luois là một hiện vật mang dấu ấn thời trang và giao lưu văn hóa quốc tế.",
+    funFact: "Đồ vật này cho thấy sự kết nối giữa phong cách cá nhân và những thay đổi xã hội trong giai đoạn lịch sử.",
   },
   {
     id: "early-modern-03",
@@ -117,6 +135,8 @@ export const MUSEUM_NODES: MapNode[] = [
     y: 88,
     videoSource: "https://drive.google.com/uc?export=download&id=1A3sczgdt2q6PVfJv1kX88Qz_SYhPdjNW",
     thumbnail: "",
+    description: "Tác phẩm này ghi lại những đau thương và đấu tranh của dân tộc trước áp lực thuộc địa.",
+    funFact: "Một sự kiện lịch sử quan trọng này thường được kể lại như lời nhắc về ý chí giữ nước.",
   },
   {
     id: "modern-01",
@@ -127,6 +147,8 @@ export const MUSEUM_NODES: MapNode[] = [
     y: 98,
     videoSource: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WhatCarCanYouGetForAGrand.mp4",
     thumbnail: "",
+    description: "Hồ Chí Minh là biểu tượng của nền độc lập và tự do, gắn liền với hành trình dựng nước mới của Việt Nam.",
+    funFact: "Tư tưởng của Bác Hồ vẫn tiếp tục truyền cảm hứng cho nhiều thế hệ hôm nay.",
   },
   {
     id: "modern-02",
@@ -137,6 +159,8 @@ export const MUSEUM_NODES: MapNode[] = [
     y: 108,
     videoSource: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
     thumbnail: "",
+    description: "Bảo tàng số là một cách mới để lưu trữ, chia sẻ và trải nghiệm di sản văn hóa trong thời đại kỹ thuật số.",
+    funFact: "Công nghệ giúp nhiều người tiếp cận tri thức bảo tàng mà không cần đến trực tiếp.",
   },
   {
     id: "modern-03",
@@ -147,5 +171,7 @@ export const MUSEUM_NODES: MapNode[] = [
     y: 118,
     videoSource: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
     thumbnail: "",
+    description: "Hành trình kết nối văn hóa cho thấy cách các di sản truyền thống tiếp tục được lan tỏa đến nhiều thế hệ.",
+    funFact: "Mỗi câu chuyện được kể lại có thể mở ra một kết nối mới giữa quá khứ và hiện tại.",
   },
 ];

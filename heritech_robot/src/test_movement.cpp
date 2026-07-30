@@ -3,7 +3,7 @@
 #include "motor_control.h"
 #include "state_machine.h"
 #include "node_manager.h"
-#include <Arduino.h>
+#include <MatrixMiniR4.h>
 
 extern MotorControl motors;
 extern StateMachine state;
@@ -14,24 +14,30 @@ static int _phase = 0;
 static unsigned long _timer = 0;
 static bool _firstMove = true;
 
-#define TURN_MS   1000
-#define MOVE_MS   5000
+#define TURN_MS 1000
+#define MOVE_MS 5000
 
-void testMovementInit() {
+void testMovementInit()
+{
     _phase = 0;
     _timer = 0;
     _firstMove = true;
 }
 
-void testMovementHandle() {
-    if (state.isStateChanged()) {
-        if (_firstMove) {
+void testMovementHandle()
+{
+    if (state.isStateChanged())
+    {
+        if (_firstMove)
+        {
             _firstMove = false;
             _phase = 2;
             _timer = millis();
             motors.move(BASE_SPEED, BASE_SPEED);
             Serial.println("[TEST] First move: straight");
-        } else {
+        }
+        else
+        {
             _phase = 1;
             _timer = millis();
             motors.move(-BASE_SPEED, BASE_SPEED);
@@ -39,15 +45,20 @@ void testMovementHandle() {
         }
     }
 
-    if (_phase == 1) {
-        if (millis() - _timer >= TURN_MS) {
+    if (_phase == 1)
+    {
+        if (millis() - _timer >= TURN_MS)
+        {
             _phase = 2;
             _timer = millis();
             motors.move(BASE_SPEED, BASE_SPEED);
             Serial.println("[TEST] Turn done, moving straight");
         }
-    } else if (_phase == 2) {
-        if (millis() - _timer >= MOVE_MS) {
+    }
+    else if (_phase == 2)
+    {
+        if (millis() - _timer >= MOVE_MS)
+        {
             motors.stop();
             _phase = 0;
             nodeNotified = false;
