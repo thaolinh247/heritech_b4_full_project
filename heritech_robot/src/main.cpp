@@ -374,15 +374,13 @@ void checkPIR()
 // ─── CÔNG TẮC VẬT LÝ ─────────────────────────
 // Nút bấm ở mặt sau robot (người khiếm thị hoặc khiếm ngôn dùng)
 
-void checkSwitch()
-{
-    static bool lastSwitchState = HIGH;  // Trạng thái công tắc lần trước
-    bool current = sensors.readSwitch(); // Đọc trạng thái hiện tại
+void checkSwitch() {
+    static bool lastSwitchState = HIGH;        // Trạng thái công tắc lần trước
+    bool current = sensors.readSwitch();       // Đọc trạng thái hiện tại
 
     // Phát hiện cạnh xuống: HIGH → LOW (nhấn công tắc)
-    if (lastSwitchState == HIGH && current == LOW)
-    {
-        ble.sendMessage("SWITCH_PRESS"); // Báo cho app
+    if (lastSwitchState == HIGH && current == LOW) {
+        ble.sendMessage("SWITCH_PRESS");       // Báo cho app
         Serial.println("[SWITCH] Pressed");
     }
     lastSwitchState = current; // Lưu trạng thái cho lần sau

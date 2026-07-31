@@ -296,7 +296,7 @@ export async function sendCommand(cmd: string): Promise<void> {
   }
 
   try {
-    const base64 = btoa(cmd + "\n");
+    const base64 = btoa(cmd);
     await bleState.rxCharacteristic.writeWithResponse(base64);
     console.log("[BLE TX]", cmd);
   } catch {

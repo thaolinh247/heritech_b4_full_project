@@ -95,7 +95,7 @@ void BLEHandler::onRXWritten(BLEDevice central, BLECharacteristic characteristic
 
     for (int i = 0; i < len; i++) {
         char c = (char)data[i];
-        if (c == '\n' || c == '\r') {
+        if (c == '\\n' || c == '\\r') {
             if (instance->_rxBuffer.length() > 0) {
                 instance->_msgReady = true;
             }
