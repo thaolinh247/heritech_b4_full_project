@@ -154,20 +154,8 @@ export function useRobotConnection() {
           }
 
           if (command.startsWith("NODE_START:")) {
-            const nodeParam = command.split(":")[1];
-            setCurrentStop(parseInt(nodeParam, 10) || 0);
-
-            // Auto-navigate to node screen (robot has arrived at a stop)
-            const nodeIndex = parseInt(nodeParam, 10);
-            if (!isNaN(nodeIndex) && MUSEUM_NODES[nodeIndex]) {
-              router.replace(`/node/${MUSEUM_NODES[nodeIndex].id}`);
-            } else {
-              // Fallback: try direct node ID lookup
-              const node = MUSEUM_NODES.find((n) => n.id === nodeParam);
-              if (node) {
-                router.replace(`/node/${node.id}`);
-              }
-            }
+            const nodeId = command.split(":")[1];
+            setCurrentStop(parseInt(nodeId, 10) || 0);
           }
           if (command === "GESTURE:SWIPE_UP") {
             setGesture("swipe_up");

@@ -22,6 +22,8 @@ export function useGestureNavigation(currentNodeId: string | null) {
     const current = MUSEUM_NODES.find((n) => n.id === currentNodeId);
     if (!current) return;
 
+    const next = MUSEUM_NODES.find((n) => n.order === current.order + 1);
+
     completeNode(current.id);
 
     stopListening();
@@ -31,7 +33,8 @@ export function useGestureNavigation(currentNodeId: string | null) {
       bleSend("VOICE_NEXT");
     }
 
-    // Navigate to museum map — robot auto-moves, app opens node on NODE_START
-    router.replace("/museum-map");
+    if (next) {
+      router.replace(`/node/${next.id}`);
+    }
   }, [lastGesture, currentNodeId, completeNode, setGesture, router]);
 }

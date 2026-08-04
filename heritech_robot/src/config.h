@@ -17,7 +17,7 @@
 #define I2C_CH_GESTURE         3
 
 #define LINE_THRESHOLD         50
-#define BASE_SPEED             25
+#define BASE_SPEED             40
 #define MAX_SPEED              60
 #define MIN_SPEED              10
 #define PID_KP                 0.8

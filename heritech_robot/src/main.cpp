@@ -34,8 +34,6 @@ void handleEnd();        // Xử lý trạng thái END (kết thúc tour)
 
 unsigned long beepUntil = 0; // Thời điểm tắt còi (cho phép còi kêu trong 2s)
 
-static int _followPhase = -1; // Pha di chuyển: -1=chưa chạy, 0=đang rẽ, 1=đang đi thẳng
-
 // ─── Non-blocking sound state machine ────────
 // Tránh delay() blocking làm BLE.poll() không chạy → ATT discovery timeout
 static int _soundStep = 0;          // 0=idle, 1=C5, 2=E5, 3=G5
@@ -276,7 +274,6 @@ void checkBLECommands()
         nodes.reset(); // Đặt lại node đầu tiên
         redStableCount = 0;
         nodeNotified = false;
-        _followPhase = -1; // Reset pha di chuyển
         state.setState(RobotState::FOLLOW_LINE);
         motors.setSpeed(BASE_SPEED);
         Serial.println("[CMD] START -> FOLLOW_LINE");
@@ -421,52 +418,26 @@ void handleFollowLine()
     if (state.isStateChanged())
     {
         Serial.println("[STATE] FOLLOW_LINE");
-        // thử
-        nodeNotified = false;
-
-        if (nodes.getCurrentNode() == 0)
-        {
-            // Lần đầu từ START: chỉ đi thẳng 5s
-            MiniR4.DriveDC.MoveTime(45, 45, 5, true, true);
-            _followPhase = 1;
-        }
-        else
-        {
-            // Các lần sau: rẽ trái 1s trước
-            MiniR4.DriveDC.MoveTime(-45, 45, 1.2, true, true);
-            _followPhase = 0;
-        }
     }
 
-    // Pha rẽ xong → chuyển sang đi thẳng
-    if (_followPhase == 0 && MiniR4.DriveDC.isPrevTaskDone())
+    float lineError = sensors.readLineError();
+    motors.followLine(lineError);
+
+    if (sensors.isRedDetected())
     {
-        MiniR4.DriveDC.MoveTime(45, 45, 5, true, true);
-        _followPhase = 1;
+        redStableCount++;
+        if (redStableCount >= COLOR_STABLE_COUNT)
+        {
+            motors.stop();
+            nodeNotified = false;
+            state.setState(RobotState::AT_NODE);
+            Serial.println("[STATE] Red detected -> AT_NODE");
+        }
     }
-
-    // Pha đi thẳng xong → dừng, vào AT_NODE
-    if (_followPhase == 1 && MiniR4.DriveDC.isPrevTaskDone())
+    else
     {
-        motors.stop();
-        state.setState(RobotState::AT_NODE);
+        redStableCount = 0;
     }
-    // ─── CHẾ ĐỘ THẬT (dò line + cảm biến màu) ──
-    // // Tạm thời comment để chạy thử bằng thời gian
-    // float lineError = sensors.readLineError();
-    // motors.followLine(lineError);
-    //
-    // if (sensors.isRedDetected()) {
-    //     redStableCount++;
-    //     if (redStableCount >= COLOR_STABLE_COUNT) {
-    //         motors.stop();
-    //         nodeNotified = false;
-    //         state.setState(RobotState::AT_NODE);
-    //         Serial.println("[STATE] Red detected -> AT_NODE");
-    //     }
-    // } else {
-    //     redStableCount = 0;
-    // }
 }
 
 // ─── XỬ LÝ AT_NODE ───────────────────────────
