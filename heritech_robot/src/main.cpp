@@ -8,8 +8,6 @@
 #include "motor_control.h"  // Điều khiển 2 động cơ DC (tiến/lùi/rẽ)
 #include "state_machine.h"  // Máy trạng thái: IDLE → FOLLOW_LINE → AT_NODE → END
 #include "node_manager.h"   // Quản lý 13 điểm dừng trên tuyến
-#define DEGREES_PER_CM 20
-#define TARGET_CM 20
 // ─── Biến toàn cục ─────────────────────────
 BLEHandler ble;        // Đối tượng BLE - gửi/nhận lệnh với app
 SensorManager sensors; // Đối tượng cảm biến - đọc line, màu, gesture...
@@ -133,10 +131,7 @@ void setup()
     MiniR4.M2.setReverse(true);
     MiniR4.DriveDC.begin(1, 2, false, true);
     MiniR4.DriveDC.setMoveSyncPID(0.02, 0.00, 0.04);
-    motors.setupEncoder(545, 200); // Cấu hình encoder cho biến motors
 
-    Serial.println("Nhấn BTN_DOWN để chạy 20cm");
-    Serial.println("Nhấn lại BTN_DOWN để dừng khẩn cấp");
 }
 
 // ─── Vòng lặp chính (chạy liên tục) ─────────

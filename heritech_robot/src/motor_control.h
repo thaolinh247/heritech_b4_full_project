@@ -12,15 +12,10 @@ public:
     void brake();
     void setSpeed(int16_t speed);
 
-    void setupEncoder(uint16_t ppr, uint16_t maxRPM);
-    bool moveDistance(int16_t speed, float cm);
-    bool isDistanceReached();
-
 private:
     int16_t _baseSpeed;
     float _lastError;
     float _integral;
-    int32_t _targetDegrees;
 };
 
 #endif
