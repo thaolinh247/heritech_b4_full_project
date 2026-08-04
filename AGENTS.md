@@ -520,6 +520,7 @@ Rules:
 - Always review `git diff --cached` before committing
 - Always `git push` after commit
 - If push fails, retry once. If still fails, report the error.
+- **ALWAYS write a changelog entry in `CHANGELOG.md` before committing.** Summarize what was changed, why, and which files were affected. Every commit that touches code MUST have a corresponding changelog entry.
 
 ## Do NOT
 - Do NOT use `react-native.Image` - use `expo-image` instead

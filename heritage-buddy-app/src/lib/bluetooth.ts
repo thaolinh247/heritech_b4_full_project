@@ -117,18 +117,21 @@ function subscribeNotifications(char: any) {
 }
 
 // ─── Helper: subscribe + find UART chars ────
-// Delay trước discover vì robot firmware có playConnectSound() blocking 2.3s
+// Retry discovery với backoff — firmware đã non-blocking nên không cần delay cứng 3.5s nữa.
 
 async function findUART(connectedDevice: any): Promise<boolean> {
-  // ArduinoBLE bị block bởi delay() trong playConnectSound firmware
-  // Cần chờ ~3.5s để BLE.poll() hoạt động lại trước khi gọi discovery
-  await new Promise((r) => setTimeout(r, 3500));
+  const MAX_ATTEMPTS = 3;
 
-  try {
-    await connectedDevice.discoverAllServicesAndCharacteristics();
-  } catch (e) {
-    console.warn("[BLE] Discover error:", e);
-    return false;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      await connectedDevice.discoverAllServicesAndCharacteristics();
+      break;
+    } catch (e) {
+      console.warn(`[BLE] Discover error (attempt ${attempt}/${MAX_ATTEMPTS}):`, e);
+      if (attempt === MAX_ATTEMPTS) return false;
+      // Tăng backoff để firmware kịp BLE.poll() nếu đang busy
+      await new Promise((r) => setTimeout(r, 1500));
+    }
   }
 
   const services = await connectedDevice.services();
@@ -267,19 +270,30 @@ async function connectToCachedDevice(manager: any, deviceId: string): Promise<bo
 }
 
 /** Connect + discover UART + set up state (giống commit gốc) */
+let disconnectHandlerSetup = false;
+
 async function setupDevice(connectedDevice: any): Promise<boolean> {
   console.log("[BLE] Connected!");
-
-  connectedDevice.onDisconnected((err: any) => {
-    console.log("[BLE] System disconnected", err?.message ?? "");
-    resetConnection();
-  });
 
   const ok = await findUART(connectedDevice);
   if (!ok) {
     console.warn("[BLE] UART service not found");
-    await connectedDevice.cancelConnection();
+    try {
+      await connectedDevice.cancelConnection();
+    } catch {
+      // Device already disconnected
+    }
     return false;
+  }
+
+  // Chỉ set onDisconnected sau khi discovery thành công
+  // để tránh resetConnection() chạy giữa lúc discovery timeout
+  if (!disconnectHandlerSetup) {
+    connectedDevice.onDisconnected((err: any) => {
+      console.log("[BLE] System disconnected", err?.message ?? "");
+      resetConnection();
+    });
+    disconnectHandlerSetup = true;
   }
 
   bleState.device = connectedDevice;
@@ -333,6 +347,7 @@ export function resetConnection(): void {
   bleState.isConnected = false;
   bleState.isConnecting = false;
   bleState.isScanning = false;
+  disconnectHandlerSetup = false;
 
   bleState.disconnectCallbacks.forEach((cb) => cb());
 }
