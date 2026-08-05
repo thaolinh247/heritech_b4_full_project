@@ -167,4 +167,4 @@ Kiến trúc thực thi là kiến trúc chính thức của dự án — không
 
 ---
 
-*Tham chiếu: `PLAN.md` (bản cũ) · `heritech_robot/` · `server/` · `CHANGELOG.md`*
+*Tham chiếu: `PLAN.md` (bản cũ) · `TEST-INTERACTION.md` · `heritech_robot/` · `server/` · `CHANGELOG.md`*
