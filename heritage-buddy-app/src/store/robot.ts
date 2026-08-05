@@ -2,6 +2,8 @@ import { create } from "zustand";
 import type {
   GestureType,
   BLEConnectionStatus,
+  WarnType,
+  RobotStatusType,
 } from "@/types/robot";
 
 interface RobotStore {
@@ -18,6 +20,11 @@ interface RobotStore {
   // Gesture
   lastGesture: GestureType;
 
+  // Warning / status / SOS (two-way interaction)
+  activeWarn: WarnType | null;
+  robotStatus: RobotStatusType | null;
+  sosActive: boolean;
+
   // Message queue
   robotMessageQueue: string[];
   robotMessage: string | null;
@@ -30,6 +37,9 @@ interface RobotStore {
   setIsMoving: (moving: boolean) => void;
   setPirDetected: (detected: boolean) => void;
   setGesture: (gesture: GestureType) => void;
+  setActiveWarn: (warn: WarnType | null) => void;
+  setRobotStatus: (status: RobotStatusType | null) => void;
+  setSosActive: (active: boolean) => void;
   addRobotMessage: (msg: string) => void;
   clearRobotMessage: () => void;
   clearMessages: () => void;
@@ -49,6 +59,11 @@ export const useRobotStore = create<RobotStore>((set) => ({
   // Gesture
   lastGesture: null,
 
+  // Warning / status / SOS
+  activeWarn: null,
+  robotStatus: null,
+  sosActive: false,
+
   // Message queue
   robotMessageQueue: [],
   robotMessage: null,
@@ -61,6 +76,9 @@ export const useRobotStore = create<RobotStore>((set) => ({
   setIsMoving: (isMoving) => set({ isMoving }),
   setPirDetected: (pirDetected) => set({ pirDetected }),
   setGesture: (lastGesture) => set({ lastGesture }),
+  setActiveWarn: (activeWarn) => set({ activeWarn }),
+  setRobotStatus: (robotStatus) => set({ robotStatus }),
+  setSosActive: (sosActive) => set({ sosActive }),
   addRobotMessage: (msg) =>
     set((s) => ({
       robotMessageQueue: [...s.robotMessageQueue, msg],

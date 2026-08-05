@@ -21,6 +21,8 @@ function parseRobotMessage(msg: string): RobotToAppCommand | null {
 
   if (trimmed.startsWith("NODE_START:")) return trimmed as RobotToAppCommand;
   if (trimmed.startsWith("NODE_COMPLETE:")) return trimmed as RobotToAppCommand;
+  if (trimmed.startsWith("WARN:")) return trimmed as RobotToAppCommand;
+  if (trimmed.startsWith("STATUS:")) return trimmed as RobotToAppCommand;
   if (trimmed === "ALL_DONE") return "ALL_DONE";
   if (trimmed === "ALARM") return "ALARM";
   if (trimmed === "SWITCH_PRESS") return "SWITCH_PRESS";

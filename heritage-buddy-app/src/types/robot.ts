@@ -7,18 +7,33 @@ export type RobotToAppCommand =
   | "ALL_DONE"
   | "ALARM"
   | "SWITCH_PRESS"
-
   | "VOICE_STOP"
-  | "GESTURE:SWIPE_UP";
+  | "GESTURE:SWIPE_UP"
+  | "WARN:<type>"
+  | "STATUS:<state>";
 
 // App → Robot commands
 export type AppToRobotCommand =
   | "START"
   | "STOP"
+  | "RESUME"
   | "NODE_DONE:<id>"
   | "NEXT_NODE"
   | "VOICE_NEXT"
-  | "VOICE_STOP";
+  | "VOICE_STOP"
+  | "ACK"
+  | "SOS";
+
+// ─── Warning / Status Types ──────────────────
+
+export type WarnType = "person" | "turn_l" | "turn_r";
+
+export type RobotStatusType =
+  | "resumed"
+  | "auto_resumed"
+  | "sos"
+  | "idle"
+  | "unknown";
 
 // ─── BLE Connection ──────────────────────────
 

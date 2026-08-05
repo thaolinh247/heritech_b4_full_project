@@ -3,6 +3,8 @@ import { Stack } from "expo-router";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
+import { View } from "@/tw";
+import { RobotInteractionOverlay } from "@/components/robot-interaction-overlay";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -24,5 +26,10 @@ export default function RootLayout() {
     return null;
   }
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <View style={{ flex: 1 }}>
+      <Stack screenOptions={{ headerShown: false }} />
+      <RobotInteractionOverlay />
+    </View>
+  );
 }

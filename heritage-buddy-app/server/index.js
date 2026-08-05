@@ -1,3 +1,4 @@
+/* global __dirname */
 const express = require("express");
 const cors = require("cors");
 const os = require("os");

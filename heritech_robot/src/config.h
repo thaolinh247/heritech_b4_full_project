@@ -33,4 +33,7 @@
 #define PIR_ALARM_COOLDOWN_MS  3000
 #define BUZZER_ALARM_MS        200
 
+#define WARN_ACK_TIMEOUT_MS    10000  // Chờ ACK sau WARN:person (ms) — quá hạn tự chạy tiếp
+#define SOS_HOLD_MS            2000   // Giữ switch >= 2s để kích hoạt SOS (tránh bấm nhầm)
+
 #endif

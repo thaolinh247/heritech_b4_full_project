@@ -15,7 +15,8 @@ MotorControl motors;   // Đối tượng động cơ - điều khiển 2 bánh 
 StateMachine state;    // Máy trạng thái - xác định robot đang ở bước nào
 NodeManager nodes;     // Quản lý node - theo dõi điểm dừng hiện tại
 
-unsigned long lastPIRAlarm = 0; // Lần cuối còi báo động PIR (chống báo lại liên tục)
+unsigned long lastPIRWarn = 0;        // Lần cuối gửi WARN:person (chống gửi liên tục)
+unsigned long warnAckDeadline = 0;    // Hạn chót chờ ACK sau WARN:person (state WAIT_ACK)
 int redStableCount = 0;         // Đếm số lần đọc được màu đỏ liên tiếp (xác nhận tới node)
 bool nodeNotified = false;      // Đã gửi NODE_START cho app chưa? (tránh gửi trùng)
 
@@ -27,6 +28,7 @@ void checkSwitch();      // Kiểm tra công tắc vật lý
 void checkGesture();     // Kiểm tra cảm biến cử chỉ
 void handleIdle();       // Xử lý trạng thái IDLE (dừng robot)
 void handleFollowLine(); // Xử lý trạng thái FOLLOW_LINE (đang chạy)
+void handleWaitAck();    // Xử lý trạng thái WAIT_ACK (đang chờ khách xác nhận)
 void handleAtNode();     // Xử lý trạng thái AT_NODE (đã tới điểm dừng)
 void handleEnd();        // Xử lý trạng thái END (kết thúc tour)
 
@@ -171,6 +173,7 @@ void loop()
     // ─── Nếu mất kết nối BLE ────────────────
     if (!ble.isConnected())
     {
+        motors.stop(); // AN TOÀN: không chạy tiếp với lệnh tốc độ cũ khi mất kết nối
         static unsigned long lastBlink = 0; // Lần chớp LED gần nhất
         unsigned long now = millis();
         if (now - lastBlink >= 500)
@@ -198,6 +201,9 @@ void loop()
         break;
     case RobotState::FOLLOW_LINE: // Robot đang chạy giữa các node
         handleFollowLine();
+        break;
+    case RobotState::WAIT_ACK: // Robot dừng chờ khách xác nhận cảnh báo
+        handleWaitAck();
         break;
     case RobotState::AT_NODE: // Robot đã tới điểm dừng
         handleAtNode();
@@ -343,11 +349,31 @@ void checkBLECommands()
         Serial.println("[CMD] VOICE_STOP -> IDLE");
     }
     // ── LỆNH: ACK ────────────────────────────
-    // Khách đã bấm "Đã hiểu / Tiếp tục" sau cảnh báo WARN → robot xác nhận
+    // Khách đã bấm "Đã hiểu / Tiếp tục" sau cảnh báo WARN → robot tiếp tục chạy
     else if (cmd == "ACK")
     {
+        if (state.getState() == RobotState::WAIT_ACK)
+        {
+            state.setState(RobotState::FOLLOW_LINE);
+            motors.setSpeed(BASE_SPEED);
+            MiniR4.LED.setColor(1, 0, 255, 0);
+            Serial.println("[CMD] ACK -> resume FOLLOW_LINE");
+        }
         ble.sendMessage("STATUS:resumed");
         Serial.println("[CMD] ACK -> STATUS:resumed");
+    }
+    // ── LỆNH: RESUME ─────────────────────────
+    // Tiếp tục chạy sau SOS mà KHÔNG reset tour (khác START — có reset nodes)
+    else if (cmd == "RESUME")
+    {
+        if (state.getState() == RobotState::IDLE)
+        {
+            state.setState(RobotState::FOLLOW_LINE);
+            motors.setSpeed(BASE_SPEED);
+            MiniR4.LED.setColor(1, 0, 255, 0);
+            ble.sendMessage("STATUS:resumed");
+            Serial.println("[CMD] RESUME -> FOLLOW_LINE");
+        }
     }
     // ── LỆNH: SOS ────────────────────────────
     // Khách bấm SOS trên app → robot dừng khẩn cấp + đèn đỏ + còi trấn an
@@ -363,7 +389,8 @@ void checkBLECommands()
 }
 
 // ─── CẢM BIẾN PIR (CHUYỂN ĐỘNG) ──────────────
-// Phát hiện người đến gần robot → báo động
+// Phát hiện người/vật cản đến gần robot → gửi WARN:person
+// Đang chạy (FOLLOW_LINE) → dừng ngay, chờ khách ACK (tối đa WARN_ACK_TIMEOUT_MS)
 
 void checkPIR()
 {
@@ -371,29 +398,61 @@ void checkPIR()
         return; // Không có chuyển động → thoát
 
     unsigned long now = millis();
-    // Chống báo động liên tục: chỉ báo lại sau COOLDOWN (3 giây)
-    if (now - lastPIRAlarm < PIR_ALARM_COOLDOWN_MS)
+    // Chống báo liên tục: chỉ gửi lại sau COOLDOWN (3 giây)
+    if (now - lastPIRWarn < PIR_ALARM_COOLDOWN_MS)
         return;
-    lastPIRAlarm = now;
+    lastPIRWarn = now;
+
+    // Đang chờ ACK thì không báo lại nữa (tránh app lặp cảnh báo)
+    if (state.getState() == RobotState::WAIT_ACK)
+        return;
 
     MiniR4.Buzzer.Tone(800, BUZZER_ALARM_MS); // Còi báo
-    ble.sendMessage("ALARM");                 // Gửi thông báo lên app
-    Serial.println("[PIR] Alarm");
+    ble.sendMessage("WARN:person");           // Báo app (thay ALARM cũ)
+    Serial.println("[PIR] WARN:person");
+
+    // Chỉ dừng chờ ACK khi robot đang chạy; ở AT_NODE/IDLE chỉ thông báo
+    if (state.getState() == RobotState::FOLLOW_LINE)
+    {
+        motors.stop();
+        state.setState(RobotState::WAIT_ACK);
+        warnAckDeadline = now + WARN_ACK_TIMEOUT_MS;
+        MiniR4.LED.setColor(1, 255, 128, 0); // LED vàng cam: đang chờ xác nhận
+        Serial.println("[STATE] PIR -> WAIT_ACK");
+    }
 }
 
 // ─── CÔNG TẮC VẬT LÝ ─────────────────────────
 // Nút bấm ở mặt sau robot (người khiếm thị hoặc khiếm ngôn dùng)
+// Nhấn giữ >= SOS_HOLD_MS (2s) → SOS (dừng + đèn đỏ + còi)
+// Nhấn ngắn → SWITCH_PRESS như cũ (mở trợ lý)
 
 void checkSwitch() {
-    static bool lastSwitchState = HIGH;        // Trạng thái công tắc lần trước
-    bool current = sensors.readSwitch();       // Đọc trạng thái hiện tại
+    static unsigned long pressStart = 0;
+    static bool pressed = false;
+    bool current = sensors.readSwitch(); // LOW = đang nhấn
 
-    // Phát hiện cạnh xuống: HIGH → LOW (nhấn công tắc)
-    if (lastSwitchState == HIGH && current == LOW) {
-        ble.sendMessage("SWITCH_PRESS");       // Báo cho app
-        Serial.println("[SWITCH] Pressed");
+    // Cạnh xuống: bắt đầu đo thời gian nhấn
+    if (current && !pressed) {
+        pressed = true;
+        pressStart = millis();
     }
-    lastSwitchState = current; // Lưu trạng thái cho lần sau
+
+    // Cạnh lên: quyết định theo độ dài nhấn
+    if (!current && pressed) {
+        pressed = false;
+        if (millis() - pressStart >= SOS_HOLD_MS) {
+            motors.stop();
+            state.setState(RobotState::IDLE);
+            MiniR4.LED.setColor(1, 255, 0, 0);
+            MiniR4.Buzzer.Tone(600, 1000);
+            ble.sendMessage("STATUS:sos");
+            Serial.println("[SWITCH] Long press >= 2s -> SOS");
+        } else {
+            ble.sendMessage("SWITCH_PRESS");
+            Serial.println("[SWITCH] Pressed");
+        }
+    }
 }
 
 // ─── CẢM BIẾN CỬ CHỈ (M-Vision Cam) ─────────
@@ -450,6 +509,24 @@ void handleFollowLine()
     else
     {
         redStableCount = 0;
+    }
+}
+
+// ─── XỬ LÝ WAIT_ACK ───────────────────────────
+// Robot dừng sau WARN:person, chờ khách bấm ACK trên app
+// Hết WARN_ACK_TIMEOUT_MS mà không có ACK → tự hiểu "đã rõ", chạy tiếp (log rõ)
+
+void handleWaitAck()
+{
+    motors.stop(); // Luôn đứng yên khi chờ xác nhận
+
+    if (millis() >= warnAckDeadline)
+    {
+        state.setState(RobotState::FOLLOW_LINE);
+        motors.setSpeed(BASE_SPEED);
+        MiniR4.LED.setColor(1, 0, 255, 0);
+        ble.sendMessage("STATUS:auto_resumed");
+        Serial.println("[STATE] ACK timeout -> auto resume");
     }
 }
 
