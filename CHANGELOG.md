@@ -28,3 +28,4 @@
 
 ### Docs
 - **CHANGELOG_BLE_FIX.md**: keep detailed write-up of the BLE discovery fix (root cause + before/after).
+- **PLAN-BLE-FIX.md**: new fix plan for the current BLE discovery timeout (robot connects but `UART service not found`) — 4 hypotheses (H1 blocking poll in old firmware / H2 discovery too early / H3 Android GATT cache / H4 monitor_speed mismatch), prioritized fixes per layer (firmware non-blocking poll + debug loop-time log, app 500ms settle delay + larger backoff + auto-retry, GATT cache runbook, `monitor_speed` 115200→9600), test matrix (10 connects, reconnect, reboot) and Definition of Done (≥9/10 success, discovery <3s).
