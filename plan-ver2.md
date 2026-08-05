@@ -65,7 +65,6 @@ Heritage Buddy là robot dẫn đường đồng hành cho khách tham quan bả
 | `START` / `STOP` / `NODE_DONE:<id>` / `NEXT_NODE` / `VOICE_NEXT` / `VOICE_STOP` | Điều khiển (đã có) |
 | **`ACK`** | Khách đã "Đã hiểu / Tiếp tục" sau WARN — MỚI |
 | **`SOS`** | Khách bấm SOS (app) — MỚI |
-| **`TEST_WARN:<type>` / `TEST_NODE`** | Lệnh test mode mô phỏng tín hiệu — MỚI |
 
 ### Nguồn tín hiệu WARN (khi làm thật)
 | `WARN:<type>` | Nguồn cảm biến | Ghi chú |
@@ -126,16 +125,7 @@ Heritage Buddy là robot dẫn đường đồng hành cho khách tham quan bả
 - [ ] Đo và ghi số liệu định lượng: độ chính xác nhận diện node (Color Sensor, số liệu "3 lần đọc ổn định"), thời gian phản ứng cảnh báo vật cản, thời gian phản hồi ACK, thời gian từ lúc bấm SOS đến khi hiển thị cảnh báo.
 - [ ] Cập nhật báo cáo: giữ nguyên phần kỹ thuật cũ (3.7) mô tả đúng mô hình đang chạy thật; thêm mục 3.8 (định hướng công nghệ, xem mục G); cập nhật phần "Hạn chế & hướng phát triển" (Phần 4/5) để nhất quán, không lặp lại thông tin.
 
-## 6. Test mode firmware (đã triển khai)
-
-Để chạy thử vòng tương tác (WARN → ACK → STATUS) **không cần robot di chuyển**, firmware đã có:
-
-- **Tự động mô phỏng** (`handleTestMode`, `TEST_MODE_ENABLED = 1`): cứ mỗi `TEST_WARN_INTERVAL_MS` gửi luân phiên `WARN:turn_l` → `WARN:turn_r` → `WARN:obstacle` → `NODE_START:<id>`.
-- **Lệnh thủ công từ app:** `TEST_WARN:<type>` gửi cảnh báo; `TEST_NODE` mô phỏng đến node.
-- **Robot nhận:** `ACK` → gửi `STATUS:resumed`; `SOS` → dừng + LED đỏ + còi + `STATUS:sos`.
-- ⚠️ Trước tour thật: đặt `TEST_MODE_ENABLED = 0` trong `heritech_robot/src/config.h`.
-
-## 7. Chỉ tiêu số & GATE
+## 6. Chỉ tiêu số & GATE
 
 | Chỉ tiêu | Target | GATE |
 |---|---|---|
@@ -143,33 +133,32 @@ Heritage Buddy là robot dẫn đường đồng hành cho khách tham quan bả
 | SOS → hiển thị trên app | <2s | GATE 1 |
 | SOS → Dashboard (nếu làm) | <5s | GATE 1 |
 | Độ chính xác nhận diện node (Color Sensor) | giữ số liệu V3 (3 lần đọc ổn định) | GATE 1 |
-| Vòng lặp WARN→ACK chạy với robot đứng yên (test mode) | không crash, log rõ | GATE 1 |
+| Robot tự hành: đến node đúng → gửi `NODE_START:<id>` | không crash, log rõ | GATE 1 |
 
-- **GATE 1 (đầu ~14/08):** B + C + D chạy được với robot đứng yên (test mode), đo số liệu đạt target.
+- **GATE 1 (đầu ~14/08):** B + C + D chạy được trên tuyến thật, đo số liệu đạt target.
 - **GATE 2 (18/08):** tour hoàn chỉnh trên sa bàn (line-follower) + SOS thật + số liệu báo cáo.
 - **Đóng băng tính năng:** trước 20/08 tối thiểu 3 ngày, chỉ test + sửa lỗi.
 
-## 8. Timeline (deadline 20/08) & đội hình
+## 7. Timeline (deadline 20/08) & đội hình
 
 | Khoảng | Việc |
 |---|---|
 | 05–07/08 | A (xác nhận tour cũ) + B (loa ngoài) + khởi động C (protocol WARN/ACK) |
 | 08–11/08 | C (UI ACK, banner WARN, timeout) + D (SOS) |
-| 12–13/08 | Test vòng tương tác test mode, đo số liệu → GATE 1 |
+| 12–13/08 | Test vòng tương tác trên tuyến thật, đo số liệu → GATE 1 |
 | 14–16/08 | E/F (nếu kịp) + viết báo cáo mục 3.8 (G) |
 | 17–18/08 | H (tour hoàn chỉnh + người bịt mắt) → GATE 2 |
 | 19–20/08 | Đóng băng tính năng, test + sửa lỗi, hoàn thiện báo cáo |
 
-- **2 người cứng nhất:** BLE protocol + firmware (C, D, test mode).
+- **2 người cứng nhất:** BLE protocol + firmware (C, D).
 - **1 người:** app (ACK UI, banner WARN, SOS button, loa ngoài).
 - **1 người:** (nếu làm) server endpoints + Dashboard + viết báo cáo + kiểm thử.
 
-## 9. Rủi ro & giảm thiểu
+## 8. Rủi ro & giảm thiểu
 
 | Rủi ro | Mức | Giảm thiểu |
 |---|---|---|
 | Quá tải 15 ngày | Cao | Làm B/C/D trước (lõi demo); E/F chỉ khi dư thời gian; đóng băng tính năng ≥3 ngày |
-| Test mode quên tắt → WARN giả trong tour thật | TB | Đặt `TEST_MODE_ENABLED = 0` là mục bắt buộc trong checklist trước tour (mục A) |
 | BLE mất kết nối giữa vòng ACK/SOS | TB | Giữ auto-reconnect đã có; app hiện rõ trạng thái offline |
 | SOS phụ thuộc mạng (Dashboard) | TB | Fallback: SOS hiển thị rõ trên app; Dashboard chỉ là nâng cấp |
 | SLR / ký hiệu tay kém chính xác | TB | Stretch; từ vựng nhỏ; fallback nút bấm |
@@ -181,7 +170,7 @@ Chi tiết runbook chuẩn bị + thử nghiệm AprilTag: **`PLAN-APRILTAG.md`*
 
 ## 11. Definition of Done (20/08)
 
-- GATE 1 đạt: vòng tương tác 2 chiều (ACK) + SOS hoạt động (test mode, robot đứng yên), đo được số liệu.
+- GATE 1 đạt: vòng tương tác 2 chiều (ACK) + SOS hoạt động trên tuyến thật, đo được số liệu.
 - GATE 2 đạt: tour hoàn chỉnh trên sa bàn (Line Tracer + Color Sensor) + SOS thật + báo cáo có số liệu.
 - `npx tsc --noEmit` + `npx expo lint` pass; không `any`, không `console.log` (riêng firmware: biên dịch sạch qua PlatformIO).
 - Mọi thay đổi có mục trong `CHANGELOG.md` + commit theo Conventional Commits + `git push`.

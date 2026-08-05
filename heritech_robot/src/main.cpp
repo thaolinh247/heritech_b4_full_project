@@ -25,18 +25,12 @@ void checkBLECommands(); // Xử lý lệnh nhận từ app qua BLE
 void checkPIR();         // Kiểm tra cảm biến chuyển động PIR
 void checkSwitch();      // Kiểm tra công tắc vật lý
 void checkGesture();     // Kiểm tra cảm biến cử chỉ
-void handleTestMode();   // Test mode: mô phỏng WARN/NODE_START khi robot đứng yên
-void sendWarn(const String& type); // Gửi cảnh báo WARN:<type> lên app
 void handleIdle();       // Xử lý trạng thái IDLE (dừng robot)
 void handleFollowLine(); // Xử lý trạng thái FOLLOW_LINE (đang chạy)
 void handleAtNode();     // Xử lý trạng thái AT_NODE (đã tới điểm dừng)
 void handleEnd();        // Xử lý trạng thái END (kết thúc tour)
 
 unsigned long beepUntil = 0; // Thời điểm tắt còi (cho phép còi kêu trong 2s)
-
-// ─── Test mode state ──────────────────────────
-static unsigned long lastTestSignal = 0; // Test mode: lần gửi tín hiệu mô phỏng gần nhất
-static int testCycle = 0;                // Test mode: bộ đếm chu kỳ tín hiệu mô phỏng
 
 // ─── Non-blocking sound state machine ────────
 // Tránh delay() blocking làm BLE.poll() không chạy → ATT discovery timeout
@@ -192,7 +186,6 @@ void loop()
 
     // ─── Nếu đã kết nối BLE ─────────────────
     checkBLECommands(); // Xử lý lệnh từ app
-    handleTestMode();   // Test mode: mô phỏng WARN/NODE_START khi robot đứng yên
     checkPIR();         // Đọc cảm biến chuyển động
     checkSwitch();      // Đọc công tắc vật lý
     checkGesture();     // Đọc cảm biến cử chỉ
@@ -367,21 +360,6 @@ void checkBLECommands()
         ble.sendMessage("STATUS:sos");
         Serial.println("[CMD] SOS -> STOP + STATUS:sos");
     }
-    // ── LỆNH: TEST_WARN:<type> ───────────────
-    // TEST MODE: mô phỏng robot gửi cảnh báo (turn_l / turn_r / obstacle)
-    else if (cmd.startsWith("TEST_WARN:"))
-    {
-        sendWarn(cmd.substring(10));
-    }
-    // ── LỆNH: TEST_NODE ──────────────────────
-    // TEST MODE: mô phỏng robot vừa đến node → app mở nội dung hiện vật
-    else if (cmd == "TEST_NODE")
-    {
-        nodes.setNode((nodes.getCurrentNode() + 1) % TOTAL_NODES);
-        ble.sendMessage("NODE_START:" + String(nodes.getCurrentNode()));
-        Serial.print("[TEST] NODE_START: ");
-        Serial.println(nodes.getCurrentNode());
-    }
 }
 
 // ─── CẢM BIẾN PIR (CHUYỂN ĐỘNG) ──────────────
@@ -434,44 +412,6 @@ void checkGesture()
     {
         ble.sendMessage("GESTURE:SWIPE_UP");
         Serial.println("[GESTURE] Swipe Up — app handles navigation");
-    }
-}
-
-// ─── GỬI CẢNH BÁO (WARN) ─────────────────────
-// Gửi WARN:<type> lên app. type: turn_l / turn_r / obstacle / node.
-// Dùng chung cho cảnh báo thật (sắp rẽ / vật cản) lẫn TEST MODE.
-
-void sendWarn(const String& type)
-{
-    ble.sendMessage("WARN:" + type);
-    Serial.print("[WARN] ");
-    Serial.println(type);
-}
-
-// ─── TEST MODE ───────────────────────────────
-// Robot ĐỨNG YÊN vẫn tự gửi tín hiệu mô phỏng (WARN luân phiên + NODE_START)
-// để app chạy thử đủ vòng lặp tương tác (WARN → ACK → STATUS) mà chưa cần
-// robot di chuyển. ⚠️ Đặt TEST_MODE_ENABLED = 0 trong config.h trước tour thật.
-
-void handleTestMode()
-{
-    if (!TEST_MODE_ENABLED) return;
-
-    unsigned long now = millis();
-    if (now - lastTestSignal < TEST_WARN_INTERVAL_MS) return;
-    lastTestSignal = now;
-
-    switch (testCycle++ % 4)
-    {
-        case 0: sendWarn("turn_l");   break;
-        case 1: sendWarn("turn_r");   break;
-        case 2: sendWarn("obstacle"); break;
-        default: // Mô phỏng robot đến node → app mở nội dung hiện vật
-            nodes.setNode((testCycle / 4) % TOTAL_NODES);
-            ble.sendMessage("NODE_START:" + String(nodes.getCurrentNode()));
-            Serial.print("[TEST] NODE_START: ");
-            Serial.println(nodes.getCurrentNode());
-            break;
     }
 }
 
