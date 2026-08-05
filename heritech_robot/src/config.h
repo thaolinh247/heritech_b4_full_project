@@ -33,4 +33,11 @@
 #define PIR_ALARM_COOLDOWN_MS  3000
 #define BUZZER_ALARM_MS        200
 
+// ─── TEST MODE ────────────────────────────────
+// Mô phỏng tín hiệu (WARN / NODE_START) khi robot ĐỨNG YÊN để chạy thử
+// vòng tương tác 2 chiều (WARN → ACK → STATUS) mà chưa cần robot di chuyển.
+// ⚠️ Đặt = 0 TRƯỚC KHI CHẠY TOUR THẬT, nếu không app sẽ nhận WARN giả.
+#define TEST_MODE_ENABLED       1
+#define TEST_WARN_INTERVAL_MS   5000   // Chu kỳ gửi tín hiệu mô phỏng (ms)
+
 #endif
