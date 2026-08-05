@@ -130,14 +130,27 @@ async function findUART(connectedDevice: any): Promise<boolean> {
       console.warn(`[BLE] Discover error (attempt ${attempt}/${MAX_ATTEMPTS}):`, e);
       if (attempt === MAX_ATTEMPTS) return false;
       // Tăng backoff để firmware kịp BLE.poll() nếu đang busy
-      await new Promise((r) => setTimeout(r, 1500));
+      await new Promise((r) => setTimeout(r, 2500));
     }
   }
 
-  const services = await connectedDevice.services();
+  let services;
+  try {
+    services = await connectedDevice.services();
+  } catch (e) {
+    console.warn("[BLE] Services fetch error:", e);
+    return false;
+  }
+
   for (const service of services) {
     if (service.uuid.toUpperCase().includes("6E400001")) {
-      const characteristics = await service.characteristics();
+      let characteristics;
+      try {
+        characteristics = await service.characteristics();
+      } catch (e) {
+        console.warn("[BLE] Characteristics fetch error:", e);
+        return false;
+      }
       for (const char of characteristics) {
         const uuid = char.uuid.toUpperCase();
         if (uuid.includes("6E400003")) {
@@ -275,6 +288,9 @@ let disconnectHandlerSetup = false;
 async function setupDevice(connectedDevice: any): Promise<boolean> {
   console.log("[BLE] Connected!");
 
+  // Settle delay: cho stack BLE bên robot ổn định link trước khi discover lần đầu
+  await new Promise((r) => setTimeout(r, 500));
+
   const ok = await findUART(connectedDevice);
   if (!ok) {
     console.warn("[BLE] UART service not found");
@@ -290,8 +306,12 @@ async function setupDevice(connectedDevice: any): Promise<boolean> {
   // để tránh resetConnection() chạy giữa lúc discovery timeout
   if (!disconnectHandlerSetup) {
     connectedDevice.onDisconnected((err: any) => {
-      console.log("[BLE] System disconnected", err?.message ?? "");
-      resetConnection();
+      // Chỉ reset khi device ngắt đúng là connection hiện tại — device cũ
+      // ngắt muộn (sau khi đã kết nối device mới) không được đè trạng thái mới
+      if (bleState.device === connectedDevice) {
+        console.log("[BLE] System disconnected", err?.message ?? "");
+        resetConnection();
+      }
     });
     disconnectHandlerSetup = true;
   }

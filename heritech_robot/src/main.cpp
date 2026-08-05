@@ -140,6 +140,7 @@ void setup()
 void loop()
 {
 
+    unsigned long loopStartMs = millis(); // Mốc đo thời gian vòng lặp (debug BLE)
     ble.update(); // Cập nhật trạng thái BLE (kết nối/ngắt)
     updateSound(); // Non-blocking sound sequence (ko delay, ko block BLE)
 
@@ -211,6 +212,21 @@ void loop()
     case RobotState::END: // Kết thúc tour
         handleEnd();
         break;
+    }
+
+    // ─── Debug BLE: đo thời gian vòng lặp khi connected (tạm thời) ──
+    // Nếu max > ~50ms thường xuyên → có chỗ blocking làm BLE.poll() treo
+    static unsigned long maxLoopTime = 0;
+    static unsigned long lastLoopLog = 0;
+    unsigned long loopTime = millis() - loopStartMs;
+    if (loopTime > maxLoopTime) maxLoopTime = loopTime;
+    if (millis() - lastLoopLog >= 3000)
+    {
+        Serial.print("[LOOP] max loop time: ");
+        Serial.print(maxLoopTime);
+        Serial.println(" ms");
+        maxLoopTime = 0;
+        lastLoopLog = millis();
     }
 
     delay(LOOP_DELAY_MS);

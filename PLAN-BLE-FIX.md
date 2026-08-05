@@ -49,23 +49,24 @@ Hai thao tác này mỗi cái < 2 phút, có thể giải quyết vấn đề ng
 
 ### Fix 4 (🔵 1 phút) — Sửa `monitor_speed` khớp firmware hiện tại
 **File:** `heritech_robot/platformio.ini`
-- [ ] Đổi `monitor_speed = 115200` → `9600` (khớp `Serial.begin(9600)` ở `main.cpp:122`). Đây vừa là fix debug vừa là công cụ cho Bước 0(a).
+- [x] Đổi `monitor_speed = 115200` → `9600` (khớp `Serial.begin(9600)` ở `main.cpp:122`). Đây vừa là fix debug vừa là công cụ cho Bước 0(a). *(done — commit BLE-fix 2026-08-05)*
 
 ### Fix 1 (🔴 Bắt buộc nếu H1) — Firmware: bảo đảm `BLE.poll()` chạy đều khi connected
 **Files:** `heritech_robot/src/main.cpp`, `heritech_robot/src/ble_handler.cpp`
-- [ ] Xác nhận robot đã nạp firmware mới nhất (bản có `updateSound()` non-blocking — commit `c2701de` trở đi). Nếu chưa → nạp lại bằng PlatformIO.
-- [ ] Soát nhánh loop **khi connected**: hiện OK — `delay(50)` trong `checkButton` chỉ chạy khi có cạnh nút (main.cpp:249); `handleEnd` chỉ có `delay(150)` khi vào END (main.cpp:566); `sendMessage` có `delay(10)/chunk` (ble_handler.cpp:73) nhưng chỉ khi gửi.
-- [ ] Thêm log debug tạm thời: in độ dài vòng lặp (`millis()`) mỗi ~3s khi connected, để bắt chỗ blocking (I2C gesture/laser, `Serial.print` chậm...).
-- [ ] Nếu phát hiện chỗ blocking → tách non-blocking (giống `updateSound()`).
+- [x] Xác nhận code firmware đã non-blocking (`updateSound()` — commit `c2701de` trở đi). *(done — xác minh bằng code)*
+- [ ] **THAO TÁC PHẦN CỨNG:** nạp lại firmware mới nhất bằng PlatformIO (`pio run -t upload`).
+- [x] Soát nhánh loop **khi connected**: không có `delay()` blocking ngoài `LOOP_DELAY_MS=20` (hiện OK: `delay(50)` trong `checkButton` chỉ chạy khi có cạnh nút — main.cpp:249; `handleEnd` chỉ có `delay(150)` khi vào END — main.cpp:566; `sendMessage` có `delay(10)/chunk` — ble_handler.cpp:73 nhưng chỉ khi gửi). *(done)*
+- [x] Thêm log debug tạm thời: in độ dài vòng lặp (`millis()`) mỗi ~3s khi connected (`[LOOP] max loop time:`), để bắt chỗ blocking (I2C gesture/laser, `Serial.print` chậm...). *(done — main.cpp)*
+- [ ] Kiểm trên Serial: `[LOOP] max loop time` luôn ≤ ~50ms; nếu có chỗ blocking → tách non-blocking (giống `updateSound()`).
 
 ### Fix 2 (🟠 Bắt buộc) — App: cứng hóa discovery + auto-retry
 **Files:** `heritage-buddy-app/src/lib/bluetooth.ts`, `heritage-buddy-app/src/hooks/use-robot-connection.ts`
-- [ ] Thêm delay ngắn **~500ms sau `connectToDevice()` trước lần discover đầu tiên** (`setupDevice`), cho stack bên robot ổn định link.
-- [ ] Tăng backoff giữa các lần retry: `1500ms → 2500ms`.
-- [ ] **Wrap try/catch quanh `services()` và `service.characteristics()`** (`bluetooth.ts:137-140`) — hiện timeout ở bước này bị rơi vào catch của `doConnect`, log nhầm thành "Connection error".
-- [ ] **Auto-retry khi discovery fail:** lên lịch lại toàn bộ flow tối đa 2 lần (cách ~3s) trước khi báo lỗi hẳn — đặt ở hook level (`use-robot-connection.ts`): sau khi `bleOnDisconnect` hoặc `connect()` thất bại → `setTimeout` gọi lại `connect()`, giới hạn đếm. Điều này cũng tạo **auto-reconnect khi robot tắt/bật** (hiện không có — `connect()` chỉ chạy 1 lần khi mount).
-- [ ] **Fix bug `onDisconnected` của device cũ:** callback đăng ký ở module level chỉ 1 lần (`disconnectHandlerSetup`, bluetooth.ts:291-297) nên device CŨ vẫn giữ callback → khi nó ngắt muộn, `resetConnection()` xóa trạng thái connection MỚI đang hoạt động. Sửa: trong callback, check `bleState.device === connectedDevice` trước khi `resetConnection()`.
-- [ ] Nếu H3 đúng và không chịu được việc khách phải "quên device" thủ công: **last-resort** — `manager.destroy()` + tạo lại `BleManager` (workaround GATT cache Android), cân nhắc vì phải xin lại permissions; chỉ làm khi các fix trên chưa đủ.
+- [x] Thêm delay ngắn **~500ms sau `connectToDevice()` trước lần discover đầu tiên** (`setupDevice`). *(done)*
+- [x] Tăng backoff giữa các lần retry: `1500ms → 2500ms`. *(done)*
+- [x] **Wrap try/catch quanh `services()` và `service.characteristics()`** — timeout ở bước này không còn bị log nhầm thành "Connection error". *(done)*
+- [x] **Auto-retry khi discovery fail + auto-reconnect:** hook level — sau `connect()` thất bại hoặc mất kết nối (trừ người dùng chủ động ngắt) → tự gọi lại `connect()` sau 3s, tối đa 2 lần. *(done — dùng `connectRef` + `useEffect` để tránh circular dep)*
+- [x] **Fix bug `onDisconnected` của device cũ:** callback chỉ reset khi `bleState.device === connectedDevice` — device cũ ngắt muộn không đè trạng thái connection mới. *(done)*
+- [ ] Nếu H3 đúng và không chịu được việc khách phải "quên device" thủ công: **last-resort** — `manager.destroy()` + tạo lại `BleManager`; chỉ làm khi các fix trên chưa đủ.
 
 ### Fix 3 (🟡 Điều kiện, nếu H3) — Android: xử lý GATT cache cũ
 - [ ] Ghi bước "quên HeritageBuddy + tắt/bật Bluetooth" vào **runbook nạp firmware** — mỗi lần nạp firmware mới cho robot, phone phải "quên" device trước.

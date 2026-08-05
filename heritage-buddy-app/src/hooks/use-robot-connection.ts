@@ -50,10 +50,35 @@ export function useRobotConnection() {
   const onSwitchPressRef = useRef<(() => void) | null>(null);
   const onVoiceStopRef = useRef<(() => void) | null>(null);
 
+  // ─── Auto-reconnect ───────────────────────
+  // Khi mất kết nối ngoài ý muốn (robot tắt/bật, sóng yếu...) → tự quét lại tối đa 2 lần.
+  // Người dùng chủ động ngắt (disconnect) thì KHÔNG tự kết nối lại.
+  const MAX_AUTO_RECONNECT_ATTEMPTS = 2;
+  const AUTO_RECONNECT_DELAY_MS = 3000;
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const manualDisconnectRef = useRef(false);
+  const connectRef = useRef<() => Promise<void>>(async () => {});
+
+  const scheduleReconnect = useCallback(() => {
+    if (reconnectAttemptsRef.current >= MAX_AUTO_RECONNECT_ATTEMPTS) {
+      console.log("[useRobotConnection] Max auto-reconnect attempts reached");
+      return;
+    }
+    reconnectAttemptsRef.current += 1;
+    console.log(
+      `[useRobotConnection] Auto-reconnect in ${AUTO_RECONNECT_DELAY_MS / 1000}s (attempt ${reconnectAttemptsRef.current}/${MAX_AUTO_RECONNECT_ATTEMPTS})`,
+    );
+    reconnectTimerRef.current = setTimeout(() => {
+      connectRef.current();
+    }, AUTO_RECONNECT_DELAY_MS);
+  }, []);
+
   // Connect to robot
   const connect = useCallback(async () => {
     if (bleIsConnected()) {
       console.log("[useRobotConnection] Already connected");
+      reconnectAttemptsRef.current = 0;
       return;
     }
 
@@ -61,6 +86,7 @@ export function useRobotConnection() {
     const success = await bleConnect();
 
     if (success) {
+      reconnectAttemptsRef.current = 0;
       setConnectionStatus("connected");
       setConnected(true);
       setCurrentDevice("HeritageBuddy");
@@ -68,11 +94,18 @@ export function useRobotConnection() {
       setConnectionStatus("disconnected");
       setConnected(false);
       setCurrentDevice(null);
+      scheduleReconnect();
     }
-  }, [setConnectionStatus, setConnected, setCurrentDevice]);
+  }, [setConnectionStatus, setConnected, setCurrentDevice, scheduleReconnect]);
+
+  // Sync latest connect into ref (refs must be updated in effects, not during render)
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   // Disconnect from robot
   const disconnect = useCallback(async () => {
+    manualDisconnectRef.current = true;
     await bleDisconnect();
     setConnectionStatus("disconnected");
     setConnected(false);
@@ -182,10 +215,17 @@ export function useRobotConnection() {
     const unsubDisconnect = bleOnDisconnect(() => {
       setConnectionStatus("disconnected");
       setConnected(false);
+      if (!manualDisconnectRef.current) {
+        scheduleReconnect();
+      }
+      manualDisconnectRef.current = false;
     });
 
     return () => {
       unsubDisconnect();
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+      }
       // Do NOT call bleDisconnect() here — would disconnect BLE for all screens
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
