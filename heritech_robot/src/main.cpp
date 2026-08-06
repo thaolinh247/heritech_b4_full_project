@@ -107,24 +107,15 @@ void updateSound()
 // ─── Khởi tạo (chạy 1 lần khi bật nguồn) ────
 void setup()
 {
-    /*Serial.begin(115200);             // Mở cổng Serial ở tốc độ 115200
-    while (!Serial);                  // Đợi Serial sẵn sàng
-
-    MiniR4.begin();                   // Khởi tạo bo mạch MATRIX Mini R4
-    MiniR4.LED.setColor(1, 0, 0, 255); // LED xanh dương (chờ kết nối)
-
-    ble.begin();                      // Bắt đầu quảng bá BLE
-    sensors.begin();                  // Khởi tạo các cảm biến
-    motors.begin();                   // Khởi tạo động cơ
-    state.setState(RobotState::IDLE); // Đặt trạng thái ban đầu: IDLE
-
-    Serial.println("[System] HeritageBuddy ready");*/
     Serial.begin(9600);
     MiniR4.begin();
     MiniR4.LED.setColor(1, 0, 0, 255); // LED xanh dương (chờ kết nối BLE)
-    ble.begin();
+    sensors.begin();                   // IMPORTANT: khởi tạo cảm biến (I2C, dò tia, màu, gesture)
+    ble.begin();                       // Bắt đầu quảng bá BLE
     MiniR4.PWR.setBattCell(2);
-    motors.begin();
+    motors.begin();                    // Khởi tạo động cơ
+    state.setState(RobotState::IDLE);  // Trạng thái ban đầu: IDLE
+    Serial.println("[System] HeritageBuddy ready");
 
     // Cấu hình motor M1 (trái) – M2 (phải)
     MiniR4.M1.setPPR_RPM(545, 200);
