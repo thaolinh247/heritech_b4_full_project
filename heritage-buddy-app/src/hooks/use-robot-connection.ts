@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useRef } from "react";
-import { Alert, Vibration } from "react-native";
-import { useRouter } from "expo-router";
+import { Vibration } from "react-native";
+import { useRouter, usePathname } from "expo-router";
 import { useRobotStore } from "@/store/robot";
 import { useMapProgressStore } from "@/store/map-progress";
 import { MUSEUM_NODES } from "@/data/museum-map";
@@ -16,6 +16,8 @@ import type { RobotToAppCommand } from "@/types/robot";
 
 // ─── Command Parsing ────────────────────────
 
+const SWITCH_PRESS_DEBOUNCE_MS = 500;
+
 function parseRobotMessage(msg: string): RobotToAppCommand | null {
   const trimmed = msg.trim();
 
@@ -27,7 +29,8 @@ function parseRobotMessage(msg: string): RobotToAppCommand | null {
   if (trimmed === "ALARM") return "ALARM";
   if (trimmed === "SWITCH_PRESS") return "SWITCH_PRESS";
   if (trimmed === "VOICE_STOP") return "VOICE_STOP";
-  if (trimmed === "GESTURE:SWIPE_UP") return "GESTURE:SWIPE_UP";
+  if (trimmed === "GESTURE:SWIPE_RIGHT") return "GESTURE:SWIPE_RIGHT";
+  if (trimmed === "GESTURE:SWIPE_LEFT") return "GESTURE:SWIPE_LEFT";
 
   return null;
 }
@@ -36,6 +39,7 @@ function parseRobotMessage(msg: string): RobotToAppCommand | null {
 
 export function useRobotConnection() {
   const router = useRouter();
+  const pathname = usePathname();
   const {
     connectionStatus,
     setConnectionStatus,
@@ -49,6 +53,7 @@ export function useRobotConnection() {
 
   const onSwitchPressRef = useRef<(() => void) | null>(null);
   const onVoiceStopRef = useRef<(() => void) | null>(null);
+  const lastSwitchPressRef = useRef(0);
 
   // ─── Auto-reconnect ───────────────────────
   // Khi mất kết nối ngoài ý muốn (robot tắt/bật, sóng yếu...) → tự quét lại tối đa 2 lần.
@@ -152,21 +157,28 @@ export function useRobotConnection() {
           break;
 
         case "ALARM":
-          console.log("[useRobotConnection] PIR alarm");
+          // Legacy PIR alarm — firmware hiện gửi WARN:person (overlay xử lý banner).
+          // Chỉ rung nhẹ, KHÔNG hiện hộp thoại — không bắt người dùng bấm gì.
+          console.log("[useRobotConnection] PIR alarm (legacy)");
           setPirDetected(true);
           Vibration.vibrate();
-          Alert.alert("Cảnh báo", "Phát hiện người đi qua!", [
-            { text: "OK" },
-          ]);
           setTimeout(() => setPirDetected(false), 2000);
           break;
 
-        case "SWITCH_PRESS":
+        case "SWITCH_PRESS": {
+          // Chống nhiễu phím (bounce) — chỉ xử lý 1 lần trong 500ms
+          const now = Date.now();
+          if (now - lastSwitchPressRef.current < SWITCH_PRESS_DEBOUNCE_MS) {
+            console.log("[useRobotConnection] Switch press debounced");
+            break;
+          }
+          lastSwitchPressRef.current = now;
           console.log("[useRobotConnection] Switch pressed");
           if (onSwitchPressRef.current) {
             onSwitchPressRef.current();
           }
           break;
+        }
 
         case "VOICE_STOP":
           console.log("[useRobotConnection] Voice stop received");
@@ -189,11 +201,26 @@ export function useRobotConnection() {
           }
 
           if (command.startsWith("NODE_START:")) {
-            const nodeId = command.split(":")[1];
-            setCurrentStop(parseInt(nodeId, 10) || 0);
+            const nodeParam = command.split(":")[1];
+            const nodeIndex = parseInt(nodeParam, 10);
+            setCurrentStop(nodeIndex || 0);
+
+            // Robot đã tới điểm dừng → tự động mở màn hình nội dung (narration)
+            // Trừ khi app đang đứng sẵn trên đúng node đó.
+            const arrivedNode =
+              MUSEUM_NODES[nodeIndex] ??
+              MUSEUM_NODES.find((n) => n.id === nodeParam);
+            if (arrivedNode && pathname !== `/node/${arrivedNode.id}`) {
+              router.replace(`/node/${arrivedNode.id}`);
+            }
           }
-          if (command === "GESTURE:SWIPE_UP") {
-            setGesture("swipe_up");
+          if (command === "GESTURE:SWIPE_RIGHT" || command === "GESTURE:SWIPE_LEFT") {
+            // Cử chỉ trái/phải = "đi tiếp" — chỉ có nghĩa khi đang xem nội dung node.
+            // Khi robot đang chạy (app ở bản đồ/chat) thì bỏ qua — tránh
+            // cử chỉ cũ bị màn hình node tiếp theo dùng nhầm.
+            if (pathname.startsWith("/node/")) {
+              setGesture(command === "GESTURE:SWIPE_RIGHT" ? "swipe_right" : "swipe_left");
+            }
           }
           break;
       }
@@ -202,7 +229,7 @@ export function useRobotConnection() {
     return () => {
       unsubscribe();
     };
-  }, [addRobotMessage, setPirDetected, setCurrentStop, setGesture, router]);
+  }, [addRobotMessage, setPirDetected, setCurrentStop, setGesture, router, pathname]);
 
   // Auto-connect on mount (only if BLE not already connected at module level)
   // IMPORTANT: cleanup does NOT call bleDisconnect — BLE lifecycle is managed

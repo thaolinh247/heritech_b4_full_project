@@ -34,6 +34,12 @@
 #define BUZZER_ALARM_MS        200
 
 #define WARN_ACK_TIMEOUT_MS    10000  // Chờ ACK sau WARN:person (ms) — quá hạn tự chạy tiếp
-#define SOS_HOLD_MS            2000   // Giữ switch >= 2s để kích hoạt SOS (tránh bấm nhầm)
+#define SOS_HOLD_MS            10000  // Giữ switch >= 10s để kích hoạt SOS (tránh nhầm với nhấn nhanh để hỏi câu hỏi)
+#define SWITCH_DEBOUNCE_MS     40     // Lọc nhiễu phím công tắc vật lý
+
+// Khoảng thời gian (ms) sau khi robot rời node mà PIR được "bỏ qua" để phát hiện người.
+// Tránh kịch bản: khách đứng trước robot vẫy tay điều khiển → PIR bắt chuyển động ngay sau
+// đó → robot vừa chạy đi đã dừng lại vì WARN:person, gesture tưởng như "không ăn".
+#define PIR_GRACE_AFTER_LEAVE_MS 4000
 
 #endif

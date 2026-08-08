@@ -189,6 +189,7 @@ export default function MuseumMapScreen() {
           backgroundColor: "#FDF3E7",
           borderTopWidth: 1,
           borderTopColor: "#E2D2C1",
+          paddingRight: 112,
         }}
       >
         {/* BLE Connection Status */}

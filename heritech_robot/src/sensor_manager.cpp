@@ -15,12 +15,57 @@ void SensorManager::begin() {
 
     _gestureSensor._ch = I2C_CH_GESTURE;
     _gestureSensor._pWire = &Wire1;
-    _gestureSensor.begin();
+    initGestureSensor();
 
     pinMode(PIN_PIR, INPUT);
     pinMode(PIN_SWITCH, INPUT_PULLUP);
 
     Serial.println("[Sensor] All sensors initialised");
+}
+
+bool SensorManager::tryGestureOnChannel(int ch) {
+    _gestureSensor._ch = ch;
+    _gestureSensor._pWire = &Wire1;
+    int result = _gestureSensor.begin();
+    if (result == 0) {
+        Serial.print("[Sensor] Gesture sensor OK on channel ");
+        Serial.println(ch);
+        _gestureOK = true;
+        return true;
+    }
+    Serial.print("[Sensor] Gesture sensor init failed on channel ");
+    Serial.print(ch);
+    Serial.print(" (code ");
+    Serial.print(result);
+    Serial.println(")");
+    return false;
+}
+
+bool SensorManager::initGestureSensor() {
+    _gestureOK = false;
+
+    // Thử kênh cấu hình trước; nếu thất bại, quét toàn bộ kênh MUX để tìm
+    // sensor (tránh lỗi "cắm nhầm cổng → sensor im lặng vĩnh viễn").
+    if (tryGestureOnChannel(I2C_CH_GESTURE)) return true;
+
+    for (int ch = 0; ch < 8; ch++) {
+        if (ch == I2C_CH_GESTURE) continue;
+        if (tryGestureOnChannel(ch)) return true;
+        delay(50);
+    }
+
+    Serial.println("[Sensor] Gesture sensor NOT found on any MUX channel");
+    return false;
+}
+
+bool SensorManager::isGestureReady() {
+    return _gestureOK;
+}
+
+bool SensorManager::reinitGesture() {
+    if (_gestureOK) return true;
+    Serial.println("[Sensor] Retrying gesture sensor init...");
+    return initGestureSensor();
 }
 
 float SensorManager::readLineError() {

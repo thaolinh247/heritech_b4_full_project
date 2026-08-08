@@ -72,7 +72,7 @@
 |---|---|---|---|---|
 | 4.1 | SOS từ nút app (giữ 2s) | Đang chạy → giữ nút đỏ SOS 2s | Nút đổi "Đang giữ…" → nhả tay KHÔNG kích hoạt nếu giữ <2s; giữ đủ 2s: robot dừng + LED đỏ + còi + `STATUS:sos`; app banner SOS + TTS "Đã kích hoạt SOS…" + rung | [ ] |
 | 4.2 | Nhả sớm không kích hoạt | Giữ nút SOS <2s rồi nhả | Không gửi `SOS`, không có gì xảy ra | [ ] |
-| 4.3 | SOS từ switch vật lý (long-press 2s) | Giữ Miniature Switch ≥2s | Như 4.1 (robot dừng + `STATUS:sos`); Serial `[SWITCH] Long press >= 2s -> SOS` | [ ] |
+| 4.3 | SOS từ switch vật lý (long-press 10s) | Giữ Miniature Switch ≥2s | Như 4.1 (robot dừng + `STATUS:sos`); Serial `[SWITCH] Long press >= 10s -> SOS` | [ ] |
 | 4.4 | Nhấn ngắn switch vẫn mở chat | Nhấn switch <2s ở màn hình node | App mở "Hỏi Buddy" (`SWITCH_PRESS`) — chức năng cũ giữ nguyên | [ ] |
 | 4.5 | "Tiếp tục hành trình" sau SOS | Đang banner SOS → bấm "Tiếp tục hành trình" | App gửi `RESUME`; robot chạy tiếp KHÔNG reset tour (node đang ở giữ nguyên); toast "Hành trình tiếp tục" | [ ] |
 | 4.6 | RESUME không reset tour | SOS giữa tour (vd đã xong node 3) → RESUME | Robot chạy tiếp; node tiếp theo là node 4 (KHÔNG quay về node 0 — kiểm tra trên Serial) | [ ] |
@@ -100,7 +100,7 @@
 | # | Test case | Các bước | Kết quả mong đợi | KQ |
 |---|---|---|---|---|
 | 6.1 | SWITCH_PRESS mở chat | Node screen → nhấn ngắn switch | Vào `/chat/:nodeId` | [ ] |
-| 6.2 | Gesture SWIPE_UP | Vẫy tay trước M-Vision Cam (hoặc gửi giả `GESTURE:SWIPE_UP`) | App xử lý navigation: complete node + `VOICE_NEXT`; robot chạy tiếp | [ ] |
+| 6.2 | Gesture trái/phải | Vẫy tay trái/phải trước M-Vision Cam (hoặc gửi giả `GESTURE:SWIPE_RIGHT`/`GESTURE:SWIPE_LEFT`) | App xử lý navigation: complete node + `VOICE_NEXT`; robot chạy tiếp | [ ] |
 | 6.3 | PIR khi đang AT_NODE | Ở node → vẫy tay PIR | App hiện banner WARN:person (không dừng vì robot đã đứng) — xem 3.5 | [ ] |
 | 6.4 | VOICE_NEXT / VOICE_STOP qua app chat | Dùng trợ lý giọng nói | "Đi tiếp" → robot chạy; "Dừng lại" → robot dừng | [ ] |
 | 6.5 | ALARM cũ không còn dùng | Quan sát Serial | Firmware KHÔNG còn gửi `ALARM`; chỉ gửi `WARN:person` | [ ] |

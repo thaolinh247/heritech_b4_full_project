@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter, usePathname } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { View, Text, Pressable } from "@/tw";
 import { useVideoPlayer, VideoView } from "expo-video";
@@ -58,6 +58,7 @@ export default function NodeVideoScreen() {
 
 function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[number]> }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { completeNode, getNodeStatus } = useMapProgress();
   const { sendCommand, isConnected, onSwitchPress } = useRobotConnection();
   useGestureNavigation(node.id);
@@ -77,12 +78,15 @@ function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[nu
   const isLastNode = node.order === 13;
   const isAlreadyCompleted = status === "completed";
 
-  // Switch → mở "Hỏi Buddy" + tự động bắt đầu ghi âm
+  // Switch lần 1 → mở "Hỏi Buddy" (phần câu hỏi), bấm lần nữa (trong chat) mới kích hoạt ghi âm.
+  // Guard bằng pathname: màn hình node vẫn mounted phía dưới chat (stack push), nên nếu không
+  // chặn, bấm switch ở chat sẽ khiến màn hình node mở thêm 1 màn chat trùng (gửi câu hỏi 2 lần).
   useEffect(() => {
     return onSwitchPress(() => {
-      router.replace(`/chat/${node.id}?autoMic=1`);
+      if (pathname !== `/node/${node.id}`) return;
+      router.push(`/chat/${node.id}`);
     });
-  }, [node.id, router, onSwitchPress]);
+  }, [node.id, router, onSwitchPress, pathname]);
 
   const handleComplete = useCallback(async () => {
     if (isAlreadyCompleted) {
@@ -98,17 +102,10 @@ function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[nu
     await completeNode(node.id);
 
     if (isLastNode) {
-      if (isConnected) {
-        await sendCommand("NEXT_NODE");
-      }
       router.replace("/celebration");
     } else {
-      const next = MUSEUM_NODES.find((n) => n.order === node.order + 1);
-      if (next) {
-        router.replace(`/node/${next.id}`);
-      } else {
-        router.back();
-      }
+      // Về bản đồ trước → robot di chuyển, app mở node khi nhận NODE_START
+      router.replace("/museum-map");
     }
   }, [node.id, isAlreadyCompleted, isLastNode, node.order, completeNode, router, sendCommand, isConnected]);
 
@@ -153,7 +150,7 @@ function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[nu
           </Text>
         </View>
 
-        <View className="px-5 pb-6">
+        <View className="px-5 pb-6" style={{ paddingRight: 112 }}>
           {/* Hỏi Buddy Button */}
           <Pressable
             onPress={() => router.push(`/chat/${node.id}`)}

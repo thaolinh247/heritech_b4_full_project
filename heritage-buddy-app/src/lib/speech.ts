@@ -37,6 +37,44 @@ export function startListening() {
   ExpoMod?.start(VIETNAMESE_CONFIG);
 }
 
+/**
+ * Bắt đầu nghe và chờ xác nhận engine thực sự chạy (sự kiện "start").
+ * Trả về true nếu khởi động được, false nếu: thiếu quyền mic, engine báo lỗi
+ * ngay sau start, hoặc hết thời gian timeoutMs. Dùng để xử lý lỗi "lúc được
+ * lúc không" của Google SpeechRecognizer trên Android (busy / network / audio).
+ */
+export async function startListeningWithWait(timeoutMs = 6000): Promise<boolean> {
+  if (!ExpoMod) return false;
+  const granted = await requestMicPermission();
+  if (!granted) return false;
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(overallTimer);
+      subStart.remove();
+      subError.remove();
+      resolve(ok);
+    };
+
+    const subStart = ExpoMod.addListener("start", () => {
+      // Engine báo đã sẵn sàng — nhưng đợi thêm một chút để chắc chắn
+      // không có lỗi ngay sau đó (ví dụ ERROR_AUDIO) mới coi là thành công.
+      setTimeout(() => finish(true), 800);
+    });
+    const subError = ExpoMod.addListener("error", () => finish(false));
+    const overallTimer = setTimeout(() => finish(false), timeoutMs);
+
+    try {
+      ExpoMod.start(VIETNAMESE_CONFIG);
+    } catch {
+      finish(false);
+    }
+  });
+}
+
 export function stopListening() {
   try {
     ExpoMod?.stop();

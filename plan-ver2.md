@@ -53,7 +53,7 @@ Kiến trúc thực thi là kiến trúc chính thức của dự án — không
 | Tín hiệu | Ý nghĩa |
 |---|---|
 | `NODE_START:<id>` / `NODE_COMPLETE:<id>` / `ALL_DONE` | Vòng tour (đã có) |
-| `ALARM` (PIR) · `SWITCH_PRESS` · `GESTURE:SWIPE_UP` | Cảm biến (đã có) |
+| `ALARM` (PIR) · `SWITCH_PRESS` · `GESTURE:SWIPE_RIGHT`/`GESTURE:SWIPE_LEFT` | Cảm biến (đã có) |
 | **`WARN:person`** | Có người/vật cản gần robot (PIR) — MỚI, thay `ALARM` |
 | **`WARN:turn_l` / `WARN:turn_r`** | Robot đang rẽ trái/phải tại ngã ba (Line Tracer `readJunctionType()`) — MỚI |
 | **`STATUS:<state>`** | Xác nhận trạng thái (`resumed` / `auto_resumed` / `sos` / `IDLE`…) — MỚI |

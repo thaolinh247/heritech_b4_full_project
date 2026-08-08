@@ -19,11 +19,17 @@ public:
     int readGesture();
     bool readPIR();
     bool readSwitch();
+    bool isGestureReady();
+    bool reinitGesture();
 
 private:
+    bool initGestureSensor();
+    bool tryGestureOnChannel(int ch);
+
     MatrixLineTracer _lineTracer;
     MatrixColorV3    _colorSensor;
     MatrixGesture    _gestureSensor;
+    bool             _gestureOK = false;
 };
 
 #endif

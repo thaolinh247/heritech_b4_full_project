@@ -2,19 +2,27 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { useRouter } from "expo-router";
 import { useVoiceAssistantStore } from "@/store/voice-assistant";
 import { useRobotConnection } from "@/hooks/use-robot-connection";
-import { useSpeechRecognition, stopListening } from "@/lib/speech";
-import { useVoiceRecorder } from "@/lib/voice-recorder";
+import { useSpeechRecognition, stopListening, startListeningWithWait } from "@/lib/speech";
+import { useVoiceRecorder, getRecordingMimeType } from "@/lib/voice-recorder";
+import { playRecordBeep } from "@/lib/sound";
 import { useTTS } from "@/lib/tts";
 import { askBuddy, askBuddyWithAudio, checkServerHealth } from "@/lib/llm";
 import { buildArtifactContext } from "@/lib/contextBuilder";
 import { useMapProgress } from "@/hooks/use-map-progress";
-import { MUSEUM_NODES } from "@/data/museum-map";
 import type { MapNode } from "@/types/museum-map";
 import type { ChatMessage } from "@/types/voice-assistant";
 
 export type ServerStatus = "checking" | "connected" | "error";
 
 const NAV_KEYWORDS = ["dừng", "dừng lại", "stop", "tiếp", "tiếp theo", "next", "continue", "sang node", "chuyển node"];
+
+// Chờ TTS/audio nhả nguồn rồi mới mở mic — tránh xung đột audio focus trên Android.
+const MIC_RESTART_DELAY_MS = 1000;
+// Chờ engine STT xác nhận khởi động được (busy/network thường thất bại nhanh).
+const STT_START_TIMEOUT_MS = 6000;
+const STT_RETRY_DELAY_MS = 1200;
+
+const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 function isNavCommand(text: string): boolean {
   const t = text.trim().toLowerCase();
@@ -24,10 +32,11 @@ function isNavCommand(text: string): boolean {
 export function useVoiceAssistant(node: MapNode | null) {
   const { state, messages, addMessage, markSpeakingDone, setState, setCurrentNode, clearChat } =
     useVoiceAssistantStore();
-  const { recognizing, transcript, isFinal, error: speechError, start: startSTT, stop: stopSTT, reset: resetSTT } =
+  const { recognizing, transcript, isFinal, error: speechError, stop: stopSTT, reset: resetSTT } =
     useSpeechRecognition();
   const inputLockRef = useRef(false);
   const finalTranscriptRef = useRef("");
+  const submitRef = useRef(false);
   const nodeRef = useRef(node);
   const [serverStatus, setServerStatus] = useState<ServerStatus>("checking");
   const router = useRouter();
@@ -61,17 +70,60 @@ export function useVoiceAssistant(node: MapNode | null) {
   } = useVoiceRecorder(() => handleAutoStopRef.current());
   const { play: playTTS, stop: stopTTS } = useTTS();
 
-  // Conversational mode: restart mic after bot finishes speaking
+  const beginVoiceInput = useCallback(async () => {
+    if (inputLockRef.current) return;
+    // Dọn phiên nghe còn sót (mic vẫn mở từ lần trước) trước khi mở lại
+    stopListening();
+    resetSTT();
+    finalTranscriptRef.current = "";
+    submitRef.current = false;
+    // Đợi audio focus ổn định rồi mới mở mic (tránh race với STT start).
+    // Beep "đang nghe" sẽ phát SAU khi STT xác nhận mở được — người dùng
+    // nghe thấy bíp thì mới bắt đầu nói (không nói vào mic chưa mở).
+    await delay(700);
+    if (canUseSpeech) {
+      const started = await startListeningWithWait(STT_START_TIMEOUT_MS);
+      if (started) {
+        playRecordBeep();
+        setState("listening");
+        return;
+      }
+      // Engine thất bại (busy/network...) → thử lại 1 lần sau khi nhả nguồn
+      await delay(STT_RETRY_DELAY_MS);
+      const retried = await startListeningWithWait(STT_START_TIMEOUT_MS);
+      if (retried) {
+        playRecordBeep();
+        setState("listening");
+        return;
+      }
+      // Fallback: ghi âm qua expo-audio + Gemini transcribe (đường AAC đã sửa)
+      const rec = await startRecording();
+      if (rec) {
+        playRecordBeep();
+        setState("recording");
+        return;
+      }
+      setState("error");
+    } else {
+      const ok = await startRecording();
+      if (ok) {
+        playRecordBeep();
+        setState("recording");
+      } else {
+        setState("error");
+      }
+    }
+  }, [canUseSpeech, resetSTT, startRecording, setState]);
+
+  // Conversational mode: restart mic after bot finishes speaking.
+  // Đợi một chút để engine TTS nhả audio focus, nếu không STT khởi động
+  // quá sớm sẽ không bắt được giọng (triệu chứng "mic tự mở ko nghe được").
   const startListeningAfterSpeaking = useCallback(async () => {
     if (inputLockRef.current) return;
-    if (canUseSpeech) {
-      const granted = await startSTT();
-      if (granted) setState("listening");
-    } else {
-      startRecording();
-      setState("recording");
-    }
-  }, [canUseSpeech, startSTT, startRecording, setState]);
+    await delay(MIC_RESTART_DELAY_MS);
+    if (inputLockRef.current) return;
+    await beginVoiceInput();
+  }, [beginVoiceInput]);
 
   useEffect(() => {
     startListeningAfterSpeakingRef.current = startListeningAfterSpeaking;
@@ -101,6 +153,18 @@ export function useVoiceAssistant(node: MapNode | null) {
     }
   }, [recorderState, setState]);
 
+  // Watchdog: nếu đang "listening" mà engine STT tự kết thúc (recognizing=false)
+  // mà chưa hề nhận được kết quả nào → engine chết im lặng → hiện lỗi để thử lại.
+  useEffect(() => {
+    if (state !== "listening") return;
+    if (recognizing) return;
+    if (submitRef.current) return;
+    const timer = setTimeout(() => {
+      setState("error");
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [state, recognizing, setState]);
+
   // Listen for VOICE_STOP from robot → auto-start mic
   useEffect(() => {
     onVoiceStop(() => {
@@ -116,13 +180,11 @@ export function useVoiceAssistant(node: MapNode | null) {
   const navigateToNextNode = useCallback(() => {
     const current = nodeRef.current;
     if (!current) return;
-    const next = MUSEUM_NODES.find((n) => n.order === current.order + 1);
     completeNode(current.id);
     stopListening();
     stopTTS();
-    if (next) {
-      router.replace(`/node/${next.id}`);
-    }
+    // Về bản đồ trước → robot di chuyển, app mở node khi nhận NODE_START
+    router.replace("/museum-map");
   }, [completeNode, router, stopTTS]);
 
   const handleUserMessage = useCallback(
@@ -130,6 +192,13 @@ export function useVoiceAssistant(node: MapNode | null) {
       if (!text.trim()) return;
       if (inputLockRef.current) return;
       inputLockRef.current = true;
+      submitRef.current = true;
+
+      // Đóng mic trước khi "suy nghĩ" + Buddy nói — nếu không STT vẫn chạy
+      // và thu cả giọng Buddy (gây transcript rác / lỗi busy lần mở sau).
+      stopListening();
+      resetSTT();
+      finalTranscriptRef.current = "";
 
       const userMsg: ChatMessage = {
         id: `user-${Date.now()}`,
@@ -192,13 +261,17 @@ export function useVoiceAssistant(node: MapNode | null) {
         inputLockRef.current = false;
       }
     },
-    [addMessage, markSpeakingDone, setState, playTTS, startListeningAfterSpeaking],
+    [addMessage, markSpeakingDone, setState, playTTS, startListeningAfterSpeaking, resetSTT],
   );
 
   const handleAudioMessage = useCallback(
     async (audioUri: string) => {
       if (inputLockRef.current) return;
       inputLockRef.current = true;
+      submitRef.current = true;
+      stopListening();
+      resetSTT();
+      finalTranscriptRef.current = "";
 
       const userMsgId = `user-${Date.now()}`;
 
@@ -221,7 +294,7 @@ export function useVoiceAssistant(node: MapNode | null) {
         const context = buildArtifactContext(nodeRef.current);
         const response = await askBuddyWithAudio({
           audioBase64: base64,
-          mimeType: "audio/m4a",
+          mimeType: getRecordingMimeType(),
           artifactContext: context,
         });
 
@@ -318,7 +391,7 @@ export function useVoiceAssistant(node: MapNode | null) {
         inputLockRef.current = false;
       }
     },
-    [addMessage, markSpeakingDone, setState, playTTS, readAudioBase64, startListeningAfterSpeaking, navigateToNextNode, sendCommand, isConnected],
+    [addMessage, markSpeakingDone, setState, playTTS, readAudioBase64, startListeningAfterSpeaking, navigateToNextNode, sendCommand, isConnected, resetSTT],
   );
 
   useEffect(() => {
@@ -333,8 +406,13 @@ export function useVoiceAssistant(node: MapNode | null) {
 
   // STT: final transcript → text message or navigation command
   useEffect(() => {
+    // Chỉ xử lý khi đang trong phiên nghe — bỏ qua kết quả cũ của phiên vừa đóng
+    if (state !== "listening") return;
     if (isFinal && transcript && transcript !== finalTranscriptRef.current) {
       finalTranscriptRef.current = transcript;
+      submitRef.current = true;
+      // Đóng mic khi đã có câu hỏi — không để STT chạy tiếp trong lúc xử lý
+      stopListening();
       if (isNavCommand(transcript)) {
         // Send VOICE_NEXT to robot via BLE
         if (isConnected) {
@@ -346,7 +424,7 @@ export function useVoiceAssistant(node: MapNode | null) {
       }
       resetSTT();
     }
-  }, [isFinal, transcript, resetSTT, handleUserMessage, navigateToNextNode, sendCommand, isConnected]);
+  }, [state, isFinal, transcript, resetSTT, handleUserMessage, navigateToNextNode, sendCommand, isConnected]);
 
   const toggleListening = useCallback(async () => {
     if (state === "listening") {
@@ -357,29 +435,25 @@ export function useVoiceAssistant(node: MapNode | null) {
       if (uri) {
         await handleAudioMessage(uri);
       }
+    } else if (state === "thinking") {
+      // Đang xử lý câu hỏi — bỏ qua bấm mic (tránh mở mic giữa chừng)
+      return;
     } else if (state === "speaking") {
       await stopTTS();
+      // Speech.stop() không gọi onDone → phải tự mở khóa, nếu không
+      // câu hỏi kế tiếp sẽ bị drop im lặng vì inputLockRef còn true.
+      inputLockRef.current = false;
       stopListening();
+      resetSTT();
       finalTranscriptRef.current = "";
-      if (canUseSpeech) {
-        const granted = await startSTT();
-        if (granted) setState("listening");
-      } else {
-        const ok = await startRecording();
-        if (ok) setState("recording");
-      }
+      await beginVoiceInput();
     } else {
       stopListening();
+      resetSTT();
       finalTranscriptRef.current = "";
-      if (canUseSpeech) {
-        const granted = await startSTT();
-        if (granted) setState("listening");
-      } else {
-        const ok = await startRecording();
-        if (ok) setState("recording");
-      }
+      await beginVoiceInput();
     }
-  }, [state, canUseSpeech, setState, startSTT, stopSTT, stopTTS, startRecording, stopRecording, handleAudioMessage]);
+  }, [state, beginVoiceInput, setState, stopSTT, stopTTS, stopRecording, handleAudioMessage, resetSTT]);
 
   const speaking =
     state === "listening"

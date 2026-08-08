@@ -1,5 +1,12 @@
 import { useCallback, useRef, useState, useEffect } from "react";
-import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync } from "expo-audio";
+import { Platform } from "react-native";
+import {
+  useAudioRecorder,
+  requestRecordingPermissionsAsync,
+  IOSOutputFormat,
+  AudioQuality,
+  type RecordingOptions,
+} from "expo-audio";
 import { File } from "expo-file-system";
 
 export type RecorderState = "idle" | "recording" | "processing" | "error";
@@ -9,8 +16,42 @@ const SILENCE_THRESHOLD_DB = -45;
 const SILENCE_TIMEOUT_MS = 3000;
 const METERING_POLL_MS = 400;
 
+// LOW_QUALITY preset ghi .3gp (AMR-NB) trên Android — định dạng mà Gemini không đọc được.
+// Dùng AAC ADTS + nguồn voice_recognition để bắt rõ giọng và tương thích `audio/aac`.
+const VOICE_RECORDING_OPTIONS: RecordingOptions = {
+  extension: Platform.OS === "ios" ? ".m4a" : ".aac",
+  sampleRate: 44100,
+  numberOfChannels: 1,
+  bitRate: 64000,
+  isMeteringEnabled: true,
+  android: {
+    extension: ".aac",
+    outputFormat: "aac_adts",
+    audioEncoder: "aac",
+    audioSource: "voice_recognition",
+    sampleRate: 44100,
+  },
+  ios: {
+    extension: ".m4a",
+    outputFormat: IOSOutputFormat.MPEG4AAC,
+    audioQuality: AudioQuality.HIGH,
+    sampleRate: 44100,
+  },
+  web: {
+    mimeType: "audio/webm",
+    bitsPerSecond: 64000,
+  },
+};
+
+// MIME type đúng với file ghi ra để gửi lên backend/Gemini.
+export function getRecordingMimeType(): string {
+  if (Platform.OS === "ios") return "audio/m4a";
+  if (Platform.OS === "web") return "audio/webm";
+  return "audio/aac";
+}
+
 export function useVoiceRecorder(onAutoStop?: () => void) {
-  const recorder = useAudioRecorder(RecordingPresets.LOW_QUALITY);
+  const recorder = useAudioRecorder(VOICE_RECORDING_OPTIONS);
   const [state, setState] = useState<RecorderState>("idle");
   const [error, setError] = useState<string | null>(null);
   const recordingRef = useRef(false);
@@ -62,17 +103,20 @@ export function useVoiceRecorder(onAutoStop?: () => void) {
         }
       }, MAX_RECORDING_MS);
 
+      let heardSpeech = false;
       let lastMeteringAboveThreshold = Date.now();
       meteringIntervalRef.current = setInterval(() => {
+        if (!recordingRef.current) return;
         const status = recorder.getStatus();
         const m = status.metering;
         if (typeof m === "number" && m > SILENCE_THRESHOLD_DB) {
+          heardSpeech = true;
           lastMeteringAboveThreshold = Date.now();
           if (silenceTimerRef.current) {
             clearTimeout(silenceTimerRef.current);
             silenceTimerRef.current = null;
           }
-        } else if (Date.now() - lastMeteringAboveThreshold > SILENCE_TIMEOUT_MS) {
+        } else if (heardSpeech && Date.now() - lastMeteringAboveThreshold > SILENCE_TIMEOUT_MS) {
           if (recordingRef.current) {
             onAutoStop?.();
           }

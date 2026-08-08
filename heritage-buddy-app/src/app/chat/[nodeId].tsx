@@ -14,7 +14,7 @@ import { TextInput, Pressable } from "react-native";
 import { useRobotConnection } from "@/hooks/use-robot-connection";
 
 export default function ChatScreen() {
-  const { nodeId, autoMic } = useLocalSearchParams<{ nodeId: string; autoMic?: string }>();
+  const { nodeId } = useLocalSearchParams<{ nodeId: string }>();
   const router = useRouter();
   const node = MUSEUM_NODES.find((n) => n.id === nodeId) ?? null;
   const { state, messages, transcript, serverStatus, toggleListening, sendMessage } = useVoiceAssistant(node);
@@ -28,15 +28,7 @@ export default function ChatScreen() {
     }, 100);
   }, [messages, state]);
 
-  // Auto-start mic on mount if triggered by switch
-  useEffect(() => {
-    if (autoMic === "1") {
-      const timer = setTimeout(() => toggleListening(), 500);
-      return () => clearTimeout(timer);
-    }
-  }, [autoMic, toggleListening]);
-
-  // Switch → ask Buddy (toggle mic / send)
+  // Switch lần 2 → kích hoạt ghi âm / gửi câu hỏi
   useEffect(() => {
     return onSwitchPress(() => {
       toggleListening();

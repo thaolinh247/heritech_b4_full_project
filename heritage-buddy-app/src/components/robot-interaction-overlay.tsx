@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Vibration } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { usePathname } from "expo-router";
 import { Pressable, Text, View } from "@/tw";
 import { Image } from "expo-image";
 import { images } from "@/constants/images";
@@ -20,7 +21,7 @@ const SOS_HOLD_MS = 2000;             // Giữ ≥2s để kích hoạt SOS
 
 const WARN_TEXT: Record<WarnType, string> = {
   person:
-    "Có người hoặc vật cản phía trước. Robot đã dừng lại. Nếu bạn đã rõ, bấm nút Đã hiểu để tiếp tục. Bấm nút Dừng lại nếu muốn dừng hẳn.",
+    "Có người hoặc vật cản phía trước. Robot đã dừng lại. Robot sẽ tự động tiếp tục khi đường thoáng.",
   turn_l: "Robot đang rẽ trái.",
   turn_r: "Robot đang rẽ phải.",
 };
@@ -29,6 +30,7 @@ const WARN_TEXT: Record<WarnType, string> = {
 
 export function RobotInteractionOverlay() {
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
 
   const activeWarn = useRobotStore((s) => s.activeWarn);
   const robotStatus = useRobotStore((s) => s.robotStatus);
@@ -142,19 +144,6 @@ export function RobotInteractionOverlay() {
 
   // ─── Hành động người dùng ──────────────────
 
-  async function acknowledge() {
-    await stopSpeaking();
-    clearWarn();
-    await sendCommand("ACK");
-    speak({ text: "Đã hiểu. Robot tiếp tục." });
-  }
-
-  async function stopNow() {
-    await stopSpeaking();
-    clearWarn();
-    await sendCommand("STOP");
-  }
-
   function startSosHold() {
     setIsHoldingSos(true);
     sosHoldTimer.current = setTimeout(() => {
@@ -184,6 +173,16 @@ export function RobotInteractionOverlay() {
   const showPersonBanner = activeWarn === "person" && !sosActive;
   const showTurnToast =
     (activeWarn === "turn_l" || activeWarn === "turn_r") && !sosActive;
+
+  // Ẩn nút SOS nổi trên màn hình onboarding (chưa có robot) và màn hình chat
+  // (tránh đè lên ô nhập câu hỏi / nút mic — SOS và Hỏi Buddy không lẫn nhau).
+  const showSosFab =
+    !sosActive &&
+    !showPersonBanner &&
+    pathname !== "/" &&
+    pathname !== "/selection" &&
+    !pathname.startsWith("/chat/");
+
   const statusToastText =
     robotStatus === "resumed" || robotStatus === "auto_resumed"
       ? robotStatus === "resumed"
@@ -287,48 +286,11 @@ export function RobotInteractionOverlay() {
                   className="text-lg leading-relaxed"
                   style={{ fontFamily: "Helvetica-Regular", color: "#5C3A21" }}
                 >
-                  Có người hoặc vật cản phía trước.
+                  Có người hoặc vật cản phía trước. Robot đã dừng lại và sẽ tự
+                  động tiếp tục.
                 </Text>
               </View>
             </View>
-
-            <Pressable
-              onPress={acknowledge}
-              className="w-full py-4 rounded-2xl items-center"
-              style={{
-                backgroundColor: "#2E8B7E",
-                minHeight: 64,
-                justifyContent: "center",
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Đã hiểu, tiếp tục"
-            >
-              <Text
-                className="text-white text-2xl text-center"
-                style={{ fontFamily: "Helvetica-Bold" }}
-              >
-                Đã hiểu / Tiếp tục
-              </Text>
-            </Pressable>
-
-            <Pressable
-              onPress={stopNow}
-              className="w-full py-4 mt-3 rounded-2xl items-center"
-              style={{
-                backgroundColor: "#EDE3D7",
-                minHeight: 56,
-                justifyContent: "center",
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Dừng lại"
-            >
-              <Text
-                className="text-lg text-center"
-                style={{ fontFamily: "Helvetica-Bold", color: "#5C3A21" }}
-              >
-                Dừng lại
-              </Text>
-            </Pressable>
           </View>
         </View>
       )}
@@ -400,7 +362,7 @@ export function RobotInteractionOverlay() {
       )}
 
       {/* ── Nút SOS cố định (giữ ≥2s) ── */}
-      {!sosActive && !showPersonBanner && (
+      {showSosFab && (
         <Pressable
           onPressIn={startSosHold}
           onPressOut={cancelSosHold}

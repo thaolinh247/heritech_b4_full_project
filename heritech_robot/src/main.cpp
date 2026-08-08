@@ -17,6 +17,7 @@ NodeManager nodes;     // Quản lý node - theo dõi điểm dừng hiện tạ
 
 unsigned long lastPIRWarn = 0;        // Lần cuối gửi WARN:person (chống gửi liên tục)
 unsigned long warnAckDeadline = 0;    // Hạn chót chờ ACK sau WARN:person (state WAIT_ACK)
+unsigned long pirGraceUntil = 0;      // Đến thời điểm này PIR bị bỏ qua (sau khi robot rời node)
 int redStableCount = 0;         // Đếm số lần đọc được màu đỏ liên tiếp (xác nhận tới node)
 bool nodeNotified = false;      // Đã gửi NODE_START cho app chưa? (tránh gửi trùng)
 
@@ -313,6 +314,7 @@ void checkBLECommands()
             ble.sendMessage("NODE_COMPLETE:" + String(nodeId));
             motors.setSpeed(BASE_SPEED);
             state.setState(RobotState::FOLLOW_LINE); // Tiếp tục chạy đến node kế
+            pirGraceUntil = millis() + PIR_GRACE_AFTER_LEAVE_MS; // Bỏ qua PIR trong lúc rời node
             Serial.println("[CMD] NODE_DONE -> FOLLOW_LINE");
         }
     }
@@ -323,6 +325,7 @@ void checkBLECommands()
         nodes.nextNode();
         motors.setSpeed(BASE_SPEED);
         state.setState(RobotState::FOLLOW_LINE);
+        pirGraceUntil = millis() + PIR_GRACE_AFTER_LEAVE_MS; // Bỏ qua PIR trong lúc rời node
         Serial.println("[CMD] NEXT_NODE -> FOLLOW_LINE");
     }
     // ── LỆNH: VOICE_NEXT ────────────────────
@@ -332,6 +335,7 @@ void checkBLECommands()
         if (state.getState() == RobotState::AT_NODE)
         {
             nodes.completeCurrentNode();
+            int completedNode = nodes.getCurrentNode(); // Lưu node vừa hoàn thành TRƯỚC khi nextNode()
             if (nodes.isLastNode() || nodes.allNodesCompleted())
             {
                 state.setState(RobotState::END);
@@ -342,7 +346,10 @@ void checkBLECommands()
                 nodes.nextNode();
                 motors.setSpeed(BASE_SPEED);
                 state.setState(RobotState::FOLLOW_LINE);
-                ble.sendMessage("NODE_COMPLETE:" + String(nodes.getCurrentNode()));
+                pirGraceUntil = millis() + PIR_GRACE_AFTER_LEAVE_MS; // Bỏ qua PIR trong lúc rời node
+                // Gửi index node VỪA HOÀN THÀNH (không phải node kế tiếp) để app
+                // cập nhật đúng trạng thái trên bản đồ — tránh node đích bị đánh dấu ✓
+                ble.sendMessage("NODE_COMPLETE:" + String(completedNode));
             }
         }
         Serial.println("[CMD] VOICE_NEXT");
@@ -354,20 +361,6 @@ void checkBLECommands()
         motors.stop();
         state.setState(RobotState::IDLE);
         Serial.println("[CMD] VOICE_STOP -> IDLE");
-    }
-    // ── LỆNH: ACK ────────────────────────────
-    // Khách đã bấm "Đã hiểu / Tiếp tục" sau cảnh báo WARN → robot tiếp tục chạy
-    else if (cmd == "ACK")
-    {
-        if (state.getState() == RobotState::WAIT_ACK)
-        {
-            state.setState(RobotState::FOLLOW_LINE);
-            motors.setSpeed(BASE_SPEED);
-            MiniR4.LED.setColor(1, 0, 255, 0);
-            Serial.println("[CMD] ACK -> resume FOLLOW_LINE");
-        }
-        ble.sendMessage("STATUS:resumed");
-        Serial.println("[CMD] ACK -> STATUS:resumed");
     }
     // ── LỆNH: RESUME ─────────────────────────
     // Tiếp tục chạy sau SOS mà KHÔNG reset tour (khác START — có reset nodes)
@@ -404,6 +397,10 @@ void checkPIR()
     if (!sensors.readPIR())
         return; // Không có chuyển động → thoát
 
+    // Bỏ qua phát hiện người trong cửa sổ "grace" sau khi rời node (xem PIR_GRACE_AFTER_LEAVE_MS)
+    if (millis() < pirGraceUntil)
+        return;
+
     unsigned long now = millis();
     // Chống báo liên tục: chỉ gửi lại sau COOLDOWN (3 giây)
     if (now - lastPIRWarn < PIR_ALARM_COOLDOWN_MS)
@@ -431,53 +428,109 @@ void checkPIR()
 
 // ─── CÔNG TẮC VẬT LÝ ─────────────────────────
 // Nút bấm ở mặt sau robot (người khiếm thị hoặc khiếm ngôn dùng)
-// Nhấn giữ >= SOS_HOLD_MS (2s) → SOS (dừng + đèn đỏ + còi)
+// Nhấn giữ >= SOS_HOLD_MS (10s) → SOS (dừng + đèn đỏ + còi)
 // Nhấn ngắn → SWITCH_PRESS như cũ (mở trợ lý)
 
 void checkSwitch() {
+    static bool lastState = sensors.readSwitch();   // true = đang nhấn (LOW active)
+    static unsigned long lastStableMs = millis();   // Mốc thời gian trạng thái ổn định
     static unsigned long pressStart = 0;
     static bool pressed = false;
-    bool current = sensors.readSwitch(); // LOW = đang nhấn
 
-    // Cạnh xuống: bắt đầu đo thời gian nhấn
-    if (current && !pressed) {
-        pressed = true;
-        pressStart = millis();
-    }
+    bool raw = sensors.readSwitch(); // true = đang nhấn
 
-    // Cạnh lên: quyết định theo độ dài nhấn
-    if (!current && pressed) {
-        pressed = false;
-        if (millis() - pressStart >= SOS_HOLD_MS) {
-            motors.stop();
-            state.setState(RobotState::IDLE);
-            MiniR4.LED.setColor(1, 255, 0, 0);
-            MiniR4.Buzzer.Tone(600, 1000);
-            ble.sendMessage("STATUS:sos");
-            Serial.println("[SWITCH] Long press >= 2s -> SOS");
-        } else {
-            ble.sendMessage("SWITCH_PRESS");
-            Serial.println("[SWITCH] Pressed");
+    // Debounce: chỉ chấp nhận đổi trạng thái khi ổn định trong SWITCH_DEBOUNCE_MS
+    // để nhiễu phím không tạo thêm cạnh giả (gây bấm SOS nhầm hoặc mất SWITCH_PRESS).
+    if (raw != lastState) {
+        if (millis() - lastStableMs >= SWITCH_DEBOUNCE_MS) {
+            lastState = raw;
+            lastStableMs = millis();
+
+            // Cạnh xuống: bắt đầu đo thời gian nhấn
+            if (lastState) {
+                pressed = true;
+                pressStart = millis();
+            }
+            // Cạnh lên: quyết định theo độ dài nhấn
+            else if (pressed) {
+                pressed = false;
+                if (millis() - pressStart >= SOS_HOLD_MS) {
+                    motors.stop();
+                    state.setState(RobotState::IDLE);
+                    MiniR4.LED.setColor(1, 255, 0, 0);
+                    MiniR4.Buzzer.Tone(600, 1000);
+                    ble.sendMessage("STATUS:sos");
+                    Serial.println("[SWITCH] Long press >= 10s -> SOS");
+                } else {
+                    ble.sendMessage("SWITCH_PRESS");
+                    Serial.println("[SWITCH] Pressed");
+                }
+            }
         }
+    } else {
+        lastStableMs = millis();
     }
 }
 
 // ─── CẢM BIẾN CỬ CHỈ (M-Vision Cam) ─────────
-// Nhận diện cử chỉ tay: vuốt lên = đi tiếp
+// Nhận diện cử chỉ tay: vuốt trái / vuốt phải = đi tiếp
+// Chỉ gửi khi robot ĐANG Ở NODE (AT_NODE) — cử chỉ "đi tiếp" chỉ có nghĩa
+// ở điểm dừng; gửi khi đang chạy sẽ tạo gesture cũ mà app màn hình node
+// tiếp theo dùng nhầm (app tự bỏ qua khi không ở /node/, nhưng chặn ở
+// firmware sạch hơn và tránh spam BLE).
 
 void checkGesture()
 {
+    // Sensor chưa init thành công (cắm muộn / nguồn chưa ổn định) → thử lại
+    // định kỳ thay vì bỏ mặc. Điều chỉnh tần suất để không block loop bằng
+    // I2C timeout khi sensor chưa được cắm.
+    static unsigned long lastGestureReinit = 0;
+    static unsigned long lastGestureInitLog = 0;
+    const unsigned long GESTURE_REINIT_INTERVAL_MS = 2000;
+    if (!sensors.isGestureReady())
+    {
+        unsigned long now = millis();
+        if (now - lastGestureReinit >= GESTURE_REINIT_INTERVAL_MS)
+        {
+            lastGestureReinit = now;
+            if (sensors.reinitGesture())
+            {
+                Serial.println("[GESTURE] sensor recovered");
+            }
+            else if (now - lastGestureInitLog >= 5000)
+            {
+                lastGestureInitLog = now;
+                Serial.println("[GESTURE] sensor not ready - check wiring");
+            }
+        }
+        return;
+    }
+
     int gesture = sensors.readGesture(); // Đọc cử chỉ (0 = không có)
     if (gesture == 0)
         return;
 
-    // Mã 0x04 = Swipe Up (vuốt lên) → báo app xử lý navigation
-    // App sẽ nhận GESTURE:SWIPE_UP, tự complete node local,
-    // gửi VOICE_NEXT cho robot để robot chuyển state + di chuyển
-    if (gesture == 0x04)
+    // Log mọi cử chỉ không phải 0 để dễ debug (kể cả Up/Down không dùng)
+    Serial.print("[GESTURE] raw=");
+    Serial.println(gesture);
+
+    if (state.getState() != RobotState::AT_NODE)
     {
-        ble.sendMessage("GESTURE:SWIPE_UP");
-        Serial.println("[GESTURE] Swipe Up — app handles navigation");
+        Serial.println("[GESTURE] ignored - robot not at node");
+        return;
+    }
+
+    // MatrixGesture::getGesture() trả về: 1 = Right, 2 = Left
+    // (eGestureRight = 0x01, eGestureLeft = 0x02 trong thư viện)
+    if (gesture == MatrixGesture::eGestureRight)
+    {
+        ble.sendMessage("GESTURE:SWIPE_RIGHT");
+        Serial.println("[GESTURE] Swipe Right — app handles navigation");
+    }
+    else if (gesture == MatrixGesture::eGestureLeft)
+    {
+        ble.sendMessage("GESTURE:SWIPE_LEFT");
+        Serial.println("[GESTURE] Swipe Left — app handles navigation");
     }
 }
 
@@ -533,6 +586,9 @@ void handleWaitAck()
         motors.setSpeed(BASE_SPEED);
         MiniR4.LED.setColor(1, 0, 255, 0);
         ble.sendMessage("STATUS:auto_resumed");
+        // Bỏ qua PIR một lát để robot kịp rời khỏi người đang đứng gần
+        // (nếu không, PIR còn cao sẽ khiến robot dừng lại ngay lập tức)
+        pirGraceUntil = millis() + PIR_GRACE_AFTER_LEAVE_MS;
         Serial.println("[STATE] ACK timeout -> auto resume");
     }
 }

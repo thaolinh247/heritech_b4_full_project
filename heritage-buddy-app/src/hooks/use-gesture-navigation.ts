@@ -22,8 +22,6 @@ export function useGestureNavigation(currentNodeId: string | null) {
     const current = MUSEUM_NODES.find((n) => n.id === currentNodeId);
     if (!current) return;
 
-    const next = MUSEUM_NODES.find((n) => n.order === current.order + 1);
-
     completeNode(current.id);
 
     stopListening();
@@ -33,8 +31,7 @@ export function useGestureNavigation(currentNodeId: string | null) {
       bleSend("VOICE_NEXT");
     }
 
-    if (next) {
-      router.replace(`/node/${next.id}`);
-    }
+    // Về bản đồ trước → robot di chuyển, app mở node khi nhận NODE_START
+    router.replace("/museum-map");
   }, [lastGesture, currentNodeId, completeNode, setGesture, router]);
 }

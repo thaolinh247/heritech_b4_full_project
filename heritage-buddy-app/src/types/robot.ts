@@ -8,7 +8,8 @@ export type RobotToAppCommand =
   | "ALARM"
   | "SWITCH_PRESS"
   | "VOICE_STOP"
-  | "GESTURE:SWIPE_UP"
+  | "GESTURE:SWIPE_RIGHT"
+  | "GESTURE:SWIPE_LEFT"
   | "WARN:<type>"
   | "STATUS:<state>";
 
@@ -48,8 +49,6 @@ export type BLEConnectionStatus =
 export type GestureType =
   | "swipe_right"
   | "swipe_left"
-  | "swipe_up"
-  | "swipe_down"
   | null;
 
 // ─── Robot Telemetry ─────────────────────────
