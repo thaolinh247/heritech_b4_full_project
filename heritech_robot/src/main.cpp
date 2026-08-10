@@ -16,8 +16,9 @@ StateMachine state;    // Máy trạng thái - xác định robot đang ở bư�
 NodeManager nodes;     // Quản lý node - theo dõi điểm dừng hiện tại
 
 unsigned long lastPIRWarn = 0;        // Lần cuối gửi WARN:person (chống gửi liên tục)
-unsigned long warnAckDeadline = 0;    // Hạn chót chờ ACK sau WARN:person (state WAIT_ACK)
+unsigned long warnClearDeadline = 0; // Hạn chót chờ đường thoáng sau WARN:person (state WAIT_CLEAR)
 unsigned long pirGraceUntil = 0;      // Đến thời điểm này PIR bị bỏ qua (sau khi robot rời node)
+unsigned long pirClearSince = 0;      // Thời điểm PIR bắt đầu im lặng liên tục (xác nhận đường thoáng)
 int redStableCount = 0;         // Đếm số lần đọc được màu đỏ liên tiếp (xác nhận tới node)
 bool nodeNotified = false;      // Đã gửi NODE_START cho app chưa? (tránh gửi trùng)
 
@@ -29,7 +30,8 @@ void checkSwitch();      // Kiểm tra công tắc vật lý
 void checkGesture();     // Kiểm tra cảm biến cử chỉ
 void handleIdle();       // Xử lý trạng thái IDLE (dừng robot)
 void handleFollowLine(); // Xử lý trạng thái FOLLOW_LINE (đang chạy)
-void handleWaitAck();    // Xử lý trạng thái WAIT_ACK (đang chờ khách xác nhận)
+void handleWaitClear();   // Xử lý trạng thái WAIT_CLEAR (đang chờ đường thoáng)
+void resumeAfterWarn();  // Tự động đi tiếp sau WARN:person (đường thoáng hoặc quá hạn)
 void handleAtNode();     // Xử lý trạng thái AT_NODE (đã tới điểm dừng)
 void handleEnd();        // Xử lý trạng thái END (kết thúc tour)
 
@@ -195,8 +197,8 @@ void loop()
     case RobotState::FOLLOW_LINE: // Robot đang chạy giữa các node
         handleFollowLine();
         break;
-    case RobotState::WAIT_ACK: // Robot dừng chờ khách xác nhận cảnh báo
-        handleWaitAck();
+    case RobotState::WAIT_CLEAR: // Robot dừng chờ đường thoáng sau WARN:person
+        handleWaitClear();
         break;
     case RobotState::AT_NODE: // Robot đã tới điểm dừng
         handleAtNode();
@@ -390,7 +392,8 @@ void checkBLECommands()
 
 // ─── CẢM BIẾN PIR (CHUYỂN ĐỘNG) ──────────────
 // Phát hiện người/vật cản đến gần robot → gửi WARN:person
-// Đang chạy (FOLLOW_LINE) → dừng ngay, chờ khách ACK (tối đa WARN_ACK_TIMEOUT_MS)
+// Đang chạy (FOLLOW_LINE) → dừng ngay, chờ đường thoáng rồi tự đi tiếp
+// (khách khiếm thị không tự biết người cản đã đi chưa — robot tự quyết định)
 
 void checkPIR()
 {
@@ -407,22 +410,23 @@ void checkPIR()
         return;
     lastPIRWarn = now;
 
-    // Đang chờ ACK thì không báo lại nữa (tránh app lặp cảnh báo)
-    if (state.getState() == RobotState::WAIT_ACK)
+    // Đang chờ đường thoáng thì không báo lại nữa (tránh app lặp cảnh báo)
+    if (state.getState() == RobotState::WAIT_CLEAR)
         return;
 
     MiniR4.Buzzer.Tone(800, BUZZER_ALARM_MS); // Còi báo
     ble.sendMessage("WARN:person");           // Báo app (thay ALARM cũ)
     Serial.println("[PIR] WARN:person");
 
-    // Chỉ dừng chờ ACK khi robot đang chạy; ở AT_NODE/IDLE chỉ thông báo
+    // Chỉ dừng chờ đường thoáng khi robot đang chạy; ở AT_NODE/IDLE chỉ thông báo
     if (state.getState() == RobotState::FOLLOW_LINE)
     {
         motors.stop();
-        state.setState(RobotState::WAIT_ACK);
-        warnAckDeadline = now + WARN_ACK_TIMEOUT_MS;
-        MiniR4.LED.setColor(1, 255, 128, 0); // LED vàng cam: đang chờ xác nhận
-        Serial.println("[STATE] PIR -> WAIT_ACK");
+        state.setState(RobotState::WAIT_CLEAR);
+        warnClearDeadline = now + WARN_CLEAR_TIMEOUT_MS;
+        pirClearSince = 0;
+        MiniR4.LED.setColor(1, 255, 128, 0); // LED vàng cam: đang chờ đường thoáng
+        Serial.println("[STATE] PIR -> WAIT_CLEAR");
     }
 }
 
@@ -572,25 +576,52 @@ void handleFollowLine()
     }
 }
 
-// ─── XỬ LÝ WAIT_ACK ───────────────────────────
-// Robot dừng sau WARN:person, chờ khách bấm ACK trên app
-// Hết WARN_ACK_TIMEOUT_MS mà không có ACK → tự hiểu "đã rõ", chạy tiếp (log rõ)
+// ─── XỬ LÝ WAIT_CLEAR ─────────────────────────
+// Robot dừng sau WARN:person, chờ ĐƯỜNG THOÁNG (PIR hết chuyển động) rồi tự đi tiếp.
+// Khách khiếm thị không thể tự biết người cản đã đi chưa → không bắt bấm nút.
+// An toàn: hết WARN_CLEAR_TIMEOUT_MS mà PIR vẫn báo liên tục → vẫn tự đi tiếp (log rõ).
 
-void handleWaitAck()
+void handleWaitClear()
 {
-    motors.stop(); // Luôn đứng yên khi chờ xác nhận
+    motors.stop(); // Luôn đứng yên khi chờ đường thoáng
 
-    if (millis() >= warnAckDeadline)
+    // Đường thoáng = PIR im lặng liên tục trong PIR_CLEAR_CONFIRM_MS
+    if (!sensors.readPIR())
     {
-        state.setState(RobotState::FOLLOW_LINE);
-        motors.setSpeed(BASE_SPEED);
-        MiniR4.LED.setColor(1, 0, 255, 0);
-        ble.sendMessage("STATUS:auto_resumed");
-        // Bỏ qua PIR một lát để robot kịp rời khỏi người đang đứng gần
-        // (nếu không, PIR còn cao sẽ khiến robot dừng lại ngay lập tức)
-        pirGraceUntil = millis() + PIR_GRACE_AFTER_LEAVE_MS;
-        Serial.println("[STATE] ACK timeout -> auto resume");
+        if (pirClearSince == 0)
+            pirClearSince = millis();
+        if (millis() - pirClearSince >= PIR_CLEAR_CONFIRM_MS)
+        {
+            resumeAfterWarn();
+            Serial.println("[STATE] Path clear -> auto resume");
+        }
     }
+    else
+    {
+        pirClearSince = 0; // Vẫn còn chuyển động → đặt lại bộ đếm
+    }
+
+    // An toàn: hết hạn tối đa mà PIR vẫn báo liên tục → vẫn tự đi tiếp
+    if (millis() >= warnClearDeadline)
+    {
+        resumeAfterWarn();
+        Serial.println("[STATE] WARN timeout -> auto resume");
+    }
+}
+
+// ─── TỰ ĐI TIẾP SAU WARN ──────────────────────
+// Dùng chung cho cả 2 trường hợp: đường thoáng và quá hạn an toàn.
+
+void resumeAfterWarn()
+{
+    state.setState(RobotState::FOLLOW_LINE);
+    motors.setSpeed(BASE_SPEED);
+    MiniR4.LED.setColor(1, 0, 255, 0);
+    ble.sendMessage("STATUS:auto_resumed");
+    // Bỏ qua PIR một lát để robot kịp rời khỏi người đang đứng gần
+    // (nếu không, PIR còn cao sẽ khiến robot dừng lại ngay lập tức)
+    pirGraceUntil = millis() + PIR_GRACE_AFTER_LEAVE_MS;
+    pirClearSince = 0;
 }
 
 // ─── XỬ LÝ AT_NODE ───────────────────────────

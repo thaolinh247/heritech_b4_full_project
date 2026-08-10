@@ -22,7 +22,6 @@ export type AppToRobotCommand =
   | "NEXT_NODE"
   | "VOICE_NEXT"
   | "VOICE_STOP"
-  | "ACK"
   | "SOS";
 
 // ─── Warning / Status Types ──────────────────

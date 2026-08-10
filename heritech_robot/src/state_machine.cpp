@@ -20,7 +20,7 @@ const char* StateMachine::getStateName() {
     switch (_currentState) {
         case RobotState::IDLE:        return "IDLE";
         case RobotState::FOLLOW_LINE: return "FOLLOW_LINE";
-        case RobotState::WAIT_ACK:    return "WAIT_ACK";
+        case RobotState::WAIT_CLEAR:   return "WAIT_CLEAR";
         case RobotState::AT_NODE:     return "AT_NODE";
         case RobotState::END:         return "END";
         default:                      return "UNKNOWN";

@@ -2,7 +2,7 @@
 
 > **Ngày:** 2026-08-05 | **Deadline toàn dự án:** 20/08/2026
 > **Thay thế:** PLAN.md (line-follower) — **Định vị & dẫn đường chính thức:** Line Tracer + Color Sensor (giữ nguyên V1–V3).
-> **Tính năng mới (làm thật):** Tương tác 2 chiều (ACK) + SOS + loa ngoài.
+> **Tính năng mới (làm thật):** Cảnh báo người cản → tự đi tiếp khi đường thoáng + SOS + loa ngoài.
 > **Thứ tự ưu tiên:** phần mềm & tương tác làm TRƯỚC; phần di chuyển xác nhận/hiệu chỉnh làm SAU.
 > **Bắt buộc:** MỌI thay đổi code/nội dung PHẢI có mục trong `CHANGELOG.md` trước khi commit (Conventional Commits theo AGENTS.md); commit xong phải `git push`.
 
@@ -20,7 +20,7 @@ Heritage Buddy là robot dẫn đường đồng hành cho khách tham quan bả
 |---|---|---|
 | Định vị & dẫn đường | Line Tracer + Color Sensor (giữ nguyên V1–V3) | 🟢 Làm thật |
 | Kênh âm thanh | Loa điện thoại qua app (thay tai nghe truyền xương) | 🟢 Làm thật — dễ, ít rủi ro |
-| Tương tác hai chiều (cảnh báo → phản hồi → ACK) | Robot cảnh báo (`WARN`), khách phản hồi (nút/giọng), robot xác nhận (`STATUS`) | 🟢 Làm thật — phần mềm, ưu tiên 1 |
+| Tương tác hai chiều (cảnh báo → tự xử lý → xác nhận) | Robot cảnh báo (`WARN`), robot tự xử lý khi đường thoáng (`STATUS:auto_resumed`), khách có SOS khẩn cấp | 🟢 Làm thật — phần mềm, ưu tiên 1 |
 | SOS khẩn cấp | Long-press ≥2s trên Miniature Switch hiện có + nút SOS trên app | 🟢 Làm thật — phần mềm, ưu tiên 1 |
 | Xác nhận lại phần di chuyển | Line Tracer (PID), Color Sensor (node), hiệu chỉnh ngã ba → `WARN:turn` | 🟢 Làm thật — ưu tiên 2, làm sau phần mềm |
 | Dashboard bảo tàng | 1 trang web: danh sách SOS + vị trí robot (node cuối cùng) | 🟡 Làm nếu còn thời gian (P1), tối giản |
@@ -37,7 +37,7 @@ Heritage Buddy là robot dẫn đường đồng hành cho khách tham quan bả
         ↕ BLE (giữ nguyên NUS đã có, bổ sung tín hiệu)
 [App Smartphone gắn trên robot]
         ├─→ Loa ngoài (cảnh báo, thuyết minh, xác nhận) — MỚI
-        ├─→ Nút lớn "Đã hiểu / Tiếp tục", "Dừng lại" khi nhận WARN — MỚI
+        ├─→ Tự động đi tiếp khi đường thoáng sau WARN:person (không cần nút) — MỚI
         ├─→ Nút SOS (app, giữ ≥2s) + switch vật lý long-press ≥2s — MỚI
         ↓ (API AI: LLM/RAG — giữ nguyên kiến trúc backend proxy cũ)
 [Backend proxy AI]
@@ -62,13 +62,12 @@ Kiến trúc thực thi là kiến trúc chính thức của dự án — không
 | Tín hiệu | Ý nghĩa |
 |---|---|
 | `START` / `STOP` / `NODE_DONE:<id>` / `NEXT_NODE` / `VOICE_NEXT` / `VOICE_STOP` | Điều khiển (đã có) |
-| **`ACK`** | Khách đã "Đã hiểu / Tiếp tục" sau `WARN:person` — MỚI (nhánh firmware đã có sẵn) |
 | **`SOS`** | Khách bấm SOS (app) — MỚI (nhánh firmware đã có sẵn) |
 
 ### Hành vi khi nhận WARN (định nghĩa rõ để đo được)
-| `WARN` | Robot làm gì | Có chờ ACK? |
+| `WARN` | Robot làm gì | Khi nào đi tiếp? |
 |---|---|---|
-| `person` | **Dừng ngay**, loa đọc to cảnh báo, app hiện banner + nút lớn | ✅ Chờ ACK tối đa **10s** (hằng số `WARN_ACK_TIMEOUT_MS`); có ACK → `STATUS:resumed` + chạy tiếp; hết timeout → tự chạy tiếp + `STATUS:auto_resumed` (log rõ) |
+| `person` | **Dừng ngay**, loa đọc to cảnh báo, app hiện banner (không có nút bấm) | **Tự đi tiếp khi đường thoáng**: PIR im lặng liên tục ≥ `PIR_CLEAR_CONFIRM_MS` (2s) → `STATUS:auto_resumed`; an toàn hết `WARN_CLEAR_TIMEOUT_MS` (10s) mà PIR vẫn báo → vẫn tự đi tiếp + `STATUS:auto_resumed` (log rõ). Lý do bỏ nút ACK: khách khiếm thị không tự biết người cản đã đi chưa. |
 | `turn_l` / `turn_r` | Chỉ thông báo bằng giọng TẠI ngã ba (không dừng, không cần ACK) — cảm biến ngã ba báo tại điểm rẽ, không báo trước được | ❌ |
 
 ### Các hành vi liên quan
@@ -80,11 +79,11 @@ Kiến trúc thực thi là kiến trúc chính thức của dự án — không
 
 ### A. 🟢 PHẦN MỀM & TƯƠNG TÁC (ưu tiên 1 — làm trước)
 - [ ] Giao thức: chốt bảng tín hiệu mục 4; ghi rõ trong CHANGELOG.
-- [ ] **Firmware (phần tương tác):** thay `ALARM` bằng `WARN:person` + dừng chờ ACK (state `WAIT_ACK`) + timeout 10s + `STATUS:auto_resumed`; long-press ≥2s trên switch → `SOS` (phân biệt với `SWITCH_PRESS` nhấn ngắn); `motors.stop()` khi mất BLE. (Nhánh nhận `ACK`/`SOS` đã có ở `main.cpp` — giữ nguyên, không viết lại.)
+- [ ] **Firmware (phần tương tác):** thay `ALARM` bằng `WARN:person` + dừng chờ đường thoáng (state `WAIT_CLEAR`) + tự resume khi PIR im ≥ `PIR_CLEAR_CONFIRM_MS` + timeout 10s an toàn + `STATUS:auto_resumed`; long-press ≥2s trên switch → `SOS` (phân biệt với `SWITCH_PRESS` nhấn ngắn); `motors.stop()` khi mất BLE. (Nhánh nhận `SOS` đã có ở `main.cpp` — giữ nguyên, không viết lại.)
 - [ ] **App — loa ngoài:** gỡ vai trò tai nghe truyền xương (nếu có); phát cảnh báo/thuyết minh qua loa ngoài; đo âm lượng trên sa bàn, ghi số liệu vào báo cáo.
-- [ ] **App — WARN UI:** nhận `WARN:person` → banner lớn + TTS đọc to + nút lớn "Đã hiểu / Tiếp tục" (gửi `ACK`) + nút "Dừng lại" (gửi `STOP`); nhận `WARN:turn_*` → thông báo + TTS, không cần nút; hiển thị `STATUS`.
+- [ ] **App — WARN UI:** nhận `WARN:person` → banner lớn + TTS đọc to (KHÔNG có nút — robot tự đi tiếp khi đường thoáng); nhận `WARN:turn_*` → thông báo + TTS, không cần nút; hiển thị `STATUS`.
 - [ ] **App — SOS:** nút SOS cố định trên màn hình, giữ ≥2s để kích hoạt (tránh bấm nhầm); hiển thị trạng thái SOS rõ ràng (mascot + màu + chữ).
-- [ ] Test bàn (robot đứng yên, không cần di chuyển): kích PIR bằng tay → cả vòng `WARN:person → ACK → STATUS:resumed`; long-press switch → SOS; app hiển thị đúng từng trạng thái.
+- [ ] Test bàn (robot đứng yên, không cần di chuyển): kích PIR bằng tay → cả vòng `WARN:person → (ngừng vẫy tay, PIR im ≥2s) → STATUS:auto_resumed`; vẫy tay liên tục → timeout 10s → `STATUS:auto_resumed`; long-press switch → SOS; app hiển thị đúng từng trạng thái.
 
 ### B. 🟢 DI CHUYỂN (ưu tiên 2 — làm sau A)
 - [ ] Xác nhận lại Line Tracer (PID bám tuyến) + Color Sensor ("3 lần đọc ổn định") chạy ổn định như V3 — không sửa, chỉ chạy xác nhận 1 tour đầy đủ.
@@ -92,7 +91,7 @@ Kiến trúc thực thi là kiến trúc chính thức của dự án — không
 - [ ] Kiểm tra lại Laser/PIR/Gesture/Switch và AI (LLM + RAG qua backend proxy) — không sửa.
 
 ### C. 🟢 Kiểm thử tích hợp trên tuyến thật → GATE 1
-- [ ] Chạy vòng tương tác đầy đủ trên tuyến: robot chạy → PIR kích → `WARN:person` → dừng → TTS + banner → khách bấm ACK → `STATUS:resumed` → chạy tiếp; test cả nhánh timeout 10s.
+- [ ] Chạy vòng tương tác đầy đủ trên tuyến: robot chạy → PIR kích → `WARN:person` → dừng → TTS + banner → người cản đi khỏi → tự `STATUS:auto_resumed` → chạy tiếp; test cả nhánh PIR báo liên tục → timeout 10s.
 - [ ] Test SOS thật: long-press switch và nút app → robot dừng + LED đỏ + `STATUS:sos` → `START` để tiếp tục.
 - [ ] Đo số liệu (10 lần/lượt): thời gian `WARN:person` → hiển thị banner, → khách bấm → `STATUS` nhận được; thời gian bấm SOS → hiển thị trên app; ghi cách đo vào báo cáo.
 
@@ -106,12 +105,12 @@ Kiến trúc thực thi là kiến trúc chính thức của dự án — không
 - [ ] Nếu không kịp: chỉ nêu ở phần "hướng phát triển" của báo cáo, không đưa vào "đã làm được".
 
 ### F. 📄 Báo cáo (không còn mục định hướng công nghệ)
-- [ ] Giữ nguyên phần kỹ thuật (3.7) mô tả đúng mô hình đang chạy thật; cập nhật kiến trúc mới (WARN/ACK/SOS/loa ngoài).
+- [ ] Giữ nguyên phần kỹ thuật (3.7) mô tả đúng mô hình đang chạy thật; cập nhật kiến trúc mới (WARN/auto-resume/SOS/loa ngoài).
 - [ ] Cập nhật "Hạn chế & hướng phát triển": ghi minh bạch các hạn chế đo được — cảnh báo rẽ báo tại ngã ba (không báo trước), PIR chỉ phát hiện chuyển động (không đo khoảng cách vật cản tĩnh), nút vật lý duy nhất kiêm 2 chức năng.
-- [ ] Số liệu định lượng từ mục C: độ chính xác nhận diện node (3 lần đọc ổn định), thời gian ACK, thời gian SOS, thời gian phản ứng cảnh báo.
+- [ ] Số liệu định lượng từ mục C: độ chính xác nhận diện node (3 lần đọc ổn định), thời gian auto-resume, thời gian SOS, thời gian phản ứng cảnh báo.
 
 ### G. 🟢 Kiểm thử tổng thể → GATE 2
-- [ ] Tour hoàn chỉnh: bắt đầu → cảnh báo → ACK → SOS thử nghiệm → kết thúc.
+- [ ] Tour hoàn chỉnh: bắt đầu → cảnh báo → đường thoáng tự resume → SOS thử nghiệm → kết thúc.
 - [ ] Thử nghiệm với người bịt mắt mô phỏng khiếm thị, ghi nhận phản hồi.
 
 ## 6. Chỉ tiêu số & GATE
@@ -119,7 +118,7 @@ Kiến trúc thực thi là kiến trúc chính thức của dự án — không
 | Chỉ tiêu | Target | Cách đo |
 |---|---|---|
 | `WARN:person` → banner hiển thị + TTS bắt đầu | <1s | Log app (timestamps) |
-| ACK end-to-end (`WARN` → khách bấm → nhận `STATUS:resumed`) | <3s | Log app + firmware, 10 lần |
+| Auto-resume end-to-end (`WARN` → đường thoáng → nhận `STATUS:auto_resumed`) | <3s | Log app + firmware, 10 lần |
 | SOS (nút app/long-press) → robot dừng + `STATUS:sos` | <2s | Log firmware |
 | SOS → Dashboard (nếu làm) | <5s | Polling 2s |
 | Độ chính xác nhận diện node (Color Sensor) | giữ số liệu V3 (3 lần đọc ổn định) | Thống kê trên tour |
@@ -133,7 +132,7 @@ Kiến trúc thực thi là kiến trúc chính thức của dự án — không
 
 | Khoảng | Việc |
 |---|---|
-| 05–08/08 | **A (phần mềm & tương tác):** giao thức + firmware tương tác (WARN:person, long-press SOS, auto-stop) + app (loa, banner ACK, SOS) |
+| 05–08/08 | **A (phần mềm & tương tác):** giao thức + firmware tương tác (WARN:person, long-press SOS, auto-stop) + app (loa, banner tự-resume, SOS) |
 | 09–11/08 | A: test bàn toàn bộ vòng tương tác (robot đứng yên) + đo thử timing |
 | 12–13/08 | **B (di chuyển):** xác nhận tour cũ + hiệu chỉnh ngã ba → `WARN:turn`; tích hợp trên tuyến thật → GATE 1 |
 | 14–16/08 | D/E (nếu kịp) + viết báo cáo (F) |
@@ -141,7 +140,7 @@ Kiến trúc thực thi là kiến trúc chính thức của dự án — không
 | 17–18/08 | G: tour hoàn chỉnh + người bịt mắt → GATE 2 |
 | 19–20/08 | Test + sửa lỗi, hoàn thiện báo cáo |
 
-- **2 người phần mềm & tương tác** (ưu tiên 1): 1 người app (ACK UI, banner, SOS, loa ngoài) + 1 người firmware tương tác + BLE protocol (WARN:person, long-press SOS, auto-stop, đo kiểm).
+- **2 người phần mềm & tương tác** (ưu tiên 1): 1 người app (banner WARN tự-resume, SOS, loa ngoài) + 1 người firmware tương tác + BLE protocol (WARN:person, long-press SOS, auto-stop, đo kiểm).
 - **1 người:** di chuyển (xác nhận tour + hiệu chỉnh ngã ba).
 - **1 người:** (nếu làm) server + Dashboard + viết báo cáo + kiểm thử tổng thể.
 
@@ -153,13 +152,13 @@ Kiến trúc thực thi là kiến trúc chính thức của dự án — không
 | PIR báo nhầm (người đi ngang) | TB | Cooldown 3s; chỉ dừng khi `FOLLOW_LINE`; timeout 10s tự chạy tiếp |
 | Phát hiện ngã ba sai/trùng → `WARN:turn` nhiễu | TB | Chỉ hiệu chỉnh ngưỡng, không đổi PID; nếu không kịp, `WARN:turn` chỉ là thông báo, không làm gãy tour |
 | Long-press switch nhầm thành SOS | TB | Ngưỡng 2s rõ ràng; sau SOS có thể `START` lại; ghi log |
-| BLE mất kết nối giữa vòng ACK/SOS | TB | Auto-reconnect đã có; firmware auto-stop khi mất BLE; timeout vẫn chạy độc lập; app hiện rõ trạng thái offline |
+| BLE mất kết nối giữa vòng WARN:person/SOS | TB | Auto-reconnect đã có; firmware auto-stop khi mất BLE; timeout vẫn chạy độc lập; app hiện rõ trạng thái offline |
 | SOS phụ thuộc mạng (Dashboard) | TB | Fallback: SOS hiển thị rõ trên app; Dashboard chỉ là nâng cấp |
 | Ký hiệu tay kém chính xác | TB | Stretch; từ vựng nhỏ; fallback nút bấm |
 
 ## 9. Definition of Done (20/08)
 
-- GATE 1 đạt: vòng tương tác 2 chiều (ACK) + SOS hoạt động trên tuyến thật, đo được số liệu.
+- GATE 1 đạt: vòng WARN:person tự-resume (đường thoáng) + SOS hoạt động trên tuyến thật, đo được số liệu.
 - GATE 2 đạt: tour hoàn chỉnh (Line Tracer + Color Sensor) + SOS thật + báo cáo có số liệu.
 - `npx tsc --noEmit` + `npx expo lint` pass; không `any`, không `console.log` (riêng firmware: biên dịch sạch qua PlatformIO).
 - Mọi thay đổi có mục trong `CHANGELOG.md` + commit theo Conventional Commits + `git push`.

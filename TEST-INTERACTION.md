@@ -1,6 +1,6 @@
 # TEST-INTERACTION — Danh sách kiểm thử tương tác Robot ↔ App (Tất cả chức năng)
 
-> **Ngày:** 2026-08-05 | **Phạm vi:** BLE, vòng tour, ACK 2 chiều, SOS, cảnh báo rẽ, cảm biến, an toàn, âm thanh
+> **Ngày:** 2026-08-10 | **Phạm vi:** BLE, vòng tour, WARN:person tự-resume, SOS, cảnh báo rẽ, cảm biến, an toàn, âm thanh
 > **Tham chiếu:** `plan-ver2.md` (mục 4–6) · firmware `heritech_robot/` · app `heritage-buddy-app/`
 > **Quy ước:** mỗi test ghi `[x]` vào cột kết quả; với test đo thời gian ghi số đo vào cuối phần tương ứng.
 
@@ -49,20 +49,18 @@
 
 ---
 
-## 3. Tương tác 2 chiều — WARN:person → ACK (lõi demo, GATE 1)
+## 3. Cảnh báo người cản — WARN:person → tự đi tiếp khi đường thoáng (lõi demo, GATE 1)
 
-> Cơ chế: PIR kích hoạt khi robot đang chạy → robot dừng + gửi `WARN:person` → app banner + TTS → khách bấm "Đã hiểu / Tiếp tục" (ACK) → robot chạy tiếp. Không bấm sau 10s → robot tự chạy tiếp (`STATUS:auto_resumed`).
+> Cơ chế: PIR kích hoạt khi robot đang chạy → robot dừng + gửi `WARN:person` → app banner + TTS (KHÔNG có nút bấm — khách khiếm thị không tự biết người cản đã đi chưa). Robot **tự đi tiếp khi PIR im lặng liên tục ≥2s** (`PIR_CLEAR_CONFIRM_MS`) → `STATUS:auto_resumed`. An toàn: PIR báo liên tục hết 10s (`WARN_CLEAR_TIMEOUT_MS`) → vẫn tự đi tiếp + `STATUS:auto_resumed`.
 
 | # | Test case | Các bước | Kết quả mong đợi | KQ |
 |---|---|---|---|---|
-| 3.1 | WARN:person khi đang chạy (tuyến thật) | Robot đang FOLLOW_LINE → vẫy tay trước PIR | Robot dừng ngay; Serial `[PIR] WARN:person` + `[STATE] PIR -> WAIT_ACK`; LED vàng cam; app hiện banner "Có người hoặc vật cản phía trước" + TTS đọc to + rung | [ ] |
-| 3.2 | Nút "Đã hiểu / Tiếp tục" | Đang banner 3.1 → bấm "Đã hiểu / Tiếp tục" | App gửi `ACK`; robot chạy tiếp + LED xanh; app toast "Robot đã tiếp tục hành trình"; Serial `[CMD] ACK -> resume FOLLOW_LINE` + `STATUS:resumed` | [ ] |
-| 3.3 | Nút "Dừng lại" | Đang banner 3.1 → bấm "Dừng lại" | App gửi `STOP`; banner tắt; robot IDLE (đèn đỏ nếu bấm nút DOWN? Không — STOP không đổi LED, ghi lại hành vi thực tế) | [ ] |
-| 3.4 | Không phản hồi → timeout | Đang banner 3.1 → không bấm gì, chờ 10s | Sau ~10s robot tự chạy tiếp + app toast "Robot tự động tiếp tục hành trình" (`STATUS:auto_resumed`); Serial log timeout; banner tự tắt | [ ] |
-| 3.5 | WARN:person khi robot ĐANG DỪNG (AT_NODE/IDLE) | Ở node / lúc IDLE → vẫy tay PIR | Robot KHÔNG dừng lại (đã đứng); app vẫn hiện banner + TTS + còi; sau 10s banner tự tắt (robot không gửi STATUS — kiểm tra app tự tắt qua fallback 10.5s) | [ ] |
-| 3.6 | PIR cooldown 3s | Vẫy tay liên tục trước PIR | Chỉ gửi `WARN:person` tối đa mỗi 3s; trong lúc WAIT_ACK không gửi lại (không lặp TTS) | [ ] |
-| 3.7 | ACK khi không có cảnh báo | Gửi thủ công lệnh `ACK` qua UART | Robot trả `STATUS:resumed` nhưng KHÔNG đổi state (đang IDLE/AT_NODE thì vẫn vậy) | [ ] |
-| 3.8 | Bấm SOS ngay khi đang banner | Đang banner 3.1 → giữ nút SOS app 2s | Banner thay bằng banner SOS (ưu tiên cao hơn); robot dừng + đèn đỏ + `STATUS:sos` | [ ] |
+| 3.1 | WARN:person khi đang chạy (tuyến thật) | Robot đang FOLLOW_LINE → vẫy tay trước PIR | Robot dừng ngay; Serial `[PIR] WARN:person` + `[STATE] PIR -> WAIT_CLEAR`; LED vàng cam; app hiện banner "Có người hoặc vật cản phía trước" + TTS đọc to + rung | [ ] |
+| 3.2 | Đường thoáng → tự đi tiếp | Đang banner 3.1 → ngừng vẫy tay, chờ | Sau khi PIR im ≥2s robot tự chạy tiếp + LED xanh; app toast "Robot tự động tiếp tục hành trình" (`STATUS:auto_resumed`); Serial `[STATE] Path clear -> auto resume`; banner tự tắt | [ ] |
+| 3.3 | PIR báo liên tục → timeout an toàn | Vẫy tay liên tục trước PIR, không ngừng | Sau ~10s robot vẫn tự chạy tiếp + `STATUS:auto_resumed`; Serial `[STATE] WARN timeout -> auto resume`; không treo ở WAIT_CLEAR | [ ] |
+| 3.4 | WARN:person khi robot ĐANG DỪNG (AT_NODE/IDLE) | Ở node / lúc IDLE → vẫy tay PIR | Robot KHÔNG dừng lại (đã đứng); app vẫn hiện banner + TTS; robot không gửi STATUS (không vào WAIT_CLEAR) — app tự tắt banner qua fallback 10.5s | [ ] |
+| 3.5 | PIR cooldown 3s | Vẫy tay liên tục trước PIR | Chỉ gửi `WARN:person` tối đa mỗi 3s; trong lúc WAIT_CLEAR không gửi lại (không lặp TTS) | [ ] |
+| 3.6 | Bấm SOS ngay khi đang banner | Đang banner 3.1 → giữ nút SOS app 2s | Banner thay bằng banner SOS (ưu tiên cao hơn); robot dừng + đèn đỏ + `STATUS:sos` | [ ] |
 
 ---
 
@@ -113,10 +111,10 @@
 | # | Test case | Các bước | Kết quả mong đợi | KQ |
 |---|---|---|---|---|
 | 7.1 | **Mất BLE khi đang chạy → robot tự dừng** | Đang FOLLOW_LINE → tắt nguồn robot (hoặc app tắt Bluetooth) | Robot DỪNG ngay tại chỗ (KHÔNG chạy tiếp với tốc độ cũ); LED chớp đỏ | [ ] |
-| 7.2 | Mất BLE giữa vòng chờ ACK | Robot đang WAIT_ACK → tắt app/kết nối | Robot đứng yên (an toàn); sau khi kết nối lại và hết deadline → tự resume; app khi mở lại tự kết nối, banner hết hạn tự tắt | [ ] |
-| 7.3 | Reconnect giữa tour | Tắt BLE 5s → bật lại | App tự kết nối lại; robot tiếp tục trạng thái trước đó (WAIT_ACK/FOLLOW_LINE đúng theo log) | [ ] |
+| 7.2 | Mất BLE giữa vòng chờ đường thoáng | Robot đang WAIT_CLEAR → tắt app/kết nối | Robot đứng yên (an toàn); sau khi kết nối lại và PIR im ≥2s (hoặc hết deadline) → tự resume; app khi mở lại tự kết nối, banner hết hạn tự tắt | [ ] |
+| 7.3 | Reconnect giữa tour | Tắt BLE 5s → bật lại | App tự kết nối lại; robot tiếp tục trạng thái trước đó (WAIT_CLEAR/FOLLOW_LINE đúng theo log) | [ ] |
 | 7.4 | App chạy nền → mở lại | Kết nối đang giữ → background → foreground | Kết nối còn (nếu OS không kill); không crash | [ ] |
-| 7.5 | Gửi lệnh khi mất kết nối | Tắt robot → bấm "Đã hiểu"/SOS | Không crash; log warning "Not connected"; UI vẫn phản hồi trạng thái offline | [ ] |
+| 7.5 | Gửi lệnh khi mất kết nối | Tắt robot → bấm SOS | Không crash; log warning "Not connected"; UI vẫn phản hồi trạng thái offline | [ ] |
 | 7.6 | Cảnh báo rẽ bị lỗi ngã ba (phần B) | Nếu `WARN:turn` gửi trùng/sai trên tuyến | Chỉ là toast nhiễu — tour vẫn chạy bình thường, không dừng, không gãy | [ ] |
 
 ---
@@ -128,7 +126,7 @@
 | 8.1 | TTS cảnh báo qua loa ngoài | Kích WARN:person | Giọng đọc rõ qua loa điện thoại (không phải tai nghe), tiếng Việt chuẩn | [ ] |
 | 8.2 | TTS thuyết minh/narration qua loa | Chạy video node | Âm thanh video phát qua loa ngoài | [ ] |
 | 8.3 | Đo âm lượng thực tế | Đo bằng máy đo dB (hoặc so sánh chủ quan) ở khoảng cách 1m, có/không tiếng ồn nền | Ghi số liệu: dB môi trường, dB khi phát, tỉ lệ nghe rõ | [ ] |
-| 8.4 | Dừng TTS khi bấm nút | Đang đọc cảnh báo → bấm "Đã hiểu" | TTS dừng ngay, không đọc chồng lên toast | [ ] |
+| 8.4 | Dừng TTS khi kết thúc cảnh báo | Đang đọc cảnh báo → PIR sạch → robot tự resume | TTS cảnh báo dừng; toast xác nhận hiện không đọc chồng lên | [ ] |
 
 ---
 
@@ -136,8 +134,8 @@
 
 > Cách đo: người thứ 2 bấm giờ theo sự kiện quan sát được (banner xuất hiện / tiếng còi / robot nhúc nhích); ghi từng lần vào bảng. Chấm đạt nếu **trung bình** nằm dưới target.
 
-### 9.1 ACK end-to-end: vẫy tay PIR → banner hiện → bấm "Đã hiểu" → robot chạy tiếp
-Target: **<3s** (từ lúc banner hiện đến lúc robot nhúc nhích sau ACK)
+### 9.1 Auto-resume end-to-end: vẫy tay PIR → banner hiện → ngừng vẫy → robot chạy tiếp
+Target: **<3s** (từ lúc ngừng vẫy tay — PIR sạch — đến lúc robot nhúc nhích; gồm 2s xác nhận đường thoáng)
 
 | Lần | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | TB | Đạt? |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -157,7 +155,7 @@ Target: **<2s** (từ lúc nhả nút/giữ đủ 2s đến lúc robot dừng h�
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | Thời gian (s) | | | | | | | | | | | | |
 
-### 9.4 Timeout tự resume: vẫy tay → không bấm → robot chạy tiếp
+### 9.4 Timeout tự resume (an toàn): vẫy tay liên tục → không dừng → robot chạy tiếp
 Target: **10s ± 1s** (đo từ lúc robot dừng)
 
 | Lần | 1 | 2 | 3 | 4 | 5 | TB | Đạt? |
@@ -173,6 +171,6 @@ Số node đúng / tổng node trong tour: **___ / 13** (3 tour) · Lỗi phát 
 
 | GATE | Tiêu chí | Đạt? | Ghi chú |
 |---|---|---|---|
-| GATE 1 | Vòng ACK + SOS chạy trên tuyến thật, số liệu 9.1–9.5 đạt target | [ ] | |
+| GATE 1 | Vòng WARN:person auto-resume (đường thoáng + timeout) + SOS chạy trên tuyến thật, số liệu 9.1–9.5 đạt target | [ ] | |
 | GATE 1 | Robot đến node đúng → `NODE_START:<id>` không crash, log rõ | [ ] | |
 | GATE 2 | Tour hoàn chỉnh + SOS thật + người bịt mắt | [ ] | |

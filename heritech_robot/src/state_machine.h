@@ -6,7 +6,7 @@
 enum class RobotState {
     IDLE,
     FOLLOW_LINE,
-    WAIT_ACK,
+    WAIT_CLEAR,
     AT_NODE,
     END
 };

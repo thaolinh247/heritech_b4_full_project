@@ -33,7 +33,8 @@
 #define PIR_ALARM_COOLDOWN_MS  3000
 #define BUZZER_ALARM_MS        200
 
-#define WARN_ACK_TIMEOUT_MS    10000  // Chờ ACK sau WARN:person (ms) — quá hạn tự chạy tiếp
+#define WARN_CLEAR_TIMEOUT_MS 10000  // An toàn: tối đa chờ đường thoáng (ms) — quá hạn vẫn tự chạy tiếp
+#define PIR_CLEAR_CONFIRM_MS  2000   // Đường "thoáng" khi PIR im lặng liên tục bấy nhiêu ms → tự đi tiếp
 #define SOS_HOLD_MS            10000  // Giữ switch >= 10s để kích hoạt SOS (tránh nhầm với nhấn nhanh để hỏi câu hỏi)
 #define SWITCH_DEBOUNCE_MS     40     // Lọc nhiễu phím công tắc vật lý
 
