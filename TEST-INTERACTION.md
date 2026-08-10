@@ -46,6 +46,7 @@
 | 2.5 | Nhận diện node đúng trình tự | Quan sát toàn bộ tour | Robot dừng ĐÚNG node theo thứ tự, không bỏ node, không dừng nhầm giữa đường | [ ] |
 | 2.6 | Nút STOP app | Đang chạy → bấm "Dừng" (nếu có trên UI hiện tại) hoặc gửi `STOP` | Robot dừng ngay, state IDLE, Serial log `[CMD] STOP -> IDLE` | [ ] |
 | 2.7 | Nhấn giữ nút vật lý DOWN (robot) | Nhấn nút DOWN → nhả | Nhấn = dừng (còi bíp); nhả = START lại tour từ node 0 (hành vi cũ, không đổi) | [ ] |
+| 2.8 | Vị trí robot lên Dashboard | Robot tới node bất kỳ → mở Dashboard | Server log `[robot-status] node=N`; Dashboard "Vị trí robot" hiển thị đúng node đó + thời gian trong <5s | [ ] |
 
 ---
 
@@ -77,6 +78,8 @@
 | 4.7 | SOS khi robot đang IDLE | Robot đứng yên → SOS app hoặc switch | Vẫn dừng (không đổi) + banner SOS; RESUME cho chạy tiếp | [ ] |
 | 4.8 | SOS khi chưa kết nối BLE | Tắt kết nối → giữ nút SOS app | App không gửi được → hiện trạng thái offline rõ; (nút vật lý switch vẫn hoạt động độc lập — test riêng) | [ ] |
 | 4.9 | Còi trấn an + đèn đỏ | Quan sát sau SOS | LED đỏ + còi ~1s; trạng thái duy trì tới khi RESUME/START | [ ] |
+| 4.10 | SOS xuất hiện trên Dashboard | Kích SOS (app/switch) → mở Dashboard máy tính bảo tàng | Server log `[sos] ACTIVE`; Dashboard hiện hàng SOS mới với trạng thái "Đang xử lý" (node + thời gian đúng) trong <5s | [ ] |
+| 4.11 | RESUME → Dashboard "Đã giải quyết" | Đang 4.10 → bấm "Tiếp tục hành trình" | Server log `[sos] RESOLVED`; hàng SOS đó đổi sang "Đã giải quyết" trong <5s | [ ] |
 
 ---
 
@@ -165,6 +168,13 @@ Target: **10s ± 1s** (đo từ lúc robot dừng)
 ### 9.5 Độ chính xác nhận diện node (Color Sensor — giữ số liệu V3)
 Số node đúng / tổng node trong tour: **___ / 13** (3 tour) · Lỗi phát hiện: ___
 
+### 9.6 SOS → Dashboard hiển thị
+Target: **<5s** (từ lúc `STATUS:sos` nhận trên app đến lúc Dashboard máy tính hiển thị — polling 2s + log server)
+
+| Lần | 1 | 2 | 3 | 4 | 5 | TB | Đạt? |
+|---|---|---|---|---|---|---|---|
+| Thời gian (s) | | | | | | | |
+
 ---
 
 ## 10. Kết luận kiểm thử
@@ -172,5 +182,6 @@ Số node đúng / tổng node trong tour: **___ / 13** (3 tour) · Lỗi phát 
 | GATE | Tiêu chí | Đạt? | Ghi chú |
 |---|---|---|---|
 | GATE 1 | Vòng WARN:person auto-resume (đường thoáng + timeout) + SOS chạy trên tuyến thật, số liệu 9.1–9.5 đạt target | [ ] | |
+| GATE 1 | Dashboard nhận SOS + vị trí robot (9.6 <5s) — nếu làm D | [ ] | |
 | GATE 1 | Robot đến node đúng → `NODE_START:<id>` không crash, log rõ | [ ] | |
 | GATE 2 | Tour hoàn chỉnh + SOS thật + người bịt mắt | [ ] | |

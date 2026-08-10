@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Heritage Buddy — Bảng điều khiển bảo tàng</title>
+  <style>
+    :root {
+      --cream: #FDF3E7;
+      --orange: #E8935E;
+      --brown: #5C3A21;
+      --teal: #2E8B7E;
+      --red: #E85D4E;
+      --ink: #3A2415;
+      --muted: #8A6B52;
+      --card: #FFFFFF;
+      --ok: #2E8B7E;
+      --bad: #E85D4E;
+      --wait: #E8935E;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+      background: var(--cream);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--orange);
+      color: #fff;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    header h1 { font-size: 22px; font-weight: 700; }
+
+    .header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+    .server-box { display: flex; align-items: center; gap: 6px; }
+    .server-box input {
+      width: 240px;
+      padding: 6px 10px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .server-box button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 6px;
+      background: var(--brown);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .server-box button:hover { opacity: 0.9; }
+
+    .status-pill {
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--bad);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .status-pill.online { background: var(--ok); }
+    .status-pill.waiting { background: var(--wait); }
+
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 20px 24px 48px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 760px) { main { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(92, 58, 33, 0.12);
+    }
+
+    .card h2 {
+      font-size: 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .robot-position {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .robot-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 16px;
+      background: var(--teal);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+      flex-shrink: 0;
+    }
+
+    .node-info .node-number {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .node-info .node-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .node-info .node-updated {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .empty {
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 1px solid #F0E0CF;
+      font-size: 14px;
+      vertical-align: top;
+    }
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    tr:last-child td { border-bottom: none; }
+
+    .sos-status {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .sos-status.active { background: var(--red); }
+    .sos-status.resolved { background: var(--ok); }
+
+    .sos-row.active-row td { background: #FDEDE9; }
+
+    .updated-line {
+      margin-top: 14px;
+      font-size: 12px;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      padding: 8px 24px 24px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🐯 Heritage Buddy — Bảng điều khiển bảo tàng</h1>
+    <div class="header-right">
+      <div class="server-box">
+        <input id="serverUrl" type="text" placeholder="http://<IP-máy-chủ>:3000" />
+        <button id="applyBtn" type="button">Áp dụng</button>
+      </div>
+      <span id="statusPill" class="status-pill">Đang kết nối…</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>📍 Vị trí robot</h2>
+      <div id="robotCard">
+        <div class="robot-position">
+          <div class="robot-icon">🤖</div>
+          <div class="node-info">
+            <div class="node-number" id="nodeNumber">Chưa có dữ liệu</div>
+            <div class="node-name" id="nodeName">—</div>
+            <div class="node-updated" id="nodeUpdated"></div>
+          </div>
+        </div>
+      </div>
+      <div class="updated-line" id="robotCardEmpty"></div>
+    </section>
+
+    <section class="card">
+      <h2>🚨 Lịch sử SOS</h2>
+      <div id="sosTable">
+        <span class="empty">Chưa có cuộc gọi SOS nào.</span>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Cập nhật tự động mỗi 2 giây · Heritage Buddy · WRO 2026 Future Innovators
+  </footer>
+
+  <script>
+    // Tên 13 node (thứ tự 1-13, khớp MUSEUM_NODES trong app)
+    const NODE_NAMES = [
+      "Bức tượng chân dung Chủ tịch Hồ Chí Minh",
+      "Trống đồng Đông Sơn",
+      "Văn hoá Sa Huỳnh",
+      "Thời kỳ Bắc thuộc",
+      "Chiến thắng Bạch Đằng",
+      "Triều Lý & Trần",
+      "Văn miếu Quốc Tử Giám",
+      "Lá cờ \"Bình dân học vụ\"",
+      "Khăn len quàng cổ của Mary Luois",
+      "Tác phẩm \"Bản án chế độ thực dân Pháp\"",
+      "Hồ Chí Minh & độc lập",
+      "Bảo tàng số & tương lai",
+      "Hành trình kết nối văn hoá",
+    ];
+
+    const serverInput = document.getElementById("serverUrl");
+    const applyBtn = document.getElementById("applyBtn");
+    const statusPill = document.getElementById("statusPill");
+    let serverUrl = localStorage.getItem("hb_dashboard_server") || "http://localhost:3000";
+    serverInput.value = serverUrl;
+
+    function setServerUrl() {
+      const raw = serverInput.value.trim().replace(/\/+$/, "");
+      if (!raw) return;
+      serverUrl = raw;
+      localStorage.setItem("hb_dashboard_server", raw);
+      refresh(); // cập nhật ngay, không chờ 2s
+    }
+
+    applyBtn.addEventListener("click", setServerUrl);
+    serverInput.addEventListener("keydown", (e) => { if (e.key === "Enter") setServerUrl(); });
+
+    function fmtTime(iso) {
+      if (!iso) return "—";
+      const d = new Date(iso);
+      const p = (n) => String(n).padStart(2, "0");
+      return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())} ${p(d.getDate())}/${p(d.getMonth() + 1)}`;
+    }
+
+    function nodeLabel(idx) {
+      const i = Number(idx);
+      if (!Number.isInteger(i)) return { num: "—", name: "Không rõ node" };
+      return {
+        num: `Node ${i + 1} / 13`,
+        name: NODE_NAMES[i] || "Chưa xác định",
+      };
+    }
+
+    function renderRobot(robot) {
+      const card = document.getElementById("robotCard");
+      if (!robot || robot.node === null) {
+        card.innerHTML = '<span class="empty">Robot chưa đến node nào (chờ NODE_START).</span>';
+        document.getElementById("robotCardEmpty").textContent = "";
+        return;
+      }
+      const label = nodeLabel(robot.node);
+      document.getElementById("nodeNumber").textContent = label.num;
+      document.getElementById("nodeName").textContent = label.name;
+      document.getElementById("nodeUpdated").textContent = `Cập nhật lúc ${fmtTime(robot.at)}`;
+      document.getElementById("robotCardEmpty").textContent = "";
+    }
+
+    function renderSos(list) {
+      const el = document.getElementById("sosTable");
+      if (!list || list.length === 0) {
+        el.innerHTML = '<span class="empty">Chưa có cuộc gọi SOS nào.</span>';
+        return;
+      }
+      const rows = list.slice().reverse().map((e) => {
+        const label = nodeLabel(e.node);
+        const statusHtml = e.status === "active"
+          ? '<span class="sos-status active">Đang xử lý</span>'
+          : '<span class="sos-status resolved">Đã giải quyết</span>';
+        return `<tr class="sos-row ${e.status}">
+          <td>${fmtTime(e.at)}</td>
+          <td>${label.num}<br><small>${label.name}</small></td>
+          <td>${statusHtml}</td>
+        </tr>`;
+      }).join("");
+      el.innerHTML = `<table>
+        <thead><tr><th>Thời gian</th><th>Node</th><th>Trạng thái</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    }
+
+    function render(data) {
+      renderRobot(data.robot);
+      renderSos(data.sosList);
+    }
+
+    async function refresh() {
+      statusPill.className = "status-pill waiting";
+      statusPill.textContent = "Đang kết nối…";
+      try {
+        const res = await fetch(`${serverUrl}/api/dashboard`, { signal: AbortSignal.timeout(4000) });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        render(data);
+        statusPill.className = "status-pill online";
+        statusPill.textContent = "Trực tuyến";
+      } catch {
+        statusPill.className = "status-pill";
+        statusPill.textContent = "Mất kết nối máy chủ";
+      }
+    }
+
+    refresh();
+    setInterval(refresh, 2000);
+  </script>
+</body>
+</html>

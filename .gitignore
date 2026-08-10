@@ -34,6 +34,9 @@ yarn-error.*
 .env
 .env*.local
 
+# dashboard runtime data (JSON log, không commit)
+heritage-buddy-app/server/data/
+
 # typescript
 *.tsbuildinfo
 
