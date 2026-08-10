@@ -13,7 +13,6 @@ import {
   isConnected as bleIsConnected,
 } from "@/lib/bluetooth";
 import type { RobotToAppCommand } from "@/types/robot";
-import { reportRobotStatus } from "@/lib/dashboard";
 
 // ─── Command Parsing ────────────────────────
 
@@ -205,7 +204,6 @@ export function useRobotConnection() {
             const nodeParam = command.split(":")[1];
             const nodeIndex = parseInt(nodeParam, 10);
             setCurrentStop(nodeIndex || 0);
-            reportRobotStatus(nodeIndex || 0);
 
             // Robot đã tới điểm dừng → tự động mở màn hình nội dung (narration)
             // Trừ khi app đang đứng sẵn trên đúng node đó.

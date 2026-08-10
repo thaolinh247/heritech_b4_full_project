@@ -1,7 +1,6 @@
 /* global __dirname */
 const express = require("express");
 const cors = require("cors");
-const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
@@ -18,39 +17,6 @@ const GEMINI_MODEL = "gemini-flash-latest";
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
-
-// ─── Dashboard store (JSON log, không cần database) ──────────────
-// Dữ liệu giữ trong RAM để đọc nhanh, ghi xuống file JSON mỗi khi đổi.
-// File dùng để khôi phục khi server khởi động lại; giữ tối đa MAX_SOS.
-const DATA_DIR = path.join(__dirname, "data");
-const SOS_FILE = path.join(DATA_DIR, "sos.json");
-const ROBOT_STATUS_FILE = path.join(DATA_DIR, "robot-status.json");
-const MAX_SOS = 50;
-
-function ensureDataDir() {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-function readJson(file, fallback) {
-  try {
-    return JSON.parse(fs.readFileSync(file, "utf8"));
-  } catch {
-    return fallback;
-  }
-}
-
-function writeJson(file, value) {
-  try {
-    fs.writeFileSync(file, JSON.stringify(value, null, 2));
-  } catch (error) {
-    console.error(`[dashboard] Cannot persist ${file}:`, error.message);
-  }
-}
-
-ensureDataDir();
-
-const sosLog = readJson(SOS_FILE, []); // { id, node, at, status, resolvedAt }
-const robotStatus = readJson(ROBOT_STATUS_FILE, { node: null, at: null }); // { node, at }
 
 app.get("/api/health", (_req, res) => {
   res.json({
@@ -216,61 +182,6 @@ app.post("/api/ask-buddy-audio", async (req, res) => {
     console.error("[ask-buddy-audio] Gemini error:", error.message);
     res.status(500).json({ transcription: "", answer: "Xin lỗi, mình không nghe rõ. Bạn thử lại nhé!" });
   }
-});
-
-// ─── Dashboard endpoints ─────────────────────
-
-// SOS: { node, status: "active" | "resolved" }
-app.post("/api/sos", (req, res) => {
-  const { node, status } = req.body;
-  const now = new Date().toISOString();
-
-  if (status === "active") {
-    const entry = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      node: typeof node === "number" ? node : null,
-      at: now,
-      status: "active",
-      resolvedAt: null,
-    };
-    sosLog.push(entry);
-    if (sosLog.length > MAX_SOS) sosLog.splice(0, sosLog.length - MAX_SOS);
-    writeJson(SOS_FILE, sosLog);
-    console.log(`[sos] ACTIVE node=${entry.node} at=${now}`);
-  } else if (status === "resolved") {
-    const open = sosLog
-      .slice()
-      .reverse()
-      .find((e) => e.status === "active");
-    if (open) {
-      open.status = "resolved";
-      open.resolvedAt = now;
-      writeJson(SOS_FILE, sosLog);
-      console.log(`[sos] RESOLVED id=${open.id} at=${now}`);
-    }
-  } else {
-    return res.status(400).json({ ok: false, error: 'status must be "active" or "resolved"' });
-  }
-
-  res.json({ ok: true });
-});
-
-// Vị trí robot: { node } — node gần nhất Color Sensor ghi nhận
-app.post("/api/robot-status", (req, res) => {
-  const { node } = req.body;
-  if (typeof node !== "number") {
-    return res.status(400).json({ ok: false, error: "node must be a number" });
-  }
-  robotStatus.node = node;
-  robotStatus.at = new Date().toISOString();
-  writeJson(ROBOT_STATUS_FILE, robotStatus);
-  console.log(`[robot-status] node=${node}`);
-  res.json({ ok: true });
-});
-
-// Dashboard đọc dữ liệu (polling 2s từ trang web)
-app.get("/api/dashboard", (_req, res) => {
-  res.json({ robot: robotStatus, sosList: sosLog });
 });
 
 function getLocalIPs() {

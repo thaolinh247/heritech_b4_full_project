@@ -95,11 +95,10 @@ Kiến trúc thực thi là kiến trúc chính thức của dự án — không
 - [ ] Test SOS thật: long-press switch và nút app → robot dừng + LED đỏ + `STATUS:sos` → `START` để tiếp tục.
 - [ ] Đo số liệu (10 lần/lượt): thời gian `WARN:person` → hiển thị banner, → khách bấm → `STATUS` nhận được; thời gian bấm SOS → hiển thị trên app; ghi cách đo vào báo cáo.
 
-### D. 🟡 Dashboard tối giản (P1 — LÀM)
-- [x] 1 trang web: danh sách SOS (thời gian, node, trạng thái active/resolved) + vị trí robot = node gần nhất Color Sensor ghi nhận. File: `heritage-buddy-app/dashboard/index.html` (mở độc lập trên máy tính bảo tàng, nhập IP server).
-- [x] Polling mỗi **2 giây** cho mục đích SOS (không dùng 10s vì không đạt chỉ tiêu <5s); log file JSON (`server/data/`), không cần database.
-- [x] Endpoints: `POST /api/sos` (active/resolved) · `POST /api/robot-status` · `GET /api/dashboard`.
-- [ ] Chạy thật trên tuyến: app tự gửi khi `NODE_START` / `STATUS:sos` / RESUME (xem TEST-INTERACTION 2.8, 4.10–4.11, metric 9.6).
+### D. 🟡 Dashboard tối giản (P1 — chỉ làm nếu còn thời gian)
+- [ ] 1 trang web: danh sách SOS (thời gian, node, trạng thái) + vị trí robot = node gần nhất Color Sensor ghi nhận.
+- [ ] Polling mỗi **2 giây** cho mục đích SOS (không dùng 10s vì không đạt chỉ tiêu <5s); log file JSON, không cần database.
+- [ ] Endpoints: `POST /api/sos` · `POST /api/robot-status` · `GET /api/dashboard`.
 
 ### E. 🟡 Đa ngôn ngữ & nhận diện ký hiệu tay (P1 — làm sau cùng)
 - [ ] Nếu làm: gói tiếng Anh cho thuyết minh/cảnh báo cơ bản; 5–6 ký hiệu tay (dừng, tiếp tục, SOS, cảm ơn, đồng ý) bằng camera phụ + MediaPipe Hands — phạm vi rất nhỏ.
@@ -108,7 +107,7 @@ Kiến trúc thực thi là kiến trúc chính thức của dự án — không
 ### F. 📄 Báo cáo (không còn mục định hướng công nghệ)
 - [ ] Giữ nguyên phần kỹ thuật (3.7) mô tả đúng mô hình đang chạy thật; cập nhật kiến trúc mới (WARN/auto-resume/SOS/loa ngoài).
 - [ ] Cập nhật "Hạn chế & hướng phát triển": ghi minh bạch các hạn chế đo được — cảnh báo rẽ báo tại ngã ba (không báo trước), PIR chỉ phát hiện chuyển động (không đo khoảng cách vật cản tĩnh), nút vật lý duy nhất kiêm 2 chức năng.
-- [ ] Số liệu định lượng từ mục C: độ chính xác nhận diện node (3 lần đọc ổn định), thời gian auto-resume, thời gian SOS, thời gian SOS→Dashboard, thời gian phản ứng cảnh báo.
+- [ ] Số liệu định lượng từ mục C: độ chính xác nhận diện node (3 lần đọc ổn định), thời gian auto-resume, thời gian SOS, thời gian phản ứng cảnh báo.
 
 ### G. 🟢 Kiểm thử tổng thể → GATE 2
 - [ ] Tour hoàn chỉnh: bắt đầu → cảnh báo → đường thoáng tự resume → SOS thử nghiệm → kết thúc.
@@ -121,7 +120,7 @@ Kiến trúc thực thi là kiến trúc chính thức của dự án — không
 | `WARN:person` → banner hiển thị + TTS bắt đầu | <1s | Log app (timestamps) |
 | Auto-resume end-to-end (`WARN` → đường thoáng → nhận `STATUS:auto_resumed`) | <3s | Log app + firmware, 10 lần |
 | SOS (nút app/long-press) → robot dừng + `STATUS:sos` | <2s | Log firmware |
-| SOS → Dashboard (LÀM) | <5s | Polling 2s + log server |
+| SOS → Dashboard (nếu làm) | <5s | Polling 2s |
 | Độ chính xác nhận diện node (Color Sensor) | giữ số liệu V3 (3 lần đọc ổn định) | Thống kê trên tour |
 | Robot tự hành đến node đúng → gửi `NODE_START:<id>` | không crash, log rõ | Quan sát + log |
 

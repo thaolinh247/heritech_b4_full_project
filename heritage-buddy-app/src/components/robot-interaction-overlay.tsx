@@ -8,7 +8,6 @@ import { images } from "@/constants/images";
 import { onMessage, sendCommand } from "@/lib/bluetooth";
 import { speak, stopSpeaking } from "@/lib/tts";
 import { useRobotStore } from "@/store/robot";
-import { reportSos } from "@/lib/dashboard";
 import type { WarnType } from "@/types/robot";
 
 // ─── Hằng số thời gian ───────────────────────
@@ -114,7 +113,6 @@ export function RobotInteractionOverlay() {
       setSosActive(true);
       setRobotStatus("sos");
       speak({ text: "Đã kích hoạt SOS. Robot đã dừng lại để đảm bảo an toàn." });
-      reportSos("active", useRobotStore.getState().currentStop);
     } else {
       setRobotStatus("unknown");
     }
@@ -168,7 +166,6 @@ export function RobotInteractionOverlay() {
     await stopSpeaking();
     setSosActive(false);
     setRobotStatus(null);
-    reportSos("resolved");
     await sendCommand("RESUME");
     speak({ text: "Hành trình tiếp tục." });
   }
