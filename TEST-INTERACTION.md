@@ -130,7 +130,23 @@
 
 ---
 
-## 9. Chỉ tiêu số — bảng đo (mỗi metric 10 lần, GATE 1)
+## 9. Song ngữ — chọn tiếng Anh (mục E plan-ver2)
+
+> Điều kiện tiên quyết: thiết bị có voice pack tiếng Anh (kiểm tra trước; nếu không có → `resolveVoice` fallback giọng mặc định, TTS vẫn chạy). Làm sạch dữ liệu app (xóa cache / reinstall) trước khi test.
+
+| # | Test case | Các bước | Kết quả mong đợi | KQ |
+|---|---|---|---|---|
+| 9.1 | Bộ chọn ngôn ngữ ở onboarding | Mở app mới → màn `selection.tsx` | Bộ chọn Việt/English hiện đầu màn; chọn **English** → xác nhận; ngôn ngữ lưu sau khi tắt/mở lại app (không nháy về tiếng Việt) | [ ] |
+| 9.2 | UI tiếng Anh toàn màn | Sau khi chọn EN: duyệt index → selection → map → node → chat → celebration | Toàn bộ chuỗi UI tiếng Anh (nút, Alert, banner, accessibilityLabel), không còn tiếng Việt hardcode | [ ] |
+| 9.3 | Nội dung hiện vật tiếng Anh | Mở node → kiểm tra title/description | Title node tiếng Anh (`titleEn`), section banner tên khu tiếng Anh (`nameEn`); video thuyết minh vẫn là bản tiếng Việt | [ ] |
+| 9.4 | TTS `en-US` (cảnh báo) | Kích `WARN:person`, `WARN:turn_l/r`, `STATUS:resumed` qua BLE UART | Giọng đọc tiếng Anh (`en-US`) qua loa ngoài; banner/toast tiếng Anh | [ ] |
+| 9.5 | STT `en-US` | Chọn EN → vào chat → nói câu hỏi tiếng Anh | Transcript nhận đúng tiếng Anh; gửi được câu hỏi; Buddy trả lời tiếng Anh (LLM nhận `language: en`) | [ ] |
+| 9.6 | LLM trả lời tiếng Anh | Gửi câu hỏi (text/audio) khi đang EN | Câu trả lời + lỗi fallback tiếng Anh (server không cấu hình / mất mạng) | [ ] |
+| 9.7 | Quay về VI không đổi hành vi | Làm sạch data → chọn **Tiếng Việt** → lặp 9.2–9.5 | UI/nội dung/TTS/STT/LLM tiếng Việt y như trước khi thêm song ngữ (100% hành vi cũ) | [ ] |
+
+---
+
+## 10. Chỉ tiêu số — bảng đo (mỗi metric 10 lần, GATE 1)
 
 > Cách đo: người thứ 2 bấm giờ theo sự kiện quan sát được (banner xuất hiện / tiếng còi / robot nhúc nhích); ghi từng lần vào bảng. Chấm đạt nếu **trung bình** nằm dưới target.
 
@@ -167,7 +183,7 @@ Số node đúng / tổng node trong tour: **___ / 13** (3 tour) · Lỗi phát 
 
 ---
 
-## 10. Kết luận kiểm thử
+## 11. Kết luận kiểm thử
 
 | GATE | Tiêu chí | Đạt? | Ghi chú |
 |---|---|---|---|

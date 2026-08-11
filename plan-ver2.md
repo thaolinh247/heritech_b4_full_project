@@ -101,7 +101,8 @@ Kiến trúc thực thi là kiến trúc chính thức của dự án — không
 - [ ] Endpoints: `POST /api/sos` · `POST /api/robot-status` · `GET /api/dashboard`.
 
 ### E. 🟡 Đa ngôn ngữ & nhận diện ký hiệu tay (P1 — làm sau cùng)
-- [ ] Nếu làm: gói tiếng Anh cho thuyết minh/cảnh báo cơ bản; 5–6 ký hiệu tay (dừng, tiếp tục, SOS, cảm ơn, đồng ý) bằng camera phụ + MediaPipe Hands — phạm vi rất nhỏ.
+- [x] **Song ngữ tiếng Việt + tiếng Anh** (mục E — đã làm, chi tiết `PLAN-BILINGUAL.md`): i18n dictionary ~90 key × 2 ngôn ngữ, ngôn ngữ chọn 1 lần ở onboarding (`selection.tsx`) persist AsyncStorage, dữ liệu 13 hiện vật + 4 khu dịch đủ, TTS/STT/LLM theo ngôn ngữ (`vi-VN`/`en-US` + `resolveVoice` fallback, server gửi prompt ngôn ngữ tương ứng), toàn bộ UI + cảnh báo (banner + TTS) qua `t(key)`. Video thuyết minh tạm giữ bản tiếng Việt (`videoSourceEn?` rỗng, sau chỉ cần điền link). Kiểm tra thủ công ở `TEST-INTERACTION.md` mục 9.
+- [ ] Nếu làm tiếp: 5–6 ký hiệu tay (dừng, tiếp tục, SOS, cảm ơn, đồng ý) bằng camera phụ + MediaPipe Hands — phạm vi rất nhỏ.
 - [ ] Nếu không kịp: chỉ nêu ở phần "hướng phát triển" của báo cáo, không đưa vào "đã làm được".
 
 ### F. 📄 Báo cáo (không còn mục định hướng công nghệ)
