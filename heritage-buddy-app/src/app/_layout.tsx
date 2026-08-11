@@ -5,6 +5,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { View } from "@/tw";
 import { RobotInteractionOverlay } from "@/components/robot-interaction-overlay";
+import { useLanguageStore } from "@/store/language";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -15,14 +16,15 @@ export default function RootLayout() {
     "Helvetica-Italic": require("../../../assets/fonts/Helvetica-Italic.ttf"),
     "Helvetica-BoldItalic": require("../../../assets/fonts/Helvetica-BoldItalic.ttf"),
   });
+  const hydrated = useLanguageStore((s) => s.hydrated);
 
   useEffect(() => {
-    if (fontsLoaded) {
+    if (fontsLoaded && hydrated) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded]);
+  }, [fontsLoaded, hydrated]);
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded || !hydrated) {
     return null;
   }
 

@@ -3,6 +3,14 @@
 ## [Unreleased]
 
 ### Added
+- **Song ngữ (mục E plan-ver2) — Bước 1: nền tảng i18n**:
+  - `heritage-buddy-app/src/types/language.ts` (mới): `type Language = "vi" | "en"`.
+  - `heritage-buddy-app/src/store/language.ts` (mới): Zustand store `language`/`setLanguage` + `persist` qua AsyncStorage (key `heritage-buddy-language`, `partialize` chỉ lưu `language`) + cờ `hydrated` set trong `onRehydrateStorage` — chống "nháy" ngôn ngữ khi mở lại app.
+  - `heritage-buddy-app/src/app/_layout.tsx`: gate splash giữ nguyên tới khi font **và** ngôn ngữ rehydrate xong (`if (!fontsLoaded || !hydrated) return null`) rồi mới `SplashScreen.hideAsync()`.
+  - `heritage-buddy-app/src/lib/i18n.ts` (mới): dictionary ~90 key × 2 ngôn ngữ (key set `vi`/`en` đối xứng, TS bắt buộc đủ key); `getLanguage()` dùng `useLanguageStore.getState()` (dùng được ngoài component); `t(key, options?, language?)` hỗ trợ interpolation `{x}`; hook `useT()` reactive cho component; `pickViEn(vi, en, language?)` fallback về VI khi bản EN rỗng.
+  - `heritage-buddy-app/src/lib/i18n.test.ts` + `src/store/language.test.ts` (mới, jest-expo): 11 test — đối xứng key vi/en, không key rỗng, `t()` đúng ngôn ngữ + interpolation + fallback, `pickViEn` fallback, store rehydrate.
+  - `jest.config.js` + `jest.setup.js` (mới): preset `jest-expo` + mock `@react-native-async-storage/async-storage` cho test.
+  - Ghi chú: `npx tsc --noEmit` tiếp tục treo trong môi trường này (đã thử tsconfig thu hẹp phạm vi) — không phải lỗi code; `npx expo lint` pass (0 lỗi, 2 warning cũ).
 - **`PLAN-BILINGUAL.md`**: tạo plan chi tiết cho tính năng song ngữ tiếng Việt + tiếng Anh (mục E plan-ver2) sau khi rà soát code và thống nhất phạm vi — dịch toàn bộ UI + nội dung hiện vật/bản đồ + cảnh báo (banner + TTS); ngôn ngữ chọn 1 lần ở onboarding (màn `selection.tsx`) và persist qua AsyncStorage, không có nút đổi giữa phiên; giữ nguyên mọi thao tác hiện tại (không đụng wake word "Hey Buddy"); video thuyết minh tạm giữ bản tiếng Việt, data thêm `videoSourceEn?` rỗng để sau chỉ cần điền link video tiếng Anh. Plan gồm 5 bước: nền tảng (store language + gate rehydrate + `lib/i18n.ts` với `t()`/`getLanguage()`/`pickViEn`), dịch dữ liệu 13 hiện vật + 4 khu, TTS/STT/LLM theo ngôn ngữ (kèm `resolveVoice` fallback), thay chuỗi hardcode → `t(key)` theo checklist đã rà soát, và hoàn thiện (test đối xứng dictionary, CHANGELOG, TEST-INTERACTION, lint/jest/tsc).
 
 ### Removed
