@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Vibration } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePathname } from "expo-router";
@@ -8,6 +8,7 @@ import { images } from "@/constants/images";
 import { onMessage, sendCommand } from "@/lib/bluetooth";
 import { speak, stopSpeaking } from "@/lib/tts";
 import { useRobotStore } from "@/store/robot";
+import { getLanguage, useT } from "@/lib/i18n";
 import type { WarnType } from "@/types/robot";
 
 // ─── Hằng số thời gian ───────────────────────
@@ -17,20 +18,12 @@ const WARN_TURN_TOAST_MS = 3500;      // Toast thông báo rẽ
 const STATUS_TOAST_MS = 2600;         // Toast xác nhận trạng thái robot
 const SOS_HOLD_MS = 2000;             // Giữ ≥2s để kích hoạt SOS
 
-// ─── Nội dung đọc to ─────────────────────────
-
-const WARN_TEXT: Record<WarnType, string> = {
-  person:
-    "Có người hoặc vật cản phía trước. Robot đã dừng lại. Robot sẽ tự động tiếp tục khi đường thoáng.",
-  turn_l: "Robot đang rẽ trái.",
-  turn_r: "Robot đang rẽ phải.",
-};
-
 // ─── Component ───────────────────────────────
 
 export function RobotInteractionOverlay() {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
+  const t = useT();
 
   const activeWarn = useRobotStore((s) => s.activeWarn);
   const robotStatus = useRobotStore((s) => s.robotStatus);
@@ -60,7 +53,7 @@ export function RobotInteractionOverlay() {
     });
   }
 
-  function clearWarn() {
+  const clearWarn = useCallback(() => {
     setActiveWarn(null);
     if (personDismissTimer.current) {
       clearTimeout(personDismissTimer.current);
@@ -70,58 +63,68 @@ export function RobotInteractionOverlay() {
       clearTimeout(turnDismissTimer.current);
       turnDismissTimer.current = null;
     }
-  }
+  }, [setActiveWarn]);
 
   // ─── Xử lý tín hiệu robot ──────────────────
 
-  function handleWarn(type: WarnType) {
-    clearWarn();
-    setActiveWarn(type);
-
-    if (type === "person") {
-      Vibration.vibrate();
-      speak({ text: WARN_TEXT.person });
-      // Fallback: nếu robot mất kết nối giữa vòng chờ, tự tắt banner sau ~10s
-      personDismissTimer.current = setTimeout(() => {
-        setActiveWarn(null);
-        personDismissTimer.current = null;
-      }, WARN_PERSON_DISMISS_MS);
-    } else if (type === "turn_l" || type === "turn_r") {
-      speak({ text: WARN_TEXT[type] });
-      turnDismissTimer.current = setTimeout(() => {
-        setActiveWarn(null);
-        turnDismissTimer.current = null;
-      }, WARN_TURN_TOAST_MS);
-    }
-  }
-
-  function handleStatus(s: string) {
-    if (statusTimer.current) clearTimeout(statusTimer.current);
-
-    if (s === "resumed" || s === "auto_resumed") {
+  const handleWarn = useCallback(
+    (type: WarnType) => {
       clearWarn();
-      setSosActive(false);
-      setRobotStatus(s);
-      speak({
-        text:
-          s === "resumed"
-            ? "Robot đã tiếp tục hành trình."
-            : "Robot tự động tiếp tục hành trình.",
-      });
-    } else if (s === "sos") {
-      Vibration.vibrate();
-      setSosActive(true);
-      setRobotStatus("sos");
-      speak({ text: "Đã kích hoạt SOS. Robot đã dừng lại để đảm bảo an toàn." });
-    } else {
-      setRobotStatus("unknown");
-    }
+      setActiveWarn(type);
 
-    statusTimer.current = setTimeout(() => {
-      setRobotStatus(null);
-      statusTimer.current = null;
-    }, STATUS_TOAST_MS);
-  }
+      if (type === "person") {
+        Vibration.vibrate();
+        speak({ text: t("warn.person"), language: getLanguage() });
+        // Fallback: nếu robot mất kết nối giữa vòng chờ, tự tắt banner sau ~10s
+        personDismissTimer.current = setTimeout(() => {
+          setActiveWarn(null);
+          personDismissTimer.current = null;
+        }, WARN_PERSON_DISMISS_MS);
+      } else if (type === "turn_l" || type === "turn_r") {
+        speak({
+          text: type === "turn_l" ? t("warn.turnL") : t("warn.turnR"),
+          language: getLanguage(),
+        });
+        turnDismissTimer.current = setTimeout(() => {
+          setActiveWarn(null);
+          turnDismissTimer.current = null;
+        }, WARN_TURN_TOAST_MS);
+      }
+    },
+    [clearWarn, setActiveWarn, t],
+  );
+
+  const handleStatus = useCallback(
+    (s: string) => {
+      if (statusTimer.current) clearTimeout(statusTimer.current);
+
+      if (s === "resumed" || s === "auto_resumed") {
+        clearWarn();
+        setSosActive(false);
+        setRobotStatus(s);
+        speak({
+          text:
+            s === "resumed"
+              ? t("status.resumed")
+              : t("status.autoResumed"),
+          language: getLanguage(),
+        });
+      } else if (s === "sos") {
+        Vibration.vibrate();
+        setSosActive(true);
+        setRobotStatus("sos");
+        speak({ text: t("sos.spoken"), language: getLanguage() });
+      } else {
+        setRobotStatus("unknown");
+      }
+
+      statusTimer.current = setTimeout(() => {
+        setRobotStatus(null);
+        statusTimer.current = null;
+      }, STATUS_TOAST_MS);
+    },
+    [clearWarn, setRobotStatus, setSosActive, t],
+  );
 
   // Lắng nghe tín hiệu WARN/STATUS từ robot (chạy trên mọi màn hình)
   useEffect(() => {
@@ -139,8 +142,7 @@ export function RobotInteractionOverlay() {
       clearTimers();
       stopSpeaking();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [handleWarn, handleStatus]);
 
   // ─── Hành động người dùng ──────────────────
 
@@ -167,7 +169,7 @@ export function RobotInteractionOverlay() {
     setSosActive(false);
     setRobotStatus(null);
     await sendCommand("RESUME");
-    speak({ text: "Hành trình tiếp tục." });
+    speak({ text: t("sos.resuming"), language: getLanguage() });
   }
 
   const showPersonBanner = activeWarn === "person" && !sosActive;
@@ -186,8 +188,8 @@ export function RobotInteractionOverlay() {
   const statusToastText =
     robotStatus === "resumed" || robotStatus === "auto_resumed"
       ? robotStatus === "resumed"
-        ? "Robot đã tiếp tục hành trình"
-        : "Robot tự động tiếp tục hành trình"
+        ? t("status.resumedToast")
+        : t("status.autoResumedToast")
       : null;
 
   return (
@@ -220,13 +222,13 @@ export function RobotInteractionOverlay() {
               className="text-3xl mt-4 text-center"
               style={{ fontFamily: "Helvetica-Bold", color: "#E85D4E" }}
             >
-              SOS — Đã gửi tín hiệu khẩn cấp
+              {t("sos.title")}
             </Text>
             <Text
               className="text-xl mt-2 text-center leading-relaxed"
               style={{ fontFamily: "Helvetica-Regular", color: "#5C3A21" }}
             >
-              Robot đã dừng lại và bật đèn báo để mọi người thấy bạn.
+              {t("sos.body")}
             </Text>
             <Pressable
               onPress={resumeAfterSos}
@@ -237,13 +239,13 @@ export function RobotInteractionOverlay() {
                 justifyContent: "center",
               }}
               accessibilityRole="button"
-              accessibilityLabel="Tiếp tục hành trình sau khi gọi SOS"
+              accessibilityLabel={t("sos.resumeA11y")}
             >
               <Text
                 className="text-white text-lg text-center"
                 style={{ fontFamily: "Helvetica-Bold" }}
               >
-                Tiếp tục hành trình
+                {t("sos.resume")}
               </Text>
             </Pressable>
           </View>
@@ -280,14 +282,13 @@ export function RobotInteractionOverlay() {
                   className="text-2xl"
                   style={{ fontFamily: "Helvetica-Bold", color: "#E85D4E" }}
                 >
-                  Cảnh báo
+                  {t("warn.personTitle")}
                 </Text>
                 <Text
                   className="text-lg leading-relaxed"
                   style={{ fontFamily: "Helvetica-Regular", color: "#5C3A21" }}
                 >
-                  Có người hoặc vật cản phía trước. Robot đã dừng lại và sẽ tự
-                  động tiếp tục.
+                  {t("warn.personBanner")}
                 </Text>
               </View>
             </View>
@@ -322,7 +323,7 @@ export function RobotInteractionOverlay() {
               className="text-lg text-center"
               style={{ fontFamily: "Helvetica-Bold", color: "#FFFFFF" }}
             >
-              {activeWarn === "turn_l" ? "Robot đang rẽ trái" : "Robot đang rẽ phải"}
+              {activeWarn === "turn_l" ? t("warn.turnLeftToast") : t("warn.turnRightToast")}
             </Text>
           </View>
         </View>
@@ -385,13 +386,13 @@ export function RobotInteractionOverlay() {
             borderColor: "#FFFFFF",
           }}
           accessibilityRole="button"
-          accessibilityLabel="Nút SOS. Giữ hai giây để gọi khẩn cấp."
+          accessibilityLabel={t("sos.fabA11y")}
         >
           <Text
             className="text-white text-lg"
             style={{ fontFamily: "Helvetica-Bold" }}
           >
-            {isHoldingSos ? "Đang giữ…" : "SOS"}
+            {isHoldingSos ? t("sos.holding") : "SOS"}
           </Text>
         </Pressable>
       )}

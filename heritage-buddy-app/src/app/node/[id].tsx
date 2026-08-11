@@ -10,11 +10,13 @@ import { useRobotConnection } from "@/hooks/use-robot-connection";
 import { images } from "@/constants/images";
 import { Image } from "expo-image";
 import { useCallback, useEffect } from "react";
+import { useT, pickViEn } from "@/lib/i18n";
 
 export default function NodeVideoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const node = MUSEUM_NODES.find((n) => n.id === id);
+  const t = useT();
 
   if (!node) {
     return (
@@ -35,7 +37,7 @@ export default function NodeVideoScreen() {
           className="text-lg text-[#5C3A21] text-center mt-4 px-8"
           style={{ fontFamily: "Helvetica-Bold" }}
         >
-          Không tìm thấy nội dung
+          {t("node.notFound")}
         </Text>
         <Pressable
           onPress={() => router.back()}
@@ -46,7 +48,7 @@ export default function NodeVideoScreen() {
             className="text-white text-base"
             style={{ fontFamily: "Helvetica-Bold" }}
           >
-            Quay lại
+            {t("common.back")}
           </Text>
         </Pressable>
       </SafeAreaView>
@@ -62,6 +64,7 @@ function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[nu
   const { completeNode, getNodeStatus } = useMapProgress();
   const { sendCommand, isConnected, onSwitchPress } = useRobotConnection();
   useGestureNavigation(node.id);
+  const t = useT();
 
   const player = useVideoPlayer(node.videoSource, (player) => {
     player.loop = false;
@@ -138,15 +141,15 @@ function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[nu
             className="text-2xl mb-2"
             style={{ fontFamily: "Helvetica-Bold", color: "#5C3A21" }}
           >
-            {node.title}
+            {pickViEn(node.title, node.titleEn)}
           </Text>
           <Text
             className="text-base"
             style={{ fontFamily: "Helvetica-Bold", color: "#7A5233" }}
           >
             {isAlreadyCompleted
-              ? "Bạn đã xem nội dung này."
-              : "Xem video để khám phá thêm về hiện vật này."}
+              ? t("node.watched")
+              : t("node.watchHint")}
           </Text>
         </View>
 
@@ -163,14 +166,14 @@ function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[nu
               shadowRadius: 8,
               elevation: 5,
             }}
-            accessibilityLabel="Mở trợ lý Buddy"
+            accessibilityLabel={t("node.askBuddy")}
             accessibilityRole="button"
           >
             <Text
               className="text-white text-base text-center"
               style={{ fontFamily: "Helvetica-Bold" }}
             >
-              🎙️ Hỏi Buddy
+              🎙️ {t("node.askBuddy")}
             </Text>
           </Pressable>
 
@@ -186,7 +189,7 @@ function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[nu
               shadowRadius: 8,
               elevation: isAlreadyCompleted ? 0 : 5,
             }}
-            accessibilityLabel="Đi tiếp"
+            accessibilityLabel={t("node.next")}
             accessibilityRole="button"
           >
             <Text
@@ -194,10 +197,10 @@ function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[nu
               style={{ fontFamily: "Helvetica-Bold" }}
             >
               {isLastNode
-                ? "Kết thúc hành trình"
+                ? t("node.endTour")
                 : isAlreadyCompleted
-                  ? "Quay lại bản đồ"
-                  : "Đi tiếp"}
+                  ? t("node.backToMap")
+                  : t("node.next")}
             </Text>
           </Pressable>
         </View>

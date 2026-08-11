@@ -10,6 +10,7 @@ import { useMapProgress } from "@/hooks/use-map-progress";
 import { useRobotConnection } from "@/hooks/use-robot-connection";
 import { getMaxNodeY } from "@/data/museum-map";
 import { images } from "@/constants/images";
+import { useT } from "@/lib/i18n";
 import type { MapNode as MapNodeType } from "@/types/museum-map";
 
 const NODE_SIZE = 56;
@@ -35,6 +36,7 @@ export default function MuseumMapScreen() {
   } = useRobotConnection();
 
   const [containerWidth, setContainerWidth] = useState(0);
+  const t = useT();
 
   const maxY = getMaxNodeY();
   const mapHeight = maxY * MAP_Y_SPACING + NODE_SIZE + EXTRA_PADDING;
@@ -52,36 +54,36 @@ export default function MuseumMapScreen() {
   const handleStart = useCallback(() => {
     if (!isConnected) {
       Alert.alert(
-        "Chưa kết nối",
-        "Bạn cần kết nối với robot trước khi xuất phát.",
+        t("map.alertNotConnectedTitle"),
+        t("map.alertNotConnectedBody"),
         [
-          { text: "Thử lại", onPress: () => connect() },
-          { text: "Huỷ", style: "cancel" },
+          { text: t("common.retry"), onPress: () => connect() },
+          { text: t("common.cancel"), style: "cancel" },
         ],
       );
       return;
     }
 
-    Alert.alert("Xuất phát", "Robot sẽ bắt đầu di chuyển theo bản đồ?", [
-      { text: "Huỷ", style: "cancel" },
+    Alert.alert(t("map.alertStartTitle"), t("map.alertStartBody"), [
+      { text: t("common.cancel"), style: "cancel" },
       {
-        text: "Xuất phát",
+        text: t("map.alertStartConfirm"),
         onPress: () => {
           sendCommand("START");
-          Alert.alert("Thành công", "Robot đã bắt đầu di chuyển!");
+          Alert.alert(t("map.alertStartSuccess"), t("map.alertStartSuccessBody"));
         },
       },
     ]);
-  }, [isConnected, connect, sendCommand]);
+  }, [isConnected, connect, sendCommand, t]);
 
   const handleReset = useCallback(() => {
     Alert.alert(
-      "Đặt lại tiến trình",
-      "Bạn có chắc muốn xoá toàn bộ tiến trình khám phá?",
+      t("map.alertResetTitle"),
+      t("map.alertResetBody"),
       [
-        { text: "Huỷ", style: "cancel" },
+        { text: t("common.cancel"), style: "cancel" },
         {
-          text: "Xác nhận",
+          text: t("map.alertResetConfirm"),
           style: "destructive",
           onPress: async () => {
             await resetProgress();
@@ -89,7 +91,7 @@ export default function MuseumMapScreen() {
         },
       ],
     );
-  }, [resetProgress]);
+  }, [resetProgress, t]);
 
   if (!loaded) return null;
 
@@ -115,7 +117,7 @@ export default function MuseumMapScreen() {
           className="text-lg text-center flex-1"
           style={{ fontFamily: "Helvetica-Bold", color: "#5C3A21" }}
         >
-          Bản đồ bảo tàng
+          {t("map.title")}
         </Text>
 
         <View
@@ -209,12 +211,12 @@ export default function MuseumMapScreen() {
               }}
             >
               {connectionStatus === "connected"
-                ? "Đã kết nối robot"
+                ? t("common.connected")
                 : connectionStatus === "scanning"
-                  ? "Đang quét..."
+                  ? t("common.scanning")
                   : connectionStatus === "connecting"
-                    ? "Đang kết nối..."
-                    : "Chưa kết nối"}
+                    ? t("common.connecting")
+                    : t("common.disconnected")}
             </Text>
           </View>
 
@@ -228,7 +230,7 @@ export default function MuseumMapScreen() {
                 className="text-white text-xs"
                 style={{ fontFamily: "Helvetica-Bold" }}
               >
-                Kết nối
+                {t("common.connect")}
               </Text>
             </Pressable>
           )}
@@ -250,7 +252,7 @@ export default function MuseumMapScreen() {
             className="text-lg text-white"
             style={{ fontFamily: "Helvetica-Bold" }}
           >
-            {isConnected ? "Xuất phát" : "Chưa kết nối"}
+            {isConnected ? t("common.start") : t("common.disconnected")}
           </Text>
         </Pressable>
       </View>

@@ -1,4 +1,6 @@
 import type { ArtifactContext } from "./contextBuilder";
+import { getLanguage, t } from "@/lib/i18n";
+import type { Language } from "@/types/language";
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? "http://localhost:3000";
 
@@ -14,12 +16,14 @@ const BASE_URLS = FALLBACK_BACKEND_URL
 interface LLMRequest {
   question: string;
   artifactContext: ArtifactContext;
+  language: Language;
 }
 
 interface AudioLLMRequest {
   audioBase64: string;
   mimeType: string;
   artifactContext: ArtifactContext;
+  language: Language;
 }
 
 interface LLMResponse {
@@ -49,7 +53,7 @@ async function fetchWithFallback(path: string, init: RequestInit, timeoutMs: num
       lastError = err;
     }
   }
-  throw lastError instanceof Error ? lastError : new Error("Không thể kết nối đến máy chủ");
+  throw lastError instanceof Error ? lastError : new Error(t("llm.connErr"));
 }
 
 export async function askBuddy(req: LLMRequest): Promise<LLMResponse> {
@@ -59,23 +63,23 @@ export async function askBuddy(req: LLMRequest): Promise<LLMResponse> {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(req),
+        body: JSON.stringify({ ...req, language: getLanguage() }),
       },
       FETCH_TIMEOUT,
     );
 
     if (!response.ok) {
       return {
-        answer: "Xin lỗi, mình gặp sự cố kết nối. Bạn thử lại nhé!",
+        answer: t("llm.connectFailed"),
         error: `HTTP ${response.status}`,
       };
     }
 
     return response.json();
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Lỗi không xác định";
+    const msg = err instanceof Error ? err.message : t("llm.unknownError");
     return {
-      answer: `Không thể kết nối đến máy chủ (${msg}). Bạn kiểm tra mạng và thử lại nhé!`,
+      answer: t("llm.networkErrorTemplate", { msg }),
       error: "Network error",
     };
   }
@@ -88,7 +92,7 @@ export async function askBuddyWithAudio(req: AudioLLMRequest): Promise<AudioLLMR
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(req),
+        body: JSON.stringify({ ...req, language: getLanguage() }),
       },
       FETCH_TIMEOUT,
     );
@@ -96,17 +100,17 @@ export async function askBuddyWithAudio(req: AudioLLMRequest): Promise<AudioLLMR
     if (!response.ok) {
       return {
         transcription: "",
-        answer: "Xin lỗi, mình không nghe rõ. Bạn thử lại nhé!",
+        answer: t("llm.hearFailed"),
         error: `HTTP ${response.status}`,
       };
     }
 
     return response.json();
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Lỗi không xác định";
+    const msg = err instanceof Error ? err.message : t("llm.unknownError");
     return {
       transcription: "",
-      answer: `Không thể kết nối đến máy chủ (${msg}). Bạn kiểm tra mạng và thử lại nhé!`,
+      answer: t("llm.networkErrorTemplate", { msg }),
       error: "Network error",
     };
   }

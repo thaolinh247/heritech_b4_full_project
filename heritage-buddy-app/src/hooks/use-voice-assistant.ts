@@ -9,12 +9,26 @@ import { useTTS } from "@/lib/tts";
 import { askBuddy, askBuddyWithAudio, checkServerHealth } from "@/lib/llm";
 import { buildArtifactContext } from "@/lib/contextBuilder";
 import { useMapProgress } from "@/hooks/use-map-progress";
+import { useT } from "@/lib/i18n";
 import type { MapNode } from "@/types/museum-map";
 import type { ChatMessage } from "@/types/voice-assistant";
 
 export type ServerStatus = "checking" | "connected" | "error";
 
-const NAV_KEYWORDS = ["dừng", "dừng lại", "stop", "tiếp", "tiếp theo", "next", "continue", "sang node", "chuyển node"];
+const NAV_KEYWORDS = [
+  "dừng",
+  "dừng lại",
+  "stop",
+  "tiếp",
+  "tiếp theo",
+  "next",
+  "continue",
+  "keep going",
+  "move on",
+  "sang node",
+  "chuyển node",
+  "next stop",
+];
 
 // Chờ TTS/audio nhả nguồn rồi mới mở mic — tránh xung đột audio focus trên Android.
 const MIC_RESTART_DELAY_MS = 1000;
@@ -42,6 +56,7 @@ export function useVoiceAssistant(node: MapNode | null) {
   const router = useRouter();
   const { completeNode } = useMapProgress();
   const { sendCommand, isConnected, onVoiceStop } = useRobotConnection();
+  const t = useT();
 
   const canUseSpeech = speechError !== "unavailable";
 
@@ -253,7 +268,7 @@ export function useVoiceAssistant(node: MapNode | null) {
         const errorMsg: ChatMessage = {
           id: `error-${Date.now()}`,
           role: "buddy",
-          text: "Xin lỗi, mình gặp sự cố. Bạn thử lại nhé!",
+          text: t("va.errorGeneric"),
           timestamp: Date.now(),
         };
         addMessage(errorMsg);
@@ -261,7 +276,7 @@ export function useVoiceAssistant(node: MapNode | null) {
         inputLockRef.current = false;
       }
     },
-    [addMessage, markSpeakingDone, setState, playTTS, startListeningAfterSpeaking, resetSTT],
+    [addMessage, markSpeakingDone, setState, playTTS, startListeningAfterSpeaking, resetSTT, t],
   );
 
   const handleAudioMessage = useCallback(
@@ -280,7 +295,7 @@ export function useVoiceAssistant(node: MapNode | null) {
         addMessage({
           id: userMsgId,
           role: "user",
-          text: "(ghi âm thất bại)",
+          text: t("va.recordFailed"),
           timestamp: Date.now(),
         });
         setState("idle");
@@ -300,7 +315,7 @@ export function useVoiceAssistant(node: MapNode | null) {
 
         const userText = response.transcription
           ? response.transcription
-          : "(đã ghi âm giọng nói)";
+          : t("va.recordedVoice");
 
         // Check if transcription is a navigation command
         if (response.transcription && isNavCommand(response.transcription)) {
@@ -319,13 +334,13 @@ export function useVoiceAssistant(node: MapNode | null) {
           addMessage({
             id: userMsgId,
             role: "user",
-            text: "(không nghe rõ)",
+            text: t("va.unheard"),
             timestamp: Date.now(),
           });
           addMessage({
             id: `buddy-${Date.now()}`,
             role: "buddy",
-            text: "Mình không nghe rõ bạn nói gì. Bạn thử nói lại nhé!",
+            text: t("va.cantHear"),
             timestamp: Date.now(),
           });
           setState("idle");
@@ -378,20 +393,20 @@ export function useVoiceAssistant(node: MapNode | null) {
         addMessage({
           id: userMsgId,
           role: "user",
-          text: "(không thể nhận dạng giọng nói)",
+          text: t("va.speechFailed"),
           timestamp: Date.now(),
         });
         addMessage({
           id: `buddy-${Date.now()}`,
           role: "buddy",
-          text: "Mình không kết nối được máy chủ. Bạn kiểm tra lại mạng hoặc thử lại nhé!",
+          text: t("va.serverDown"),
           timestamp: Date.now(),
         });
         setState("idle");
         inputLockRef.current = false;
       }
     },
-    [addMessage, markSpeakingDone, setState, playTTS, readAudioBase64, startListeningAfterSpeaking, navigateToNextNode, sendCommand, isConnected, resetSTT],
+    [addMessage, markSpeakingDone, setState, playTTS, readAudioBase64, startListeningAfterSpeaking, navigateToNextNode, sendCommand, isConnected, resetSTT, t],
   );
 
   useEffect(() => {

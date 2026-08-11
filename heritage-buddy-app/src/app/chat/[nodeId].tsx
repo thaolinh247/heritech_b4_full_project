@@ -12,6 +12,7 @@ import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { useRef, useEffect, useState } from "react";
 import { TextInput, Pressable } from "react-native";
 import { useRobotConnection } from "@/hooks/use-robot-connection";
+import { useT, pickViEn } from "@/lib/i18n";
 
 export default function ChatScreen() {
   const { nodeId } = useLocalSearchParams<{ nodeId: string }>();
@@ -21,6 +22,7 @@ export default function ChatScreen() {
   const { onSwitchPress } = useRobotConnection();
   const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [text, setText] = useState("");
+  const t = useT();
 
   useEffect(() => {
     setTimeout(() => {
@@ -38,7 +40,7 @@ export default function ChatScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FDF3E7" }}>
       <ChatHeader
-        title={node?.title ?? "Chat với Buddy"}
+        title={node ? pickViEn(node.title, node.titleEn) : t("chat.defaultTitle")}
         onBack={() => router.back()}
       />
 
@@ -60,7 +62,7 @@ export default function ChatScreen() {
               textAlign: "center",
             }}
           >
-            {"Không kết nối được máy chủ. Vui lòng kiểm tra mạng!"}
+            {t("chat.serverError")}
           </Text>
         </View>
       )}
@@ -87,7 +89,7 @@ export default function ChatScreen() {
                 lineHeight: 26,
               }}
             >
-              {"Chào bạn! Mình là Buddy.\nHỏi mình bất cứ điều gì về hiện vật này nhé!"}
+              {t("chat.emptyGreeting")}
             </Text>
           </View>
         )}
@@ -108,7 +110,7 @@ export default function ChatScreen() {
                 color: "#E85D4E",
               }}
             >
-              Đang ghi âm... nhấn lại để gửi
+              {t("chat.recordingHint")}
             </Text>
           </View>
         )}
@@ -158,7 +160,7 @@ export default function ChatScreen() {
             <TextInput
               value={text}
               onChangeText={setText}
-              placeholder="Nhập câu hỏi..."
+              placeholder={t("chat.inputPlaceholder")}
               placeholderTextColor="#A0846B"
               style={{
                 flex: 1,

@@ -6,11 +6,13 @@ import { Image } from "expo-image";
 import { useCallback, useEffect } from "react";
 import { useMapProgress } from "@/hooks/use-map-progress";
 import { useRobotConnection } from "@/hooks/use-robot-connection";
+import { useT } from "@/lib/i18n";
 
 export default function CelebrationScreen() {
   const router = useRouter();
   const { resetProgress } = useMapProgress();
   const { sendCommand, isConnected } = useRobotConnection();
+  const t = useT();
 
   // Send STOP to robot when celebration screen mounts
   useEffect(() => {
@@ -43,21 +45,21 @@ export default function CelebrationScreen() {
         className="text-3xl text-center mt-6 px-8"
         style={{ fontFamily: "Helvetica-Bold", color: "#5C3A21" }}
       >
-        Chúc mừng! 🎉
+        {t("celeb.title")}
       </Text>
 
       <Text
         className="text-lg text-center mt-3 px-8"
         style={{ fontFamily: "Helvetica-Bold", color: "#7A5233" }}
       >
-        Bạn đã khám phá hết bảo tàng
+        {t("celeb.subtitle")}
       </Text>
 
       <Text
         className="text-base text-center mt-2 px-8"
         style={{ fontFamily: "Helvetica-Bold", color: "#2E8B7E" }}
       >
-        Hẹn gặp lại bạn lần sau nhé!
+        {t("celeb.goodbye")}
       </Text>
 
       <Pressable
@@ -69,7 +71,7 @@ export default function CelebrationScreen() {
           className="text-white text-lg text-center"
           style={{ fontFamily: "Helvetica-Bold" }}
         >
-          Khám phá lại
+          {t("celeb.restart")}
         </Text>
       </Pressable>
     </SafeAreaView>

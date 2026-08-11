@@ -26,23 +26,91 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-const SYSTEM_PROMPT = `Bạn là Buddy, chú hổ nhỏ mascot thân thiện của Bảo tàng Lịch sử Quốc gia Việt Nam.
+const PROMPTS = {
+  vi: {
+    system: `Bạn là Buddy, chú hổ nhỏ mascot thân thiện của Bảo tàng Lịch sử Quốc gia Việt Nam.
 Bạn trả lời ngắn gọn (2-3 câu), thân thiện, bằng tiếng Việt.
 Nếu câu hỏi không liên quan đến bảo tàng, hiện vật, hoặc lịch sử Việt Nam, hãy nói: "Mình chỉ biết về bảo tàng thôi nha! Bạn thử hỏi về hiện vật đang đứng trước mặt nhé."
-Luôn giữ thái độ vui vẻ, dễ thương, phù hợp với du khách mọi lứa tuổi.`;
+Luôn giữ thái độ vui vẻ, dễ thương, phù hợp với du khách mọi lứa tuổi.`,
+    contextLabels: {
+      artifact: "Hiện vật",
+      description: "Mô tả",
+      funFact: "Fun fact",
+      section: "Khu vực",
+    },
+    contextTitle: "Thông tin hiện vật",
+    questionLabel: "Câu hỏi của khách",
+    audioInstruction: `Khách vừa ghi âm câu hỏi bằng giọng nói. Hãy:
+1. Transcribe (chuyển thành văn bản) câu hỏi của khách. Nếu không nghe rõ hoặc không có câu hỏi, hãy ghi "không rõ".
+2. Trả lời câu hỏi đó. Nếu transcription là "không rõ", hãy nói: "Mình không nghe rõ bạn nói gì. Bạn thử nói lại nhé!"
 
-function buildAudioPrompt(artifactContext) {
-  const contextParts = [];
-  if (artifactContext?.name) contextParts.push(`Hiện vật: ${artifactContext.name}`);
-  if (artifactContext?.description) contextParts.push(`Mô tả: ${artifactContext.description}`);
-  if (artifactContext?.funFact) contextParts.push(`Fun fact: ${artifactContext.funFact}`);
-  if (artifactContext?.section) contextParts.push(`Khu vực: ${artifactContext.section}`);
+Trả về JSON chính xác với format:
+{"transcription": "văn bản câu hỏi của khách", "answer": "câu trả lời của bạn"}
 
-  const contextBlock = contextParts.length > 0
-    ? `Thông tin hiện vật:\n${contextParts.join("\n")}\n\n`
-    : "";
+Chỉ trả về JSON thuần, không thêm text nào khác.`,
+  },
+  en: {
+    system: `You are Buddy, the friendly little tiger mascot of the Vietnam National Museum of History.
+Answer briefly (2-3 sentences), in a friendly way, in English.
+If the question is not about the museum, the artifacts, or Vietnamese history, say: "I only know about the museum! Try asking about the artifact in front of you."
+Always keep a cheerful, cute attitude suitable for visitors of all ages.`,
+    contextLabels: {
+      artifact: "Artifact",
+      description: "Description",
+      funFact: "Fun fact",
+      section: "Section",
+    },
+    contextTitle: "Artifact information",
+    questionLabel: "Visitor's question",
+    audioInstruction: `The visitor just recorded a spoken question. Please:
+1. Transcribe the visitor's question into text. If you can't hear it clearly or there is no question, write "unclear".
+2. Answer that question. If the transcription is "unclear", say: "I couldn't hear you clearly. Please try again!"
 
-  return `${SYSTEM_PROMPT}\n\n${contextBlock}Khách vừa ghi âm câu hỏi bằng giọng nói. Hãy:\n1. Transcribe (chuyển thành văn bản) câu hỏi của khách. Nếu không nghe rõ hoặc không có câu hỏi, hãy ghi "không rõ".\n2. Trả lời câu hỏi đó. Nếu transcription là "không rõ", hãy nói: "Mình không nghe rõ bạn nói gì. Bạn thử nói lại nhé!"\n\nTrả về JSON chính xác với format:\n{"transcription": "văn bản câu hỏi của khách", "answer": "câu trả lời của bạn"}\n\nChỉ trả về JSON thuần, không thêm text nào khác.`;
+Return exactly the JSON format:
+{"transcription": "the visitor's question text", "answer": "your answer"}
+
+Only return plain JSON, nothing else.`,
+  },
+};
+
+const ERROR_STRINGS = {
+  vi: {
+    noQuestion: "Vui lòng nhập câu hỏi!",
+    notConfigured: "Máy chủ chưa được cấu hình. Vui lòng thử lại!",
+    genericError: "Xin lỗi, mình gặp sự cố. Bạn thử lại nhé!",
+    noAudio: "Không nhận được âm thanh. Bạn thử lại nhé!",
+    audioTooShort: "Mình không nghe rõ bạn nói gì. Bạn thử nói lại nhé!",
+    geminiError: "Xin lỗi, mình không nghe rõ. Bạn thử lại nhé!",
+  },
+  en: {
+    noQuestion: "Please enter your question!",
+    notConfigured: "The server is not configured yet. Please try again!",
+    genericError: "Sorry, something went wrong. Please try again!",
+    noAudio: "No audio received. Please try again!",
+    audioTooShort: "I couldn't hear you clearly. Please try again!",
+    geminiError: "Sorry, I couldn't hear you. Please try again!",
+  },
+};
+
+// Mặc định VI khi client không gửi `language` (tương thích ngược).
+function getLanguage(req) {
+  return req.body?.language === "en" ? "en" : "vi";
+}
+
+function buildContextBlock(artifactContext, lang) {
+  const p = PROMPTS[lang];
+  const parts = [];
+  if (artifactContext?.name) parts.push(`${p.contextLabels.artifact}: ${artifactContext.name}`);
+  if (artifactContext?.description) parts.push(`${p.contextLabels.description}: ${artifactContext.description}`);
+  if (artifactContext?.funFact) parts.push(`${p.contextLabels.funFact}: ${artifactContext.funFact}`);
+  if (artifactContext?.section) parts.push(`${p.contextLabels.section}: ${artifactContext.section}`);
+  if (parts.length === 0) return "";
+  return `${p.contextTitle}:\n${parts.join("\n")}\n\n`;
+}
+
+function buildAudioPrompt(artifactContext, lang) {
+  const p = PROMPTS[lang];
+  return `${p.system}\n\n${buildContextBlock(artifactContext, lang)}${p.audioInstruction}`;
 }
 
 function stripMarkdownCodeBlock(text) {
@@ -94,26 +162,22 @@ async function callGemini(parts) {
 // Text-based question
 app.post("/api/ask-buddy", async (req, res) => {
   const { question, artifactContext } = req.body;
-  console.log(`[ask-buddy] Question: "${question}"`);
+  const language = getLanguage(req);
+  const s = ERROR_STRINGS[language];
+  console.log(`[ask-buddy] Question: "${question}" (lang: ${language})`);
 
   if (!question) {
-    return res.status(400).json({ answer: "Vui lòng nhập câu hỏi!" });
+    return res.status(400).json({ answer: s.noQuestion });
   }
 
   if (!GEMINI_API_KEY) {
     console.error("[ask-buddy] GEMINI_API_KEY not set!");
-    return res.status(500).json({ answer: "Máy chủ chưa được cấu hình. Vui lòng thử lại!" });
+    return res.status(500).json({ answer: s.notConfigured });
   }
 
-  const contextParts = [];
-  if (artifactContext?.name) contextParts.push(`Hiện vật: ${artifactContext.name}`);
-  if (artifactContext?.description) contextParts.push(`Mô tả: ${artifactContext.description}`);
-  if (artifactContext?.funFact) contextParts.push(`Fun fact: ${artifactContext.funFact}`);
-  if (artifactContext?.section) contextParts.push(`Khu vực: ${artifactContext.section}`);
-
-  const fullPrompt = contextParts.length > 0
-    ? `${SYSTEM_PROMPT}\n\nThông tin hiện vật:\n${contextParts.join("\n")}\n\nCâu hỏi của khách: ${question}`
-    : `${SYSTEM_PROMPT}\n\nCâu hỏi của khách: ${question}`;
+  const contextBlock = buildContextBlock(artifactContext, language);
+  const fullPrompt =
+    `${PROMPTS[language].system}\n\n${contextBlock}${PROMPTS[language].questionLabel}: ${question}`;
 
   try {
     const answer = await callGemini([{ text: fullPrompt }]);
@@ -121,28 +185,30 @@ app.post("/api/ask-buddy", async (req, res) => {
     res.json({ answer });
   } catch (error) {
     console.error("[ask-buddy] Gemini error:", error.message);
-    res.status(500).json({ answer: "Xin lỗi, mình gặp sự cố. Bạn thử lại nhé!" });
+    res.status(500).json({ answer: s.genericError });
   }
 });
 
 // Audio-based question
 app.post("/api/ask-buddy-audio", async (req, res) => {
   const { audioBase64, mimeType, artifactContext } = req.body;
-  console.log(`[ask-buddy-audio] Audio received, mimeType: ${mimeType}`);
+  const language = getLanguage(req);
+  const s = ERROR_STRINGS[language];
+  console.log(`[ask-buddy-audio] Audio received, mimeType: ${mimeType} (lang: ${language})`);
 
   if (!audioBase64) {
-    return res.status(400).json({ transcription: "", answer: "Không nhận được âm thanh. Bạn thử lại nhé!" });
+    return res.status(400).json({ transcription: "", answer: s.noAudio });
   }
 
   // Validate audio size — base64 < 2KB ≈ < 1s recording, likely empty/noise
   if (audioBase64.length < 2000) {
     console.log(`[ask-buddy-audio] Audio too short (${audioBase64.length} bytes base64)`);
-    return res.json({ transcription: "", answer: "Mình không nghe rõ bạn nói gì. Bạn thử nói lại nhé!" });
+    return res.json({ transcription: "", answer: s.audioTooShort });
   }
 
   if (!GEMINI_API_KEY) {
     console.error("[ask-buddy-audio] GEMINI_API_KEY not set!");
-    return res.status(500).json({ transcription: "", answer: "Máy chủ chưa được cấu hình. Vui lòng thử lại!" });
+    return res.status(500).json({ transcription: "", answer: s.notConfigured });
   }
 
   try {
@@ -153,7 +219,7 @@ app.post("/api/ask-buddy-audio", async (req, res) => {
           data: audioBase64,
         },
       },
-      { text: buildAudioPrompt(artifactContext) },
+      { text: buildAudioPrompt(artifactContext, language) },
     ];
 
     const raw = await callGemini(parts);
@@ -180,7 +246,7 @@ app.post("/api/ask-buddy-audio", async (req, res) => {
     res.json({ transcription, answer });
   } catch (error) {
     console.error("[ask-buddy-audio] Gemini error:", error.message);
-    res.status(500).json({ transcription: "", answer: "Xin lỗi, mình không nghe rõ. Bạn thử lại nhé!" });
+    res.status(500).json({ transcription: "", answer: s.geminiError });
   }
 });
 

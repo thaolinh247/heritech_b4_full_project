@@ -5,38 +5,92 @@ import { useState } from "react";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAccessibilityStore } from "@/store/accessibility";
+import { useLanguageStore } from "@/store/language";
+import { useT } from "@/lib/i18n";
+import type { Language } from "@/types/language";
 
 type ModeType = "vision" | "hearing" | "speech";
 
 const CARDS = [
   {
     id: "vision" as ModeType,
-    label: "Khiếm thị",
+    labelKey: "selection.mode.vision" as const,
     mascot: images.mascotKhiemThi,
     accent: "#7A4A2B",
   },
   {
     id: "hearing" as ModeType,
-    label: "Khiếm thính",
+    labelKey: "selection.mode.hearing" as const,
     mascot: images.mascotDiec,
     accent: "#2E8B7E",
   },
   {
     id: "speech" as ModeType,
-    label: "Khiếm ngôn",
+    labelKey: "selection.mode.speech" as const,
     mascot: images.mascotCam,
     accent: "#7A4A2B",
   },
+] as const;
+
+const LANGUAGE_OPTIONS = [
+  { id: "vi" as Language, labelKey: "selection.languageVi" as const },
+  { id: "en" as Language, labelKey: "selection.languageEn" as const },
 ] as const;
 
 export default function SelectionScreen() {
   const [selectedId, setSelectedId] = useState<ModeType | null>(null);
   const router = useRouter();
   const setMode = useAccessibilityStore((s) => s.setMode);
+  const language = useLanguageStore((s) => s.language);
+  const setLanguage = useLanguageStore((s) => s.setLanguage);
+  const t = useT();
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FDF3E7" }}>
       <View className="flex-1 px-5 pt-4 pb-4">
+        {/* Language selector */}
+        <View className="items-center mb-4" style={{ flexGrow: 0, flexShrink: 0 }}>
+          <Text
+            style={{
+              fontFamily: "Helvetica-Bold",
+              fontSize: 14,
+              color: "#7A5233",
+              marginBottom: 8,
+            }}
+          >
+            {t("selection.languageLabel")}
+          </Text>
+          <View className="flex-row gap-2">
+            {LANGUAGE_OPTIONS.map((opt) => {
+              const isActive = language === opt.id;
+              return (
+                <Pressable
+                  key={opt.id}
+                  onPress={() => setLanguage(opt.id)}
+                  className="px-6 py-2 rounded-full active:opacity-80"
+                  style={{
+                    backgroundColor: isActive ? "#2E8B7E" : "#FFF8F0",
+                    borderWidth: 2,
+                    borderColor: isActive ? "#2E8B7E" : "#E2D2C1",
+                    minHeight: 48,
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: "Helvetica-Bold",
+                      fontSize: 16,
+                      color: isActive ? "#FFFFFF" : "#5C3A21",
+                    }}
+                  >
+                    {t(opt.labelKey)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
         {/* Mascot */}
         <View className="items-center" style={{ flexGrow: 0, flexShrink: 0 }}>
           <Image
@@ -57,7 +111,7 @@ export default function SelectionScreen() {
             flexShrink: 0,
           }}
         >
-          Chọn chế độ hỗ trợ phù hợp
+          {t("selection.title")}
         </Text>
 
         {/* Selection Cards List */}
@@ -99,7 +153,7 @@ export default function SelectionScreen() {
                     fontFamily: "Helvetica-Bold",
                   }}
                 >
-                  {card.label}
+                  {t(card.labelKey)}
                 </Text>
 
                 {/* Right: Checkmark Indicator */}
@@ -154,7 +208,7 @@ export default function SelectionScreen() {
               textShadowRadius: 4,
             }}
           >
-            Xác nhận
+            {t("common.confirm")}
           </Text>
         </Pressable>
       </View>

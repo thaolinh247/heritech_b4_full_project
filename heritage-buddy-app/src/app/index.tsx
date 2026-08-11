@@ -2,9 +2,11 @@ import { View, Text, Pressable } from "@/tw";
 import { Image } from "expo-image";
 import { images } from "@/constants/images";
 import { useRouter } from "expo-router";
+import { useT } from "@/lib/i18n";
 
 export default function Index() {
   const router = useRouter();
+  const t = useT();
   return (
     <View className="flex-1">
       <Image
@@ -28,7 +30,7 @@ export default function Index() {
               textShadowRadius: 8,
             }}
           >
-            Buddy Bảo Tàng
+            {t("index.brand")}
           </Text>
         </View>
 
@@ -41,8 +43,8 @@ export default function Index() {
               textShadowRadius: 8,
             }}
           >
-            Xin chào, mình là{" "}
-            <Text className="text-[#E8935E]">Buddy!</Text>
+            {t("index.greeting")}{" "}
+            <Text className="text-[#E8935E]">{t("index.greetingName")}</Text>
           </Text>
           <Text
             className="text-xl text-white font-['Helvetica-Bold'] leading-relaxed"
@@ -52,7 +54,7 @@ export default function Index() {
               textShadowRadius: 6,
             }}
           >
-            Mình sẽ đồng hành cùng bạn khám phá bảo tàng hôm nay!
+            {t("index.tagline")}
           </Text>
         </View>
       </View>
@@ -70,7 +72,7 @@ export default function Index() {
               textShadowRadius: 4,
             }}
           >
-            Bắt đầu
+            {t("index.cta")}
           </Text>
         </Pressable>
       </View>

@@ -2,6 +2,7 @@ import { View, Text } from "@/tw";
 import { Image } from "expo-image";
 import { images } from "@/constants/images";
 import type { ChatMessage } from "@/types/voice-assistant";
+import { useT } from "@/lib/i18n";
 
 interface ChatBubbleProps {
   message: ChatMessage;
@@ -10,6 +11,7 @@ interface ChatBubbleProps {
 export function ChatBubble({ message }: ChatBubbleProps) {
   const isUser = message.role === "user";
   const buddyMascot = message.isSpeaking ? images.mascotHappy : images.mascotDefault;
+  const t = useT();
 
   return (
     <View
@@ -52,7 +54,7 @@ export function ChatBubble({ message }: ChatBubbleProps) {
               marginTop: 4,
             }}
           >
-            Buddy đang đọc...
+            {t("chat.buddyReading")}
           </Text>
         )}
       </View>

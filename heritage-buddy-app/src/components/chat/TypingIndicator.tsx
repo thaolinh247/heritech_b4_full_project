@@ -12,11 +12,13 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 import { useEffect } from "react";
+import { useT } from "@/lib/i18n";
 
 export function TypingIndicator() {
   const dot1 = useSharedValue(0.3);
   const dot2 = useSharedValue(0.3);
   const dot3 = useSharedValue(0.3);
+  const t = useT();
 
   useEffect(() => {
     const animation = (sv: SharedValue<number>, delay: number) =>
@@ -83,7 +85,7 @@ export function TypingIndicator() {
             color: "#7A5233",
           }}
         >
-          Buddy đang suy nghĩ...
+          {t("chat.buddyThinking")}
         </Text>
       </View>
     </View>

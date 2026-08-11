@@ -1,4 +1,5 @@
 import { View, Text, Pressable } from "@/tw";
+import { useT } from "@/lib/i18n";
 
 interface ChatHeaderProps {
   title: string;
@@ -6,6 +7,7 @@ interface ChatHeaderProps {
 }
 
 export function ChatHeader({ title, onBack }: ChatHeaderProps) {
+  const t = useT();
   return (
     <View
       className="flex-row items-center px-4 py-3"
@@ -24,7 +26,7 @@ export function ChatHeader({ title, onBack }: ChatHeaderProps) {
         onPress={onBack}
         className="w-10 h-10 items-center justify-center rounded-full mr-3"
         style={{ backgroundColor: "rgba(92, 58, 33, 0.08)" }}
-        accessibilityLabel="Quay lại"
+        accessibilityLabel={t("common.back")}
         accessibilityRole="button"
       >
         <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 20, color: "#5C3A21" }}>

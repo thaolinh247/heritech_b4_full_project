@@ -10,6 +10,7 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import { yToPx } from "@/data/museum-map";
+import { useT, pickViEn } from "@/lib/i18n";
 
 interface MapNodeProps {
   node: MapNodeType;
@@ -25,6 +26,8 @@ const LOCK_SIZE = 18;
 export function MapNode({ node, status, containerWidth, onPress }: MapNodeProps) {
   const scale = useSharedValue(1);
   const glow = useSharedValue(0);
+  const t = useT();
+  const title = pickViEn(node.title, node.titleEn);
 
   useEffect(() => {
     if (status === "current") {
@@ -88,12 +91,12 @@ export function MapNode({ node, status, containerWidth, onPress }: MapNodeProps)
         },
         animatedStyle,
       ]}
-      accessibilityLabel={`${node.title}, ${
+      accessibilityLabel={`${title}, ${
         status === "completed"
-          ? "đã hoàn thành"
+          ? t("mapNode.completed")
           : status === "current"
-            ? "đang mở"
-            : "đã khoá"
+            ? t("mapNode.current")
+            : t("mapNode.locked")
       }`}
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled }}
@@ -178,7 +181,7 @@ export function MapNode({ node, status, containerWidth, onPress }: MapNodeProps)
           }}
           numberOfLines={3}
         >
-          {node.title}
+          {title}
         </Text>
       </View>
     </Animated.View>

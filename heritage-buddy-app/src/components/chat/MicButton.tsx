@@ -13,6 +13,7 @@ import Animated, {
 import { useEffect } from "react";
 import type { VoiceAssistantState } from "@/types/voice-assistant";
 import type { ImageSourcePropType } from "react-native";
+import { useT } from "@/lib/i18n";
 
 interface MicButtonProps {
   state: VoiceAssistantState;
@@ -24,6 +25,7 @@ const MASCOT_SIZE = 40;
 
 export function MicButton({ state, onPress }: MicButtonProps) {
   const pulseScale = useSharedValue(1);
+  const t = useT();
 
   useEffect(() => {
     if (state === "listening" || state === "recording") {
@@ -73,16 +75,16 @@ export function MicButton({ state, onPress }: MicButtonProps) {
 
   const label =
     state === "listening"
-      ? "Đang nghe..."
+      ? t("mic.listening")
       : state === "recording"
-        ? "Đang ghi âm..."
+        ? t("mic.recording")
         : state === "thinking"
-          ? "Buddy đang suy nghĩ..."
+          ? t("mic.thinking")
           : state === "speaking"
-            ? "Buddy đang trả lời..."
+            ? t("mic.speaking")
             : state === "error"
-              ? "Lỗi, nhấn để thử lại"
-              : "Nhấn để nói";
+              ? t("mic.error")
+              : t("mic.tapToSpeak");
 
   return (
     <Animated.View style={animatedStyle}>

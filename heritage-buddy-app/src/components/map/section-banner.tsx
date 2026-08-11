@@ -1,5 +1,6 @@
 import { Text, View } from "@/tw";
 import type { MuseumSection } from "@/types/museum-map";
+import { useT, pickViEn } from "@/lib/i18n";
 
 interface SectionBannerProps {
   section: MuseumSection;
@@ -8,6 +9,8 @@ interface SectionBannerProps {
 }
 
 export function SectionBanner({ section, top, height }: SectionBannerProps) {
+  const t = useT();
+  const sectionName = pickViEn(section.name, section.nameEn);
   const hexToRgba = (hex: string, alpha: number) => {
     const c = parseInt(hex.replace("#", ""), 16);
     const r = (c >> 16) & 255;
@@ -31,7 +34,7 @@ export function SectionBanner({ section, top, height }: SectionBannerProps) {
         borderColor: hexToRgba(section.color, 0.2),
       }}
       accessibilityRole="header"
-      accessibilityLabel={`Khu vực: ${section.name}`}
+      accessibilityLabel={`${t("map.sectionLabel")}: ${sectionName}`}
     >
       <View
         style={{
@@ -55,7 +58,7 @@ export function SectionBanner({ section, top, height }: SectionBannerProps) {
             letterSpacing: 1,
           }}
         >
-          {section.name.toUpperCase()}
+          {sectionName.toUpperCase()}
         </Text>
       </View>
     </View>

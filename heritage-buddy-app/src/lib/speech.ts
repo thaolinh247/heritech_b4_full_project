@@ -1,13 +1,25 @@
 import { useState, useCallback, useEffect } from "react";
+import { getLanguage } from "@/lib/i18n";
+import type { Language } from "@/types/language";
 
-const VIETNAMESE_CONFIG = {
-  lang: "vi-VN",
+const STT_LANGUAGE_TAGS: Record<Language, string> = {
+  vi: "vi-VN",
+  en: "en-US",
+};
+
+const STT_CONFIG_BASE = {
   continuous: true,
   interimResults: true,
   contextualStrings: ["Hey Buddy", "Buddy", "buddy"] as string[],
   iosVoiceProcessingEnabled: true,
   addsPunctuation: true,
 };
+
+// Đọc ngôn ngữ tại thời điểm start — cấu hình STT theo ngôn ngữ đã chọn.
+function getSpeechConfig() {
+  const lang = getLanguage();
+  return { ...STT_CONFIG_BASE, lang: STT_LANGUAGE_TAGS[lang] };
+}
 
 // Use require() inside try-catch — the standard pattern for optional native modules.
 // Metro bundles require() synchronously; if requireNativeModule throws, catch blocks it.
@@ -34,7 +46,7 @@ export async function requestMicPermission(): Promise<boolean> {
 }
 
 export function startListening() {
-  ExpoMod?.start(VIETNAMESE_CONFIG);
+  ExpoMod?.start(getSpeechConfig());
 }
 
 /**
@@ -68,7 +80,7 @@ export async function startListeningWithWait(timeoutMs = 6000): Promise<boolean>
     const overallTimer = setTimeout(() => finish(false), timeoutMs);
 
     try {
-      ExpoMod.start(VIETNAMESE_CONFIG);
+      ExpoMod.start(getSpeechConfig());
     } catch {
       finish(false);
     }
