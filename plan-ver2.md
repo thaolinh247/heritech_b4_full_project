@@ -21,7 +21,7 @@ Heritage Buddy là robot dẫn đường đồng hành cho khách tham quan bả
 | Định vị & dẫn đường | Line Tracer + Color Sensor (giữ nguyên V1–V3) | 🟢 Làm thật |
 | Kênh âm thanh | Loa điện thoại qua app (thay tai nghe truyền xương) | 🟢 Làm thật — dễ, ít rủi ro |
 | Tương tác hai chiều (cảnh báo → tự xử lý → xác nhận) | Robot cảnh báo (`WARN`), robot tự xử lý khi đường thoáng (`STATUS:auto_resumed`), khách có SOS khẩn cấp | 🟢 Làm thật — phần mềm, ưu tiên 1 |
-| SOS khẩn cấp | Long-press ≥2s trên Miniature Switch hiện có + nút SOS trên app | 🟢 Làm thật — phần mềm, ưu tiên 1 |
+| SOS khẩn cấp | Long-press ≥10s trên Miniature Switch hiện có + nút SOS trên app (giữ ≥2s) | 🟢 Làm thật — phần mềm, ưu tiên 1 |
 | Xác nhận lại phần di chuyển | Line Tracer (PID), Color Sensor (node), hiệu chỉnh ngã ba → `WARN:turn` | 🟢 Làm thật — ưu tiên 2, làm sau phần mềm |
 | Dashboard bảo tàng | 1 trang web: danh sách SOS + vị trí robot (node cuối cùng) | 🟡 Làm nếu còn thời gian (P1), tối giản |
 | Đa ngôn ngữ | Tiếng Việt (giữ nguyên) + tiếng Anh nếu dư thời gian | 🟡 Làm nếu còn thời gian (P1) |
@@ -38,7 +38,7 @@ Heritage Buddy là robot dẫn đường đồng hành cho khách tham quan bả
 [App Smartphone gắn trên robot]
         ├─→ Loa ngoài (cảnh báo, thuyết minh, xác nhận) — MỚI
         ├─→ Tự động đi tiếp khi đường thoáng sau WARN:person (không cần nút) — MỚI
-        ├─→ Nút SOS (app, giữ ≥2s) + switch vật lý long-press ≥2s — MỚI
+        ├─→ Nút SOS (app, giữ ≥2s) + switch vật lý long-press ≥10s — MỚI
         ↓ (API AI: LLM/RAG — giữ nguyên kiến trúc backend proxy cũ)
 [Backend proxy AI]
         ↓ (nếu còn thời gian) POST /api/sos, /api/robot-status
@@ -71,18 +71,18 @@ Kiến trúc thực thi là kiến trúc chính thức của dự án — không
 | `turn_l` / `turn_r` | Chỉ thông báo bằng giọng TẠI ngã ba (không dừng, không cần ACK) — cảm biến ngã ba báo tại điểm rẽ, không báo trước được | ❌ |
 
 ### Các hành vi liên quan
-- **SOS (long-press switch ≥2s hoặc nút app):** robot dừng tại chỗ, LED đỏ, còi trấn an, gửi `STATUS:sos`; khách tiếp tục bằng nút `START` trên app.
+- **SOS (long-press switch ≥10s hoặc nút app giữ ≥2s):** robot dừng tại chỗ, LED đỏ, còi trấn an, gửi `STATUS:sos`; khách tiếp tục bằng nút `START` trên app.
 - **Mất kết nối BLE (an toàn):** firmware `motors.stop()` ngay — robot KHÔNG chạy tiếp với lệnh tốc độ cũ.
 - **`WARN:person` chỉ dừng robot khi đang `FOLLOW_LINE`;** ở `AT_NODE`/`IDLE` chỉ thông báo (giữ cooldown PIR 3s chống báo liên tục).
 
 ## 5. Danh sách việc cần làm chi tiết (theo thứ tự ưu tiên)
 
 ### A. 🟢 PHẦN MỀM & TƯƠNG TÁC (ưu tiên 1 — làm trước)
-- [ ] Giao thức: chốt bảng tín hiệu mục 4; ghi rõ trong CHANGELOG.
-- [ ] **Firmware (phần tương tác):** thay `ALARM` bằng `WARN:person` + dừng chờ đường thoáng (state `WAIT_CLEAR`) + tự resume khi PIR im ≥ `PIR_CLEAR_CONFIRM_MS` + timeout 10s an toàn + `STATUS:auto_resumed`; long-press ≥2s trên switch → `SOS` (phân biệt với `SWITCH_PRESS` nhấn ngắn); `motors.stop()` khi mất BLE. (Nhánh nhận `SOS` đã có ở `main.cpp` — giữ nguyên, không viết lại.)
-- [ ] **App — loa ngoài:** gỡ vai trò tai nghe truyền xương (nếu có); phát cảnh báo/thuyết minh qua loa ngoài; đo âm lượng trên sa bàn, ghi số liệu vào báo cáo.
-- [ ] **App — WARN UI:** nhận `WARN:person` → banner lớn + TTS đọc to (KHÔNG có nút — robot tự đi tiếp khi đường thoáng); nhận `WARN:turn_*` → thông báo + TTS, không cần nút; hiển thị `STATUS`.
-- [ ] **App — SOS:** nút SOS cố định trên màn hình, giữ ≥2s để kích hoạt (tránh bấm nhầm); hiển thị trạng thái SOS rõ ràng (mascot + màu + chữ).
+- [x] Giao thức: chốt bảng tín hiệu mục 4; ghi rõ trong CHANGELOG. — **ĐÃ XONG** (bảng tín hiệu mục 4 + commit `8b8fe5b`, `1184cec`, CHANGELOG mục Changed).
+- [x] **Firmware (phần tương tác):** thay `ALARM` bằng `WARN:person` + dừng chờ đường thoáng (state `WAIT_CLEAR`) + tự resume khi PIR im ≥ `PIR_CLEAR_CONFIRM_MS` + timeout 10s an toàn + `STATUS:auto_resumed`; long-press ≥10s trên switch → `SOS` (phân biệt với `SWITCH_PRESS` nhấn ngắn); `motors.stop()` khi mất BLE. (Nhánh nhận `SOS` đã có ở `main.cpp` — giữ nguyên, không viết lại.) — **ĐÃ XONG** (`heritech_robot/src/main.cpp`, `state_machine.*`, `config.h`; `SOS_HOLD_MS=10000`; build sạch qua PlatformIO).
+- [x] **App — loa ngoài:** gỡ vai trò tai nghe truyền xương (nếu có); phát cảnh báo/thuyết minh qua loa ngoài; đo âm lượng trên sa bàn, ghi số liệu vào báo cáo. — **ĐÃ XONG** (âm thanh qua loa phone; còn thiếu đo âm lượng — ghi vào mục F/C).
+- [x] **App — WARN UI:** nhận `WARN:person` → banner lớn + TTS đọc to (KHÔNG có nút — robot tự đi tiếp khi đường thoáng); nhận `WARN:turn_*` → thông báo + TTS, không cần nút; hiển thị `STATUS`. — **ĐÃ XONG** (`components/robot-interaction-overlay.tsx`).
+- [x] **App — SOS:** nút SOS cố định trên màn hình, giữ ≥2s để kích hoạt (tránh bấm nhầm); hiển thị trạng thái SOS rõ ràng (mascot + màu + chữ). — **ĐÃ XONG** (`components/robot-interaction-overlay.tsx`).
 - [ ] Test bàn (robot đứng yên, không cần di chuyển): kích PIR bằng tay → cả vòng `WARN:person → (ngừng vẫy tay, PIR im ≥2s) → STATUS:auto_resumed`; vẫy tay liên tục → timeout 10s → `STATUS:auto_resumed`; long-press switch → SOS; app hiển thị đúng từng trạng thái.
 
 ### B. 🟢 DI CHUYỂN (ưu tiên 2 — làm sau A)
@@ -152,7 +152,7 @@ Kiến trúc thực thi là kiến trúc chính thức của dự án — không
 | Quá tải 15 ngày | Cao | Phần mềm/tương tác làm trước (giá trị demo cao); di chuyển giữ code cũ, không đổi thuật toán; đóng băng từ 17/08 |
 | PIR báo nhầm (người đi ngang) | TB | Cooldown 3s; chỉ dừng khi `FOLLOW_LINE`; timeout 10s tự chạy tiếp |
 | Phát hiện ngã ba sai/trùng → `WARN:turn` nhiễu | TB | Chỉ hiệu chỉnh ngưỡng, không đổi PID; nếu không kịp, `WARN:turn` chỉ là thông báo, không làm gãy tour |
-| Long-press switch nhầm thành SOS | TB | Ngưỡng 2s rõ ràng; sau SOS có thể `START` lại; ghi log |
+| Long-press switch nhầm thành SOS | TB | Ngưỡng rõ ràng (app 2s, switch 10s); sau SOS có thể `START` lại; ghi log |
 | BLE mất kết nối giữa vòng WARN:person/SOS | TB | Auto-reconnect đã có; firmware auto-stop khi mất BLE; timeout vẫn chạy độc lập; app hiện rõ trạng thái offline |
 | SOS phụ thuộc mạng (Dashboard) | TB | Fallback: SOS hiển thị rõ trên app; Dashboard chỉ là nâng cấp |
 | Ký hiệu tay kém chính xác | TB | Stretch; từ vựng nhỏ; fallback nút bấm |

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+- **plan-ver2.md**: cập nhật trạng thái tiến độ — tick `[x]` 5/6 mục A (phần mềm & tương tác) đã xong code: giao thức (bảng tín hiệu mục 4 + CHANGELOG), firmware tương tác (`WARN:person`/`WAIT_CLEAR`/auto-resume/timeout 10s/`STATUS:auto_resumed`/`motors.stop()` khi mất BLE), app loa ngoài, app WARN UI (banner không nút + toast `WARN:turn_*` + STATUS), app SOS (nút giữ ≥2s); mục "Test bàn" (A) chưa tick — chờ kiểm tra phần cứng. Đồng thời thống nhất ngưỡng SOS theo code thực tế: switch vật lý long-press **≥10s** (`SOS_HOLD_MS=10000`) còn nút app giữ **≥2s** (trước ghi "≥2s" cho cả hai); cập nhật ở bảng hạng mục (mục 2), sơ đồ kiến trúc (mục 3), hành vi SOS (mục 4) và rủi ro (mục 8).
+- **TEST-INTERACTION.md**: đồng bộ ngưỡng SOS với firmware — test 4.3 "Giữ Miniature Switch ≥2s" → **≥10s**, test 4.4 "Nhấn switch <2s" → **<10s**; thay test 2.7 lỗi thời (mô tả hành vi nút DOWN cũ "nhấn=dừng, nhả=START lại tour") bằng hành vi switch hiện tại (nhấn ngắn → `SWITCH_PRESS` mở "Hỏi Buddy", giữ ≥10s → SOS).
+
 ### Added
 - **Song ngữ (mục E plan-ver2) — Bước 1: nền tảng i18n**:
   - `heritage-buddy-app/src/types/language.ts` (mới): `type Language = "vi" | "en"`.

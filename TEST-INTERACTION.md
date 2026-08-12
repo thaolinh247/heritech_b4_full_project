@@ -45,7 +45,7 @@
 | 2.4 | Đi hết 13 node | Lặp 2.2–2.3 cho hết tour | Node cuối: app gửi `NEXT_NODE` → màn hình Celebration; robot `ALL_DONE`, còi kết thúc, LED xanh | [ ] |
 | 2.5 | Nhận diện node đúng trình tự | Quan sát toàn bộ tour | Robot dừng ĐÚNG node theo thứ tự, không bỏ node, không dừng nhầm giữa đường | [ ] |
 | 2.6 | Nút STOP app | Đang chạy → bấm "Dừng" (nếu có trên UI hiện tại) hoặc gửi `STOP` | Robot dừng ngay, state IDLE, Serial log `[CMD] STOP -> IDLE` | [ ] |
-| 2.7 | Nhấn giữ nút vật lý DOWN (robot) | Nhấn nút DOWN → nhả | Nhấn = dừng (còi bíp); nhả = START lại tour từ node 0 (hành vi cũ, không đổi) | [ ] |
+| 2.7 | Nhấn ngắn switch (robot) — hành vi hiện tại | Nhấn nhả nhanh nút vật lý | Gửi `SWITCH_PRESS` → app mở "Hỏi Buddy"; nhấn giữ ≥10s → SOS (xem 4.3) | [ ] |
 
 ---
 
@@ -70,8 +70,8 @@
 |---|---|---|---|---|
 | 4.1 | SOS từ nút app (giữ 2s) | Đang chạy → giữ nút đỏ SOS 2s | Nút đổi "Đang giữ…" → nhả tay KHÔNG kích hoạt nếu giữ <2s; giữ đủ 2s: robot dừng + LED đỏ + còi + `STATUS:sos`; app banner SOS + TTS "Đã kích hoạt SOS…" + rung | [ ] |
 | 4.2 | Nhả sớm không kích hoạt | Giữ nút SOS <2s rồi nhả | Không gửi `SOS`, không có gì xảy ra | [ ] |
-| 4.3 | SOS từ switch vật lý (long-press 10s) | Giữ Miniature Switch ≥2s | Như 4.1 (robot dừng + `STATUS:sos`); Serial `[SWITCH] Long press >= 10s -> SOS` | [ ] |
-| 4.4 | Nhấn ngắn switch vẫn mở chat | Nhấn switch <2s ở màn hình node | App mở "Hỏi Buddy" (`SWITCH_PRESS`) — chức năng cũ giữ nguyên | [ ] |
+| 4.3 | SOS từ switch vật lý (long-press 10s) | Giữ Miniature Switch ≥10s | Như 4.1 (robot dừng + `STATUS:sos`); Serial `[SWITCH] Long press >= 10s -> SOS` | [ ] |
+| 4.4 | Nhấn ngắn switch vẫn mở chat | Nhấn switch <10s ở màn hình node | App mở "Hỏi Buddy" (`SWITCH_PRESS`) — chức năng cũ giữ nguyên | [ ] |
 | 4.5 | "Tiếp tục hành trình" sau SOS | Đang banner SOS → bấm "Tiếp tục hành trình" | App gửi `RESUME`; robot chạy tiếp KHÔNG reset tour (node đang ở giữ nguyên); toast "Hành trình tiếp tục" | [ ] |
 | 4.6 | RESUME không reset tour | SOS giữa tour (vd đã xong node 3) → RESUME | Robot chạy tiếp; node tiếp theo là node 4 (KHÔNG quay về node 0 — kiểm tra trên Serial) | [ ] |
 | 4.7 | SOS khi robot đang IDLE | Robot đứng yên → SOS app hoặc switch | Vẫn dừng (không đổi) + banner SOS; RESUME cho chạy tiếp | [ ] |
