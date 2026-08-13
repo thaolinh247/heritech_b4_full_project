@@ -1,17 +1,31 @@
+import Constants from "expo-constants";
 import type { ArtifactContext } from "./contextBuilder";
 import { getLanguage, t } from "@/lib/i18n";
 import type { Language } from "@/types/language";
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? "http://localhost:3000";
+// Lấy IP máy chạy server tự động từ Expo dev server (hostUri) → không bao giờ bị IP cũ
+// dù DHCP có đổi. Thứ tự ưu tiên: hostUri (luôn đúng) → EXPO_PUBLIC_BACKEND_URL → localhost.
+function getBackendUrls(): string[] {
+  const urls = new Set<string>();
 
-// Khi debug qua USB (Expo), điện thoại thường không truy cập được IP LAN của máy tính.
-// → fallback về "http://localhost:3000" (chạy được nhờ: adb reverse tcp:3000 tcp:3000).
-const FALLBACK_BACKEND_URL =
-  BACKEND_URL === "http://localhost:3000" ? null : "http://localhost:3000";
+  const hostUri = Constants.expoConfig?.hostUri;
+  const host = hostUri?.split(":")[0];
+  if (host) {
+    urls.add(`http://${host}:3000`);
+  }
 
-const BASE_URLS = FALLBACK_BACKEND_URL
-  ? [BACKEND_URL, FALLBACK_BACKEND_URL]
-  : [BACKEND_URL];
+  const envUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
+  if (envUrl) {
+    urls.add(envUrl);
+  }
+
+  // USB debug: localhost chạy được nhờ "adb reverse tcp:3000 tcp:3000"
+  urls.add("http://localhost:3000");
+
+  return [...urls];
+}
+
+const BASE_URLS = getBackendUrls();
 
 interface LLMRequest {
   question: string;
