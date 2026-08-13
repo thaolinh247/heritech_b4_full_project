@@ -63,7 +63,7 @@ export default function Index() {
         className="absolute bottom-0 left-0 right-0 bg-black/60 px-6 pt-5 pb-12"
         style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24 }}
       >
-        <Pressable onPress={() => router.push("/selection")} className="w-full py-4 rounded-2xl bg-[#E8935E] active:opacity-80">
+        <Pressable testID="onboarding-start-button" onPress={() => router.push("/selection")} className="w-full py-4 rounded-2xl bg-[#E8935E] active:opacity-80">
           <Text
             className="text-lg text-white font-['Helvetica-Bold'] text-center"
             style={{

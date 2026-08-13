@@ -10,6 +10,7 @@ import mascotAuth from "@/assets/Mascot/Mascot-auth.png";
 import mascotCam from "@/assets/Mascot/cam.png";
 import mascotDiec from "@/assets/Mascot/diec.png";
 import mascotKhiemThi from "@/assets/Mascot/khiemthi.png";
+import gestureSampleA from "@/assets/images/gesture-sample-a.jpg";
 
 export const images = {
   onboardingScreen,
@@ -24,4 +25,5 @@ export const images = {
   mascotCam,
   mascotDiec,
   mascotKhiemThi,
+  gestureSampleA,
 } as const;

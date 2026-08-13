@@ -102,3 +102,9 @@
 ### Docs
 - **CHANGELOG_BLE_FIX.md**: keep detailed write-up of the BLE discovery fix (root cause + before/after).
 - **PLAN-BLE-FIX.md**: new fix plan for the current BLE discovery timeout (robot connects but `UART service not found`) — 4 hypotheses (H1 blocking poll in old firmware / H2 discovery too early / H3 Android GATT cache / H4 monitor_speed mismatch), prioritized fixes per layer (firmware non-blocking poll + debug loop-time log, app 500ms settle delay + larger backoff + auto-retry, GATT cache runbook, `monitor_speed` 115200→9600), test matrix (10 connects, reconnect, reboot) and Definition of Done (≥9/10 success, discovery <3s). Rev 2 (2026-08-05, after audit): fix deadline 08/08→14/08 (GATE 1 per plan-ver2), correct `main.cpp:120`→`:122` and remove non-existent `delay(300)` in `handleEnd`; add Step 0 zero-code tests (monitor-speed firmware fingerprint — old FW 115200 vs new 9600 — + forget-device GATT cache check); note the `attempt x/3` log proves current retry code fails 3/3 ⇒ systematic, H2 nearly ruled out; expand Fix 2 with try/catch around `services()`/`characteristics()`, stale `onDisconnected` callback bug fix (check `bleState.device === connectedDevice`), hook-level auto-retry/auto-reconnect, and `manager.destroy()` last resort; mark reconnect test as dependent on Fix 2.
+# Nhận diện ký hiệu tay trong app
+
+- Thêm route `gesture-recognition` với camera web, chọn ảnh và ảnh mẫu kiểm thử.
+- Nhúng lại model VSL int8 chạy trực tiếp trong JavaScript, không gọi server.
+- Thêm nút truy cập nhanh từ bản đồ bảo tàng và hiển thị nhãn, độ tin cậy, top 3 kết quả.
+- Thêm ảnh mẫu chữ A lấy từ tập test VSL để xác minh luồng end-to-end khi camera không khả dụng.

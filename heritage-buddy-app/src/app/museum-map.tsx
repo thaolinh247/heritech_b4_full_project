@@ -259,6 +259,26 @@ export default function MuseumMapScreen() {
 
       {/* Reset FAB */}
       <Pressable
+        testID="gesture-entry-button"
+        onPress={() => router.push("/gesture-recognition")}
+        className="absolute right-4 w-16 h-16 rounded-full items-center justify-center"
+        style={{
+          bottom: 190,
+          backgroundColor: "#2E8B7E",
+          zIndex: 50,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: 0.2,
+          shadowRadius: 5,
+          elevation: 6,
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Mở nhận diện ký hiệu tay"
+      >
+        <Text style={{ fontSize: 28 }}>🤟</Text>
+      </Pressable>
+
+      <Pressable
         onPress={handleReset}
         className="absolute bottom-32 right-4 w-12 h-12 rounded-full items-center justify-center"
         style={{
