@@ -17,7 +17,9 @@ void SensorManager::begin() {
     _gestureSensor._pWire = &Wire1;
     initGestureSensor();
 
-    pinMode(PIN_PIR, INPUT);
+    // INPUT_PULLDOWN: nếu dây tín hiệu PIR bị đứt/hở, chân sẽ đọc LOW thay vì
+    // nổi HIGH — tránh WARN:person giả liên tục khi không có người.
+    pinMode(PIN_PIR, INPUT_PULLDOWN);
     pinMode(PIN_SWITCH, INPUT_PULLUP);
 
     Serial.println("[Sensor] All sensors initialised");

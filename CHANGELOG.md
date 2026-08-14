@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Server LLM trả lời đúng ngôn ngữ (sửa khoảng trống đã ghi nhận ở mục TEST-FULL.md)**: `server/src/index.ts` — server trước đây **bỏ qua** trường `language` mà app gửi (`heritage-buddy-app/src/lib/llm.ts` gửi `language: getLanguage()` từ bước song ngữ) và system prompt hardcode "trả lời bằng tiếng Việt" → ở chế độ English, AI trả lời tiếng Việt rồi app đọc bằng giọng en-US. Giờ `buildSystemPrompt(ctx, language)` + cả 2 endpoint (`/api/ask-buddy`, `/api/ask-buddy-audio`) đọc `language` (mặc định `vi`), đổi prompt + câu hướng dẫn audio sang tiếng Anh khi `language === "en"`. `npx tsc --noEmit` server pass.
+- **PIR không bao giờ đọc HIGH giả khi dây hở (chẩn đoán "WARN:person liên tục dù không có người")**: `heritech_robot/src/sensor_manager.cpp` — `pinMode(PIN_PIR, INPUT)` → `INPUT_PULLDOWN` (ESP32 hỗ trợ pull-down nội bộ): nếu dây tín hiệu đứt/hở hoặc cắm nhầm chân, chân đọc LOW thay vì nổi HIGH (trước đây dây nổi → `digitalRead` luôn HIGH → WARN:person mỗi cooldown 3s kể cả khi robot đứng yên). Thêm debug `[PIR] raw: HIGH/LOW` in mỗi 2s trong `checkPIR()` (`heritech_robot/src/main.cpp`) để phân biệt nhanh lỗi phần cứng (raw luôn HIGH khi không người) với lỗi logic.
+
 ### Added
 - **TEST-FULL.md (mới)**: danh sách kiểm thử toàn bộ dự án — app Expo (onboarding song ngữ, map 13 node, video node, chat "Hỏi Buddy" STT→LLM→TTS, nhận diện ký hiệu tay on-device), server Express (health/ask-buddy/ask-buddy-audio), tương tác BLE tóm tắt, accessibility, chỉ tiêu số đo hiệu năng (LLM round-trip, STT end-to-end, gesture recognition, BLE connect) và GATE kết luận. Bổ sung cho TEST-INTERACTION.md (chuyên sâu robot↔app); ghi nhận các lỗi tsc có sẵn (use-voice-assistant thiếu `language`, test files thiếu jest types) và khoảng trống song ngữ LLM (server chưa đọc trường `language`).
 

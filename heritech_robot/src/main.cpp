@@ -397,7 +397,19 @@ void checkBLECommands()
 
 void checkPIR()
 {
-    if (!sensors.readPIR())
+    bool pirRaw = sensors.readPIR();
+
+    // Debug: in giá trị thô mỗi 2s để chẩn đoán PIR kẹt HIGH / chân nổi
+    // (raw: HIGH ngay cả khi không có người → vấn đề dây/module, không phải logic)
+    static unsigned long lastPirDebug = 0;
+    if (millis() - lastPirDebug >= 2000)
+    {
+        lastPirDebug = millis();
+        Serial.print("[PIR] raw: ");
+        Serial.println(pirRaw ? "HIGH" : "LOW");
+    }
+
+    if (!pirRaw)
         return; // Không có chuyển động → thoát
 
     // Bỏ qua phát hiện người trong cửa sổ "grace" sau khi rời node (xem PIR_GRACE_AFTER_LEAVE_MS)

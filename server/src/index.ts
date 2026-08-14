@@ -19,22 +19,32 @@ interface ArtifactContext {
   section: string;
 }
 
+type Language = "vi" | "en";
+
 interface AskBuddyBody {
   question: string;
   artifactContext: ArtifactContext;
+  language?: Language;
 }
 
 interface AskBuddyAudioBody {
   audioBase64: string;
   mimeType: string;
   artifactContext: ArtifactContext;
+  language?: Language;
 }
 
-function buildSystemPrompt(ctx: ArtifactContext): string {
+function buildSystemPrompt(ctx: ArtifactContext, language: Language): string {
+  const answerLanguage = language === "en"
+    ? "You answer briefly (2-3 sentences), friendly, in ENGLISH."
+    : "Bạn trả lời ngắn gọn (2-3 câu), thân thiện, bằng tiếng Việt.";
+  const notAboutMuseum = language === "en"
+    ? "If the question is not about the museum, say: \"I only know about the museum!\""
+    : "Nếu câu hỏi không liên quan đến bảo tàng, nói: \"Mình chỉ biết về bảo tàng thôi nha!\"";
   return [
     "Bạn là Buddy, chú hổ nhỏ mascot của bảo tàng Việt Nam.",
-    "Bạn trả lời ngắn gọn (2-3 câu), thân thiện, bằng tiếng Việt.",
-    "Nếu câu hỏi không liên quan đến bảo tàng, nói: \"Mình chỉ biết về bảo tàng thôi nha!\"",
+    answerLanguage,
+    notAboutMuseum,
     `Hiện vật đang hiển thị: ${ctx.name}.`,
     `Thông tin: ${ctx.description}.`,
     ctx.funFact ? `Fun fact: ${ctx.funFact}.` : "",
@@ -60,14 +70,17 @@ async function callGemini(contents: Parameters<typeof ai.models.generateContent>
 
 app.post("/api/ask-buddy", async (req, res) => {
   try {
-    const { question, artifactContext } = req.body as AskBuddyBody;
+    const { question, artifactContext, language } = req.body as AskBuddyBody;
 
     if (!question) {
       res.status(400).json({ error: "Missing question" });
       return;
     }
 
-    const systemPrompt = buildSystemPrompt(artifactContext);
+    // Ngôn ngữ do app chọn (vi/en) — mặc định vi. Prompt thay đổi theo ngôn ngữ
+    // để AI trả lời đúng tiếng, tránh "trả lời tiếng Việt rồi app đọc giọng Anh".
+    const lang: Language = language === "en" ? "en" : "vi";
+    const systemPrompt = buildSystemPrompt(artifactContext, lang);
     const response = await callGemini(question, systemPrompt);
 
     res.json({ answer: response.text ?? "" });
@@ -82,14 +95,18 @@ app.post("/api/ask-buddy", async (req, res) => {
 
 app.post("/api/ask-buddy-audio", async (req, res) => {
   try {
-    const { audioBase64, mimeType, artifactContext } = req.body as AskBuddyAudioBody;
+    const { audioBase64, mimeType, artifactContext, language } = req.body as AskBuddyAudioBody;
 
     if (!audioBase64) {
       res.status(400).json({ error: "Missing audioBase64" });
       return;
     }
 
-    const systemPrompt = buildSystemPrompt(artifactContext);
+    const lang: Language = language === "en" ? "en" : "vi";
+    const systemPrompt = buildSystemPrompt(artifactContext, lang);
+    const audioInstruction = lang === "en"
+      ? "Listen to this recording and answer the question in ENGLISH. If you cannot hear clearly, say 'I could not hear you clearly. Please try again!'"
+      : "Hãy nghe đoạn ghi âm này và trả lời câu hỏi. Nếu không nghe rõ, hãy nói 'Mình không nghe rõ bạn nói gì. Bạn thử nói lại nhé!'";
 
     const response = await callGemini(
       [
@@ -97,7 +114,7 @@ app.post("/api/ask-buddy-audio", async (req, res) => {
           role: "user",
           parts: [
             { inlineData: { data: audioBase64, mimeType: mimeType ?? "audio/m4a" } },
-            { text: "Hãy nghe đoạn ghi âm này và trả lời câu hỏi. Nếu không nghe rõ, hãy nói 'Mình không nghe rõ bạn nói gì. Bạn thử nói lại nhé!'" },
+            { text: audioInstruction },
           ],
         },
       ],
