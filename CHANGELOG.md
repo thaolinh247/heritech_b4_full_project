@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- **TEST-FULL.md (mới)**: danh sách kiểm thử toàn bộ dự án — app Expo (onboarding song ngữ, map 13 node, video node, chat "Hỏi Buddy" STT→LLM→TTS, nhận diện ký hiệu tay on-device), server Express (health/ask-buddy/ask-buddy-audio), tương tác BLE tóm tắt, accessibility, chỉ tiêu số đo hiệu năng (LLM round-trip, STT end-to-end, gesture recognition, BLE connect) và GATE kết luận. Bổ sung cho TEST-INTERACTION.md (chuyên sâu robot↔app); ghi nhận các lỗi tsc có sẵn (use-voice-assistant thiếu `language`, test files thiếu jest types) và khoảng trống song ngữ LLM (server chưa đọc trường `language`).
+
 ### Merged
 - **Merge branch `feature/edge-ai-recognition` into `master`** (clean merge, 0 conflicts): tích hợp tính năng nhận diện ký hiệu tay on-device — route `gesture-recognition` (camera web + chọn ảnh + ảnh mẫu), model VSL int8 chạy trong JS (`src/ml/runtime.ts`, `sign.ts`, `sign-model.ts`), `src/lib/browser-camera.ts`, `src/components/BrowserCameraPreview.tsx`, ảnh mẫu `assets/images/gesture-sample-a.jpg`, nút truy cập nhanh 🤟 trên bản đồ, `testID` cho màn hình onboarding/selection. Giữ nguyên phần dev infra của master (`llm.ts` auto-detect backend URL, `scripts/start-dev.cmd`/`start-server.cmd`, `.env.example`, `WRO2026_B3_LineFollowing_Turns.md`).
 
