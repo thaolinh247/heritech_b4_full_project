@@ -121,6 +121,7 @@ export default function SelectionScreen() {
             return (
               <Pressable
                 key={card.id}
+                testID={`selection-${card.id}`}
                 onPress={() => setSelectedId(card.id)}
                 className="flex-row items-center justify-between active:opacity-80"
                 style={{
@@ -188,6 +189,7 @@ export default function SelectionScreen() {
 
         {/* Bottom Button */}
         <Pressable
+          testID="selection-confirm-button"
           disabled={!selectedId}
           onPress={() => {
             if (selectedId) {
