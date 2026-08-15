@@ -280,8 +280,9 @@ export default function MuseumMapScreen() {
 
       <Pressable
         onPress={handleReset}
-        className="absolute bottom-32 right-4 w-12 h-12 rounded-full items-center justify-center"
+        className="absolute left-4 w-12 h-12 rounded-full items-center justify-center"
         style={{
+          bottom: 190,
           backgroundColor: "#E85D4E",
           zIndex: 50,
           shadowColor: "#000",

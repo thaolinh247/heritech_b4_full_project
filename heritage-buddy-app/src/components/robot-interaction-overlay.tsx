@@ -151,8 +151,14 @@ export function RobotInteractionOverlay() {
     sosHoldTimer.current = setTimeout(() => {
       setIsHoldingSos(false);
       sosHoldTimer.current = null;
-      sendCommand("SOS");
+      // Phản hồi NGAY lập tức trên app (banner SOS + rung + giọng nói) — không
+      // chờ robot xác nhận STATUS:sos. Nếu BLE bị ngắt thì khách vẫn thấy thông
+      // báo, robot vẫn sẽ xử lý khi có kết nối trở lại (sendCommand bên dưới).
+      setSosActive(true);
+      setRobotStatus("sos");
       Vibration.vibrate();
+      speak({ text: t("sos.spoken"), language: getLanguage() });
+      sendCommand("SOS");
     }, SOS_HOLD_MS);
   }
 

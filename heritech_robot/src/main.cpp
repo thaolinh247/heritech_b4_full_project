@@ -536,14 +536,17 @@ void checkGesture()
         return;
     }
 
-    // MatrixGesture::getGesture() trả về: 1 = Right, 2 = Left
-    // (eGestureRight = 0x01, eGestureLeft = 0x02 trong thư viện)
-    if (gesture == MatrixGesture::eGestureRight)
+    // MatrixGesture::getGesture() trả về mã số (xem MiniR4_MXGesture.cpp):
+    //   1 = Right, 2 = Left, 9 = Wave, 10 = WaveSlowlyLeftRight,
+    //   11 = WaveSlowlyUpDown, 12 = WaveSlowlyForwardBackward, 13 = WaveSlowlyDisorder
+    // Vẫy tay (9/10/13) và vuốt trái/phải (1/2) đều là "đi tiếp" — khách khiếm
+    // ngôn thường vẫy tay tự nhiên hơn là vuốt chính xác.
+    if (gesture == 1 || gesture == 9 || gesture == 10 || gesture == 13)
     {
         ble.sendMessage("GESTURE:SWIPE_RIGHT");
-        Serial.println("[GESTURE] Swipe Right — app handles navigation");
+        Serial.println("[GESTURE] Right/Wave — app handles navigation");
     }
-    else if (gesture == MatrixGesture::eGestureLeft)
+    else if (gesture == 2)
     {
         ble.sendMessage("GESTURE:SWIPE_LEFT");
         Serial.println("[GESTURE] Swipe Left — app handles navigation");

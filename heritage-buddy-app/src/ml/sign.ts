@@ -1,5 +1,7 @@
 import { SIGN_MODEL } from "@/ml/sign-model";
 import { EmbeddedNetwork } from "@/ml/runtime";
+import { Platform } from "react-native";
+import { photoUriToInput } from "@/lib/native-image";
 
 const INPUT_SIZE = 28;
 const MIN_CONFIDENCE = 0.35;
@@ -30,6 +32,11 @@ function loadBrowserImage(uri: string): Promise<HTMLImageElement> {
 }
 
 async function imageToInput(uri: string, isPreparedSample: boolean): Promise<Float32Array> {
+  // Native (iOS/Android): không có canvas → decode ảnh qua expo-image-manipulator + jpeg-js
+  if (Platform.OS !== "web") {
+    return photoUriToInput(uri);
+  }
+
   if (typeof document === "undefined") {
     throw new Error("Bản thử nghiệm hiện chạy nhận diện trên trình duyệt");
   }
@@ -68,6 +75,11 @@ function probabilitiesFor(input: Float32Array, invert: boolean): Float32Array {
 export async function recognizeSign(uri: string, isPreparedSample = false): Promise<SignPrediction> {
   const startedAt = performance.now();
   const input = await imageToInput(uri, isPreparedSample);
+  return recognizeFromInput(input, startedAt);
+}
+
+// Nhận diện từ input 28x28 đã có sẵn (native: ảnh đã decode sẵn thành pixel)
+export function recognizeFromInput(input: Float32Array, startedAt = performance.now()): SignPrediction {
   const normal = probabilitiesFor(input, false);
   const inverted = probabilitiesFor(input, true);
   const maxNormal = Math.max(...normal);

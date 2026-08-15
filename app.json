@@ -38,7 +38,13 @@
       "expo-video",
       "expo-speech-recognition",
       "expo-audio",
-      "react-native-ble-plx"
+      "react-native-ble-plx",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Buddy cần camera để nhận diện ký hiệu tay."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

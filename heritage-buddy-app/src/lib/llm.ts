@@ -27,17 +27,18 @@ function getBackendUrls(): string[] {
 
 const BASE_URLS = getBackendUrls();
 
+// language được hàm tự điền qua getLanguage() — caller không cần truyền.
 interface LLMRequest {
   question: string;
   artifactContext: ArtifactContext;
-  language: Language;
+  language?: Language;
 }
 
 interface AudioLLMRequest {
   audioBase64: string;
   mimeType: string;
   artifactContext: ArtifactContext;
-  language: Language;
+  language?: Language;
 }
 
 interface LLMResponse {

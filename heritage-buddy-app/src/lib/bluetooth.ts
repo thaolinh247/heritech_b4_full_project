@@ -330,7 +330,11 @@ export async function sendCommand(cmd: string): Promise<void> {
   }
 
   try {
-    const base64 = btoa(cmd);
+    // Bắt buộc kết thúc bằng "\n" — firmware chỉ hoàn tất 1 message khi gặp
+    // '\n' hoặc '\r' trong onRXWritten (ble_handler.cpp). Thiếu ký tự này thì
+    // mọi lệnh app → robot (START, SOS, NODE_DONE...) bị kẹt vĩnh viễn trong
+    // _rxBuffer và robot không bao giờ xử lý.
+    const base64 = btoa(cmd + "\n");
     await bleState.rxCharacteristic.writeWithResponse(base64);
     console.log("[BLE TX]", cmd);
   } catch {

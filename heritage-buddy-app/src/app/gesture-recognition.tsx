@@ -1,13 +1,15 @@
 import { useRef, useState } from "react";
-import { ActivityIndicator, ScrollView } from "react-native";
+import { ActivityIndicator, Platform, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Asset } from "expo-asset";
 import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import { Pressable, Text, View } from "@/tw";
 import { images } from "@/constants/images";
 import { pickBrowserImage } from "@/lib/browser-camera";
 import { BrowserCameraPreview, type BrowserCameraHandle } from "@/components/BrowserCameraPreview";
+import { CameraNativePreview, type NativeCameraHandle } from "@/components/CameraNativePreview";
 import {
   recognizeSign,
   SIGN_LETTERS,
@@ -25,7 +27,10 @@ export default function GestureRecognitionScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cameraLive, setCameraLive] = useState(true);
-  const cameraRef = useRef<BrowserCameraHandle>(null);
+  const isWeb = Platform.OS === "web";
+  const webCameraRef = useRef<BrowserCameraHandle | null>(null);
+  const nativeCameraRef = useRef<NativeCameraHandle | null>(null);
+  const cameraRef = isWeb ? webCameraRef : nativeCameraRef;
 
   const analyze = async (uri: string, kind: SourceKind) => {
     cameraRef.current?.stop();
@@ -48,7 +53,9 @@ export default function GestureRecognitionScreen() {
     setBusy(true);
     setError(null);
     try {
-      const uri = cameraRef.current?.capture();
+      // Web: capture() trả về string đồng bộ. Native: trả về Promise<string>.
+      // await xử lý được cả hai.
+      const uri = await cameraRef.current?.capture();
       if (!uri) throw new Error("Camera chưa sẵn sàng.");
       cameraRef.current?.stop();
       setCameraLive(false);
@@ -59,9 +66,26 @@ export default function GestureRecognitionScreen() {
     }
   };
 
+  const pickNativeImage = async (): Promise<string> => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      throw new Error("Cần quyền truy cập thư viện ảnh");
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.6,
+    });
+    const uri = result.assets?.[0]?.uri;
+    if (result.canceled || !uri) {
+      throw new Error("Bạn chưa chọn ảnh");
+    }
+    return uri;
+  };
+
   const useUpload = async () => {
     try {
-      await analyze(await pickBrowserImage(), "upload");
+      const uri = isWeb ? await pickBrowserImage() : await pickNativeImage();
+      await analyze(uri, "upload");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Không chọn được ảnh");
     }
@@ -102,13 +126,21 @@ export default function GestureRecognitionScreen() {
             style={{ height: 330, borderRadius: 28, backgroundColor: "#2E8B7E" }}
           >
             {cameraLive ? (
-              <BrowserCameraPreview
-                ref={cameraRef}
-                facingMode="user"
-                mirrored
-                onReady={() => setError(null)}
-                onError={(message) => setError(message)}
-              />
+              isWeb ? (
+                <BrowserCameraPreview
+                  ref={webCameraRef}
+                  facingMode="user"
+                  mirrored
+                  onReady={() => setError(null)}
+                  onError={(message) => setError(message)}
+                />
+              ) : (
+                <CameraNativePreview
+                  ref={nativeCameraRef}
+                  onReady={() => setError(null)}
+                  onError={(message) => setError(message)}
+                />
+              )
             ) : imageUri ? (
               <Image source={{ uri: imageUri }} style={{ width: "100%", height: "100%" }} contentFit="cover" />
             ) : (
