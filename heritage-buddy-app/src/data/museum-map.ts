@@ -18,14 +18,17 @@ export const MUSEUM_SECTIONS: MuseumSection[] = [
 ];
 
 // Tour thật chỉ có 4 điểm dừng (leg-based, 16/08):
-//   index 0 = Entrance (xuất phát — robot KHÔNG bao giờ gửi NODE_START:0)
-//   index 1..4 = 4 điểm dừng — khớp NodeID 1..4 firmware gửi (NODE_START:<idx>)
+//   - index 0 = Entrance (xuất phát — robot KHÔNG bao giờ gửi NODE_START:0 lúc đầu)
+//   - index 1..4 = 4 điểm dừng — khớp NodeID 1..4 firmware gửi (NODE_START:<idx>)
 //     → History (ancient-01), Ceramics (ancient-02), Artifacts (ancient-03),
 //       Special (medieval-01) — tạm lấy 4 vật đầu theo yêu cầu team.
+//   - order 5 = Entrance: hiện SAU node 4 trên bản đồ — node cuối của tour.
+//     Lúc mở đầu KHÔNG tính (locked, badge chỉ 4/5); CHỈ tính khi robot quay về
+//     cổng (Finish = Entrance vật lý) → firmware gửi NODE_COMPLETE:0 → 5/5 ✓
 export const MUSEUM_NODES: MapNode[] = [
   {
     id: "entrance",
-    order: 0,
+    order: 5,
     title: "Cổng vào bảo tàng",
     titleEn: "Museum Entrance",
     sectionId: "ancient",
@@ -33,8 +36,8 @@ export const MUSEUM_NODES: MapNode[] = [
     y: 2,
     videoSource: "",
     thumbnail: "",
-    description: "Điểm xuất phát của tour — robot bắt đầu hành trình từ đây.",
-    descriptionEn: "The starting point of the tour — the robot begins its journey here.",
+    description: "Bạn đã quay về cổng vào bảo tàng! Hành trình tham quan hoàn thành.",
+    descriptionEn: "You are back at the museum entrance! Your tour is complete.",
     funFact: "",
     funFactEn: "",
   },

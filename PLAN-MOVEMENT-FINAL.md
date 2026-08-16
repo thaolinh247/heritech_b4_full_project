@@ -52,10 +52,12 @@ bool isLineCentered(SensorManager& sensors); // |err|<0.8 && w∈[2,4] — thoá
 ### 2.4 `src/main.cpp` — tích hợp (thay thế đúng 4 chỗ, giữ mọi thứ khác)
 1. **checkButton()** (nhả BTN_DOWN khi IDLE) + lệnh `START` từ app: `nodes.reset(); legExec.start(1);` rồi mới `FOLLOW_LINE`.
 2. **handleFollowLine()**: bỏ phần PID+đỏ cũ, gọi `legExec.update(sensors, motors)`; khi `legExec.isDone()` → `nodes.arrivedAtNext()`:
-   - `isFinish` → `motors.stop()` + `ALL_DONE` + `END`
+   - `isFinish` → `motors.stop()` + `NODE_START:0` + `NODE_COMPLETE:0` + `AT_NODE` — Finish ≡ Entrance vật lý: mở node Entrance + đánh dấu ✓ (chỉ tính khi VỀ, badge 5/5); chờ "đi tiếp" → `ALL_DONE` + `END`
    - ngược lại → `AT_NODE` (dừng hẳn, `nodeNotified=false`)
 3. **handleAtNode()**: giữ nguyên (đứng yên + `NODE_START:<nodeId>` 1 lần). Không có logic tự rời node.
-4. **Nhánh BLE "đi tiếp"**: 3 lệnh `NODE_DONE:<id>` / `VOICE_NEXT` / `NEXT_NODE` — khi đang `AT_NODE` đều quy về: `legExec.start(nodes.index() + 1); state=FOLLOW_LINE;` (chặng lùi-ra). Bỏ logic `completeCurrentNode()/nextNode()` cũ. ⚠️ firmware hiện nhận `NODE_DONE:<id>` kèm id — giữ `startsWith("NODE_DONE:")` như hiện tại.
+4. **Nhánh BLE "đi tiếp"**: 3 lệnh `NODE_DONE:<id>` / `VOICE_NEXT` / `NEXT_NODE` — khi đang `AT_NODE`:
+   - `nodes.current().isFinish` → `ALL_DONE` + `END` (đã quay về Entrance — kết thúc tour)
+   - ngược lại → `legExec.start(nodes.index() + 1); state=FOLLOW_LINE;` (chặng lùi-ra). Bỏ logic `completeCurrentNode()/nextNode()` cũ. ⚠️ firmware hiện nhận `NODE_DONE:<id>` kèm id — giữ `startsWith("NODE_DONE:")` như hiện tại.
 
 ### 2.5 GIỮ NGUYÊN (không đụng — an toàn bắt buộc)
 | Thành phần | Lý do |
@@ -71,7 +73,8 @@ bool isLineCentered(SensorManager& sensors); // |err|<0.8 && w∈[2,4] — thoá
 ```
 IDLE ──START──► FOLLOW_LINE(legExec.start(1))
 FOLLOW_LINE: legExec chạy nội bộ (rẽ trong leg KHÔNG đổi state)
-   │ legExec.done + node.isFinish ──► END (ALL_DONE)
+   │ legExec.done + node.isFinish ─► NODE_START:0 + NODE_COMPLETE:0 + AT_NODE
+   │   └─ "đi tiếp" at Finish ──► END (ALL_DONE)
    │ legExec.done + node thường   ──► AT_NODE (NODE_START:<id>, đứng yên vô hạn)
    │ PIR giữa leg                  ──► WAIT_CLEAR (dừng) ─► tự resume về FOLLOW_LINE
 AT_NODE: chờ NODE_DONE/VOICE_NEXT/NEXT_NODE ──► FOLLOW_LINE(legExec.start(idx+1))
@@ -105,7 +108,8 @@ AT_NODE: chờ NODE_DONE/VOICE_NEXT/NEXT_NODE ──► FOLLOW_LINE(legExec.star
 | 2.2 | LEG2 ×3 (bấm "Đi tiếp" sau Node1) | Lùi đúng ra ngã ba, rẽ phải-trái, tới đỏ Node2 |
 | 2.3 | LEG3 ×3 | Lùi ngã T, rẽ phải-trái, Node3 |
 | 2.4 | LEG4 ×3 | Lùi, 3 lần rẽ trái, Node4 |
-| 2.5 | LEG5 ×3 | Lùi ngã T, rẽ phải-phải-trái, đỏ cuối → `ALL_DONE` + END (KHÔNG mở node) |
+| 2.5 | LEG5 ×3 | Lùi ngã T, rẽ phải-phải-trái, đỏ cuối → `NODE_START:0` + `NODE_COMPLETE:0` + AT_NODE (Finish = Entrance); app mở node Entrance + badge 5/5 |
+| 2.5b | "Đi tiếp" tại Entrance | Bấm nút/vẫy tay ở màn hình Entrance → `ALL_DONE` + END; app mở Celebration |
 | 2.6 | Hết vòng tròn tín hiệu | `NODE_DONE` chỉ tác dụng khi AT_NODE; gửi khi đang FOLLOW_LINE bị bỏ qua |
 
 ### Vòng 3 — Chỉ tiêu (mỗi metric 10 lần, ghi vào `TEST-INTERACTION.md` 9.x)

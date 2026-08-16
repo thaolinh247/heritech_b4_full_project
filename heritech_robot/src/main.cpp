@@ -356,12 +356,25 @@ void checkBLECommands()
     }
     // ── LỆNH: TÍN HIỆU "ĐI TIẾP" (NODE_DONE:<id> / NEXT_NODE / VOICE_NEXT) ──
     // App gửi khi người dùng xem xong node / nói "đi tiếp" / cử chỉ đi tiếp.
-    // CHỈ có hiệu lực khi robot đang AT_NODE — nơi duy nhất cho phép rời node:
-    // bắt đầu chặng lùi-ra kế tiếp (leg index+1).
+    // CHỈ có hiệu lực khi robot đang AT_NODE:
+    //   - node thường → bắt đầu chặng lùi-ra kế tiếp (leg index+1);
+    //   - Finish (= Entrance, đã quay về) → kết thúc tour (ALL_DONE + END).
     else if (cmd.startsWith("NODE_DONE:") || cmd == "NEXT_NODE" || cmd == "VOICE_NEXT")
     {
         if (state.getState() == RobotState::AT_NODE)
         {
+            // Đứng tại Finish (= Entrance, đã quay về) → "đi tiếp" = KẾT THÚC tour:
+            // không có leg kế tiếp, báo app màn hình chúc mừng.
+            if (nodes.current().isFinish)
+            {
+                motors.stop();
+                ble.sendMessage("ALL_DONE");
+                state.setState(RobotState::END);
+                MiniR4.LED.setColor(1, 0, 255, 0);
+                Serial.println("[CMD] next at Finish -> ALL_DONE");
+                return;
+            }
+
             // Node vừa hoàn thành = nodes.current() (chưa advance) — báo app đánh dấu ✓
             ble.sendMessage("NODE_COMPLETE:" + String(nodes.current().nodeId));
             legExec.start(nodes.index() + 1);      // Chặng kế tiếp (bắt đầu bằng lùi-ra)
@@ -713,11 +726,18 @@ void handleFollowLine()
         nodes.arrivedAtNext();
         if (nodes.current().isFinish)
         {
-            // Node cuối: KHÔNG mở node app, KHÔNG chờ next -> kết thúc luôn
+            // Về tới Finish (= Entrance vật lý) — KHÔNG kết thúc ngay:
+            // 1) Mở node Entrance trong app (NODE_START:0) — khách thấy mình
+            //    đã quay về cổng bảo tàng.
+            // 2) Đánh dấu Entrance hoàn thành (NODE_COMPLETE:0) — lúc xuất
+            //    phát KHÔNG tính, CHỈ tính khi quay về (badge 5/5).
+            // 3) Chuyển AT_NODE, chờ tín hiệu "đi tiếp" từ app → ALL_DONE + END
             motors.stop();
-            ble.sendMessage("ALL_DONE");
-            state.setState(RobotState::END);
-            Serial.println("[STATE] Finish reached -> ALL_DONE");
+            ble.sendMessage("NODE_START:0");
+            ble.sendMessage("NODE_COMPLETE:0");
+            nodeNotified = true;
+            state.setState(RobotState::AT_NODE);
+            Serial.println("[STATE] Finish (Entrance) reached -> NODE_START:0 + NODE_COMPLETE:0");
         }
         else
         {

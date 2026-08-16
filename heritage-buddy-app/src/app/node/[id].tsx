@@ -66,7 +66,8 @@ function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[nu
   useGestureNavigation(node.id);
   const t = useT();
 
-  const player = useVideoPlayer(node.videoSource, (player) => {
+  // Entrance không có nguồn video → player rỗng (null), không tải gì cả
+  const player = useVideoPlayer(node.videoSource ? node.videoSource : null, (player) => {
     player.loop = false;
     player.play();
   });
@@ -78,7 +79,8 @@ function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[nu
   });
 
   const status = getNodeStatus(node);
-  const isLastNode = node.order === 13;
+  const lastOrder = Math.max(...MUSEUM_NODES.map((n) => n.order));
+  const isLastNode = node.order === lastOrder;
   const isAlreadyCompleted = status === "completed";
 
   // Switch lần 1 → mở "Hỏi Buddy" (phần câu hỏi), bấm lần nữa (trong chat) mới kích hoạt ghi âm.
@@ -92,7 +94,8 @@ function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[nu
   }, [node.id, router, onSwitchPress, pathname]);
 
   const handleComplete = useCallback(async () => {
-    if (isAlreadyCompleted) {
+    // Node cuối (Entrance) đã hoàn thành vẫn cho "Đi tiếp" để sang màn hình kết thúc
+    if (isAlreadyCompleted && !isLastNode) {
       router.back();
       return;
     }
@@ -130,11 +133,22 @@ function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[nu
       </Pressable>
 
       <View className="flex-1">
-        <VideoView
-          player={player}
-          style={{ width: "100%", aspectRatio: 16 / 9 }}
-          nativeControls
-        />
+        {node.videoSource ? (
+          <VideoView
+            player={player}
+            style={{ width: "100%", aspectRatio: 16 / 9 }}
+            nativeControls
+          />
+        ) : (
+          // Entrance không có video — hiện mascot Buddy chào mừng quay về
+          <View className="w-full items-center pt-10 pb-4">
+            <Image
+              source={images.mascotHappy}
+              style={{ width: 130, height: 130 }}
+              contentFit="contain"
+            />
+          </View>
+        )}
 
         <View className="flex-1 px-5 pt-5">
           <Text
@@ -147,47 +161,51 @@ function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[nu
             className="text-base"
             style={{ fontFamily: "Helvetica-Bold", color: "#7A5233" }}
           >
-            {isAlreadyCompleted
-              ? t("node.watched")
-              : t("node.watchHint")}
+            {node.videoSource
+              ? isAlreadyCompleted
+                ? t("node.watched")
+                : t("node.watchHint")
+              : pickViEn(node.description, node.descriptionEn)}
           </Text>
         </View>
 
         <View className="px-5 pb-6" style={{ paddingRight: 112 }}>
-          {/* Hỏi Buddy Button */}
-          <Pressable
-            onPress={() => router.push(`/chat/${node.id}`)}
-            className="w-full py-3 mb-3 rounded-2xl active:opacity-80"
-            style={{
-              backgroundColor: "#E8935E",
-              shadowColor: "#E8935E",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 5,
-            }}
-            accessibilityLabel={t("node.askBuddy")}
-            accessibilityRole="button"
-          >
-            <Text
-              className="text-white text-base text-center"
-              style={{ fontFamily: "Helvetica-Bold" }}
+          {/* Hỏi Buddy Button (chỉ khi node có nội dung video) */}
+          {node.videoSource && (
+            <Pressable
+              onPress={() => router.push(`/chat/${node.id}`)}
+              className="w-full py-3 mb-3 rounded-2xl active:opacity-80"
+              style={{
+                backgroundColor: "#E8935E",
+                shadowColor: "#E8935E",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 5,
+              }}
+              accessibilityLabel={t("node.askBuddy")}
+              accessibilityRole="button"
             >
-              🎙️ {t("node.askBuddy")}
-            </Text>
-          </Pressable>
+              <Text
+                className="text-white text-base text-center"
+                style={{ fontFamily: "Helvetica-Bold" }}
+              >
+                🎙️ {t("node.askBuddy")}
+              </Text>
+            </Pressable>
+          )}
 
           {/* Đi tiếp Button */}
           <Pressable
             onPress={handleComplete}
             className="w-full py-4 rounded-2xl active:opacity-80"
             style={{
-              backgroundColor: isAlreadyCompleted ? "#D4C5B6" : "#2E8B7E",
-              shadowColor: isAlreadyCompleted ? "#D4C5B6" : "#2E8B7E",
+              backgroundColor: isAlreadyCompleted && !isLastNode ? "#D4C5B6" : "#2E8B7E",
+              shadowColor: isAlreadyCompleted && !isLastNode ? "#D4C5B6" : "#2E8B7E",
               shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: isAlreadyCompleted ? 0 : 0.3,
+              shadowOpacity: isAlreadyCompleted && !isLastNode ? 0 : 0.3,
               shadowRadius: 8,
-              elevation: isAlreadyCompleted ? 0 : 5,
+              elevation: isAlreadyCompleted && !isLastNode ? 0 : 5,
             }}
             accessibilityLabel={t("node.next")}
             accessibilityRole="button"
