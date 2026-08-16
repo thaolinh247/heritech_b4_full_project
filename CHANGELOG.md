@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+- **Điều hướng leg-based (mục B — theo `PLAN-MOVEMENT-FINAL.md`)**: thay "bám line liên tục + đỏ=node (13 node)" bằng **5 chặng thao tác rời rạc** dừng hẳn mỗi node, chỉ rời khi app gửi "đi tiếp".
+  - `heritech_robot/src/route_config.h` (MỚI): bảng `ROUTE_NODES` 5 node (Entrance → History → Ceramics → Artifacts → Special → Finish) + `NodeManager` (chỉ quản lý index, `arrivedAtNext()`); **xóa `node_manager.*` cũ** (13 node, `TOTAL_NODES` — xung đột tên class `NodeManager`).
+  - `heritech_robot/src/maneuver_nav.h` (MỚI): `LegExecutor` + 5 legs (`LEG1..5_STEPS` theo tuyến thật: chuỗi ngã ba trái/phải đã xác nhận), non-blocking, `M_FWD_TO_JUNCTION`/`M_BACK_TO_JUNCTION`/`M_TURN_*`/`M_FWD_TO_RED`; thêm `LegResult::FAILED` + `TURN_TIMEOUT_MS` — rẽ quá lâu không thấy line → dừng + về IDLE thay vì xoay vô hạn; `junctionMatches()` dùng chung `JUNCTION_CONFIRM_FRAMES`.
+  - `heritech_robot/src/motor_control.h/.cpp`: THÊM `turnLeft90()/turnRight90()` (xoay tại chỗ `TURN_SPEED=35`, KHÔNG sửa PID) + `isLineCentered()` (thoát pha rẽ khi |err|<0.8 && w∈[2,4]); `config.h` thêm `TURN_SPEED/LINE_CENTER_*/TURN_TIMEOUT_MS`, bỏ `TOTAL_NODES`.
+  - `heritech_robot/src/main.cpp`: START (nút/app) → `legExec.start(1)`; `handleFollowLine()` chạy `legExec.update()` + result (DONE → AT_NODE / Finish → `ALL_DONE`+END; FAILED → IDLE); `handleAtNode()` gửi `NODE_START:<nodeId>` (1..4); **3 lệnh `NODE_DONE:<id>`/`NEXT_NODE`/`VOICE_NEXT` gộp 1 nhánh** — chỉ có hiệu lực khi `AT_NODE`, bắt đầu leg kế + vẫn gửi `NODE_COMPLETE:<completed>` cho map ✓; `RESUME` tiếp tục leg dở (nếu chưa từng START → chạy leg 1); **giữ nguyên** `checkJunction()`/WARN:turn song song, PID, WAIT_CLEAR tự-resume, SOS, mất-BLE auto-stop. Build sạch PlatformIO (RAM 47.9%, Flash 47.1%).
+
 ### Docs
 - **`PLAN-MOVEMENT-FINAL.md` (mới, thư mục gốc)**: plan di chuyển CUỐI CÙNG — chuyển từ "bám line liên tục + đỏ=node" sang điều hướng theo 5 chặng thao tác rời rạc (leg-based: `route_config.h` NodeManager 5 node + `maneuver_nav.h` LegExecutor, 2 file team cung cấp chưa có trên máy). Nội dung: bảng tuyến thật 5 chặng + chuỗi ngã ba từng leg, thay đổi từng file trong `heritech_robot` (thêm `turnLeft90/turnRight90/isLineCentered` vào MotorControl, tích hợp 4 điểm trong main.cpp, xóa `node_manager.*` cũ 13 node — xung đột tên NodeManager), danh sách GIỮ NGUYÊN (PID, checkJunction WARN:turn song song, WAIT_CLEAR/SOS/mất BLE), 4 điều kiện mở cần chốt trước khi code (app 13→5 node, bỏ NODE_COMPLETE, rẽ line-centered vs IMU `turnByAngle`, vị trí sensor khi lùi), lộ trình test 3 vòng (bàn → tuyến thật từng leg → chỉ tiêu đo) và kế hoạch 16–17/08 với fallback về mode cũ (đã build sạch `4ce2bd4`) để GATE 1 không phụ thuộc plan này.
 

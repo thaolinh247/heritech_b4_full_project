@@ -1,6 +1,8 @@
 #include "motor_control.h"
 #include "config.h"
+#include "sensor_manager.h"
 #include <MatrixMiniR4.h>
+#include <math.h>
 
 void MotorControl::begin() {
     _baseSpeed = BASE_SPEED;
@@ -31,6 +33,25 @@ void MotorControl::followLine(float error) {
 
     MiniR4.M1.setPower(leftPower);
     MiniR4.M2.setPower(rightPower);
+}
+
+void MotorControl::turnLeft90() {
+    MiniR4.M1.setPower(-TURN_SPEED);
+    MiniR4.M2.setPower(TURN_SPEED);
+}
+
+void MotorControl::turnRight90() {
+    MiniR4.M1.setPower(TURN_SPEED);
+    MiniR4.M2.setPower(-TURN_SPEED);
+}
+
+// Thoát khỏi pha rẽ khi line đã nằm giữa sensor (|err| nhỏ + bề rộng line hợp lý).
+// LegExecutor gọi liên tục trong lúc xoay — khi đúng → advanceStep() dừng robot.
+bool MotorControl::isLineCentered(SensorManager& sensors) {
+    float err = sensors.readLineError();
+    uint8_t w = sensors.readLineWidth();
+    return (fabs(err) < LINE_CENTER_ERR_TOL) &&
+           (w >= LINE_CENTER_WIDTH_MIN && w <= LINE_CENTER_WIDTH_MAX);
 }
 
 void MotorControl::stop() {

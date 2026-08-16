@@ -7,20 +7,21 @@
 #include "sensor_manager.h" // Đọc cảm biến: dò line, màu sắc, cử chỉ, PIR, công tắc
 #include "motor_control.h"  // Điều khiển 2 động cơ DC (tiến/lùi/rẽ)
 #include "state_machine.h"  // Máy trạng thái: IDLE → FOLLOW_LINE → AT_NODE → END
-#include "node_manager.h"   // Quản lý 13 điểm dừng trên tuyến
+#include "route_config.h"   // Bảng 5 node của tour + NodeManager (vị trí hiện tại)
+#include "maneuver_nav.h"   // LegExecutor — chạy 5 chặng thao tác rời rạc (rẽ 90° tại ngã ba)
 // ─── Biến toàn cục ─────────────────────────
 BLEHandler ble;        // Đối tượng BLE - gửi/nhận lệnh với app
 SensorManager sensors; // Đối tượng cảm biến - đọc line, màu, gesture...
 MotorControl motors;   // Đối tượng động cơ - điều khiển 2 bánh xe
 StateMachine state;    // Máy trạng thái - xác định robot đang ở bước nào
-NodeManager nodes;     // Quản lý node - theo dõi điểm dừng hiện tại
+NodeManager nodes;     // Quản lý node - theo dõi điểm dừng hiện tại (5 node)
+LegExecutor legExec;   // Điều phối di chuyển theo chặng (rẽ 90° tại ngã ba)
 
 unsigned long lastPIRWarn = 0;        // Lần cuối gửi WARN:person (chống gửi liên tục)
 unsigned long warnClearDeadline = 0; // Hạn chót chờ đường thoáng sau WARN:person (state WAIT_CLEAR)
 unsigned long pirGraceUntil = 0;      // Đến thời điểm này PIR bị bỏ qua (sau khi robot rời node)
 unsigned long pirClearSince = 0;      // Thời điểm PIR bắt đầu im lặng liên tục (xác nhận đường thoáng)
 unsigned long pirHighSince = 0;       // Thời điểm PIR bắt đầu HIGH liên tục (debounce trước khi WARN)
-int redStableCount = 0;         // Đếm số lần đọc được màu đỏ liên tiếp (xác nhận tới node)
 bool nodeNotified = false;      // Đã gửi NODE_START cho app chưa? (tránh gửi trùng)
 int junctionPendingType = 0;    // Type ngã ba đang chờ xác nhận (1=trái, 2=phải)
 int junctionPendingFrames = 0;  // Số lần đọc liên tiếp cùng type ngã ba
@@ -124,6 +125,7 @@ void setup()
     ble.begin();                       // Bắt đầu quảng bá BLE
     MiniR4.PWR.setBattCell(2);
     motors.begin();                    // Khởi tạo động cơ
+    nodes.begin();                     // Bắt đầu tour tại Entrance (index 0)
     state.setState(RobotState::IDLE);  // Trạng thái ban đầu: IDLE
     Serial.println("[System] HeritageBuddy ready");
 
@@ -259,21 +261,21 @@ void checkButton()
         MiniR4.Buzzer.Tone(200, 100);      // Còi "bíp" ngắn
         Serial.println("[BTN] DOWN -> STOP");
     }
-    // Nhả nút → nếu đang IDLE thì bắt đầu chạy
+    // Nhả nút → nếu đang IDLE thì bắt đầu chạy (leg 1: Entrance -> Node1)
     if (!current && lastState)
     {
         if (state.getState() == RobotState::IDLE)
         {
-            nodes.reset();                           // Đặt lại node về 0
-            redStableCount = 0;                      // Reset đếm màu đỏ
+            nodes.reset();                           // Về Entrance (index 0)
             nodeNotified = false;                    // Cho phép gửi NODE_START
+            legExec.start(1);                        // Bắt đầu chặng 1 (Entrance -> Node1)
             state.setState(RobotState::FOLLOW_LINE); // Sang trạng thái chạy
-            motors.setSpeed(BASE_SPEED);             // Đặt tốc độ cơ bản
+            motors.setSpeed(BASE_SPEED);             // Tốc độ cơ bản (PID bám line)
             MiniR4.LED.setColor(1, 0, 255, 0);       // LED xanh lá
             MiniR4.Buzzer.Tone(400, 100);            // Còi báo bắt đầu
             delay(50);
             MiniR4.Buzzer.NoTone();
-            Serial.println("[BTN] UP -> START");
+            Serial.println("[BTN] UP -> START (leg 1)");
         }
     }
 
@@ -334,15 +336,15 @@ void checkBLECommands()
     Serial.println(cmd);
 
     // ── LỆNH: START ──────────────────────────
-    // App gửi khi người dùng nhấn "Xuất phát"
+    // App gửi khi người dùng nhấn "Xuất phát" — bắt đầu tour từ Entrance
     if (cmd == "START")
     {
-        nodes.reset(); // Đặt lại node đầu tiên
-        redStableCount = 0;
+        nodes.reset();                     // Về Entrance (index 0)
         nodeNotified = false;
+        legExec.start(1);                  // Chặng 1: Entrance -> Node1
         state.setState(RobotState::FOLLOW_LINE);
         motors.setSpeed(BASE_SPEED);
-        Serial.println("[CMD] START -> FOLLOW_LINE");
+        Serial.println("[CMD] START -> FOLLOW_LINE (leg 1)");
     }
     // ── LỆNH: STOP ───────────────────────────
     // App gửi khi người dùng nhấn dừng
@@ -352,64 +354,27 @@ void checkBLECommands()
         state.setState(RobotState::IDLE);
         Serial.println("[CMD] STOP -> IDLE");
     }
-    // ── LỆNH: NODE_DONE:<id> ─────────────────
-    // App gửi khi người dùng xem xong video ở node hiện tại
-    else if (cmd.startsWith("NODE_DONE:"))
-    {
-        int nodeId = cmd.substring(10).toInt(); // Lấy số thứ tự node từ lệnh
-        nodes.completeCurrentNode();            // Đánh dấu node hiện tại đã xong
-        if (nodes.isLastNode() || nodes.allNodesCompleted())
-        {
-            // Đã hết node → kết thúc tour
-            state.setState(RobotState::END);
-            ble.sendMessage("ALL_DONE"); // Báo cho app biết tour kết thúc
-            Serial.println("[CMD] NODE_DONE -> ALL_DONE -> END");
-        }
-        else
-        {
-            nodes.nextNode(); // Sang node tiếp theo
-            ble.sendMessage("NODE_COMPLETE:" + String(nodeId));
-            motors.setSpeed(BASE_SPEED);
-            state.setState(RobotState::FOLLOW_LINE); // Tiếp tục chạy đến node kế
-            pirGraceUntil = millis() + PIR_GRACE_AFTER_LEAVE_MS; // Bỏ qua PIR trong lúc rời node
-            Serial.println("[CMD] NODE_DONE -> FOLLOW_LINE");
-        }
-    }
-    // ── LỆNH: NEXT_NODE ─────────────────────
-    // App gửi để chuyển ngay sang node tiếp theo
-    else if (cmd == "NEXT_NODE")
-    {
-        nodes.nextNode();
-        motors.setSpeed(BASE_SPEED);
-        state.setState(RobotState::FOLLOW_LINE);
-        pirGraceUntil = millis() + PIR_GRACE_AFTER_LEAVE_MS; // Bỏ qua PIR trong lúc rời node
-        Serial.println("[CMD] NEXT_NODE -> FOLLOW_LINE");
-    }
-    // ── LỆNH: VOICE_NEXT ────────────────────
-    // Giọng nói "đi tiếp" từ người dùng (qua app) hoặc cử chỉ
-    else if (cmd == "VOICE_NEXT")
+    // ── LỆNH: TÍN HIỆU "ĐI TIẾP" (NODE_DONE:<id> / NEXT_NODE / VOICE_NEXT) ──
+    // App gửi khi người dùng xem xong node / nói "đi tiếp" / cử chỉ đi tiếp.
+    // CHỈ có hiệu lực khi robot đang AT_NODE — nơi duy nhất cho phép rời node:
+    // bắt đầu chặng lùi-ra kế tiếp (leg index+1).
+    else if (cmd.startsWith("NODE_DONE:") || cmd == "NEXT_NODE" || cmd == "VOICE_NEXT")
     {
         if (state.getState() == RobotState::AT_NODE)
         {
-            nodes.completeCurrentNode();
-            int completedNode = nodes.getCurrentNode(); // Lưu node vừa hoàn thành TRƯỚC khi nextNode()
-            if (nodes.isLastNode() || nodes.allNodesCompleted())
-            {
-                state.setState(RobotState::END);
-                ble.sendMessage("ALL_DONE");
-            }
-            else
-            {
-                nodes.nextNode();
-                motors.setSpeed(BASE_SPEED);
-                state.setState(RobotState::FOLLOW_LINE);
-                pirGraceUntil = millis() + PIR_GRACE_AFTER_LEAVE_MS; // Bỏ qua PIR trong lúc rời node
-                // Gửi index node VỪA HOÀN THÀNH (không phải node kế tiếp) để app
-                // cập nhật đúng trạng thái trên bản đồ — tránh node đích bị đánh dấu ✓
-                ble.sendMessage("NODE_COMPLETE:" + String(completedNode));
-            }
+            // Node vừa hoàn thành = nodes.current() (chưa advance) — báo app đánh dấu ✓
+            ble.sendMessage("NODE_COMPLETE:" + String(nodes.current().nodeId));
+            legExec.start(nodes.index() + 1);      // Chặng kế tiếp (bắt đầu bằng lùi-ra)
+            state.setState(RobotState::FOLLOW_LINE);
+            motors.setSpeed(BASE_SPEED);
+            pirGraceUntil = millis() + PIR_GRACE_AFTER_LEAVE_MS; // Bỏ qua PIR trong lúc rời node
+            Serial.print("[CMD] next signal -> start leg ");
+            Serial.println(legExec.leg());
         }
-        Serial.println("[CMD] VOICE_NEXT");
+        else
+        {
+            Serial.println("[CMD] next signal ignored - not at node");
+        }
     }
     // ── LỆNH: VOICE_STOP ────────────────────
     // Giọng nói "dừng lại" từ người dùng
@@ -420,11 +385,15 @@ void checkBLECommands()
         Serial.println("[CMD] VOICE_STOP -> IDLE");
     }
     // ── LỆNH: RESUME ─────────────────────────
-    // Tiếp tục chạy sau SOS mà KHÔNG reset tour (khác START — có reset nodes)
+    // Tiếp tục chạy sau SOS mà KHÔNG reset tour (khác START — có reset nodes).
+    // LegExecutor giữ nguyên vị trí bước dở; nếu tour chưa bắt đầu lần nào thì
+    // khởi động chặng 1 như một START.
     else if (cmd == "RESUME")
     {
         if (state.getState() == RobotState::IDLE)
         {
+            if (!legExec.isStarted())
+                legExec.start(1); // Tour chưa chạy (SOS ngay tại Entrance) → bắt đầu leg 1
             state.setState(RobotState::FOLLOW_LINE);
             motors.setSpeed(BASE_SPEED);
             MiniR4.LED.setColor(1, 0, 255, 0);
@@ -716,17 +685,20 @@ void handleIdle()
 }
 
 // ─── XỬ LÝ FOLLOW_LINE ───────────────────────
-// Robot di chuyển giữa các node (không block)
+// Robot di chuyển giữa các node theo chặng (leg-based): LegExecutor chạy
+// từng bước (đi thẳng / rẽ 90° / lùi-ra), non-blocking, không đổi state
+// cho từng thao tác rẽ. Khi leg xong: tới node thường → AT_NODE; tới Finish
+// → ALL_DONE + END; FAILED (kẹt rẽ) → IDLE để khắc phục.
 
 void handleFollowLine()
 {
     if (state.isStateChanged())
     {
-        Serial.println("[STATE] FOLLOW_LINE");
+        Serial.println("[STATE] FOLLOW_LINE (leg-based)");
     }
 
-    // Debug quan sát mỗi 2s (phục vụ B1/B2): lỗi bám line, bề rộng line,
-    // type ngã ba — KHÔNG đổi hành vi, để theo dõi trên tuyến thật.
+    // Debug quan sát mỗi 2s (phục vụ hiệu chỉnh trên tuyến): lỗi bám line,
+    // bề rộng line, type ngã ba — KHÔNG đổi hành vi.
     static unsigned long lastLineDebug = 0;
     if (millis() - lastLineDebug >= 2000)
     {
@@ -739,23 +711,36 @@ void handleFollowLine()
         Serial.println(sensors.readJunctionType());
     }
 
-    float lineError = sensors.readLineError();
-    motors.followLine(lineError);
+    legExec.update(sensors, motors);
 
-    if (sensors.isRedDetected())
+    switch (legExec.result())
     {
-        redStableCount++;
-        if (redStableCount >= COLOR_STABLE_COUNT)
+    case LegResult::RUNNING:
+        break;
+    case LegResult::DONE:
+        nodes.arrivedAtNext();
+        if (nodes.current().isFinish)
         {
+            // Node cuối: KHÔNG mở node app, KHÔNG chờ next -> kết thúc luôn
             motors.stop();
+            ble.sendMessage("ALL_DONE");
+            state.setState(RobotState::END);
+            Serial.println("[STATE] Finish reached -> ALL_DONE");
+        }
+        else
+        {
             nodeNotified = false;
             state.setState(RobotState::AT_NODE);
-            Serial.println("[STATE] Red detected -> AT_NODE");
+            Serial.print("[STATE] Reached -> AT_NODE: ");
+            Serial.println(nodes.current().name);
         }
-    }
-    else
-    {
-        redStableCount = 0;
+        break;
+    case LegResult::FAILED:
+        motors.stop();
+        state.setState(RobotState::IDLE);
+        MiniR4.LED.setColor(1, 255, 0, 0);
+        Serial.println("[STATE] Leg FAILED -> IDLE (check turn params / track)");
+        break;
     }
 }
 
@@ -808,7 +793,8 @@ void resumeAfterWarn()
 }
 
 // ─── XỬ LÝ AT_NODE ───────────────────────────
-// Robot đã tới điểm dừng, thông báo cho app
+// Robot đã tới điểm dừng: CHỈ đứng yên + gửi NODE_START một lần.
+// KHÔNG có logic tự rời node — chờ checkBLECommands() xử lý tín hiệu "đi tiếp".
 
 void handleAtNode()
 {
@@ -817,15 +803,19 @@ void handleAtNode()
         Serial.println("[STATE] AT_NODE");
     }
 
-    motors.stop(); // Dừng robot
+    motors.stop(); // Dừng robot — đứng yên tuyệt đối cho tới khi app cho phép
 
     // Chỉ gửi NODE_START một lần (tránh gửi trùng khi ở cùng node)
     if (!nodeNotified)
     {
-        ble.sendMessage("NODE_START:" + String(nodes.getCurrentNode())); // Báo app mở video
-        nodeNotified = true;                                             // Đánh dấu đã gửi
-        Serial.print("[NODE] Started: ");
-        Serial.println(nodes.getCurrentNode());
+        const RouteNode& node = nodes.current();
+        ble.sendMessage("NODE_START:" + String(node.nodeId)); // Báo app mở nội dung node
+        nodeNotified = true;
+        Serial.print("[NODE] ");
+        Serial.print(node.name);
+        Serial.print(" (id=");
+        Serial.print(node.nodeId);
+        Serial.println(")");
     }
 }
 

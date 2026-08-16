@@ -40,10 +40,10 @@
 | # | Test case | Các bước | Kết quả mong đợi | KQ |
 |---|---|---|---|---|
 | 2.1 | START từ app | Kết nối → màn hình map → "Xuất phát" | Robot chạy theo line; Serial log `[CMD] START -> FOLLOW_LINE`; LED xanh | [ ] |
-| 2.2 | Đến node 1 | Robot chạy đến node màu đỏ đầu tiên | Robot dừng; app tự mở video node 1 (`NODE_START:0`); Serial log `[STATE] AT_NODE` | [ ] |
-| 2.3 | "Đi tiếp" sau video | Bấm "Đi tiếp" | App gửi `NODE_DONE:0`; robot `NODE_COMPLETE:0` → chạy tiếp; map đánh dấu node đã xong | [ ] |
-| 2.4 | Đi hết 13 node | Lặp 2.2–2.3 cho hết tour | Node cuối: app gửi `NEXT_NODE` → màn hình Celebration; robot `ALL_DONE`, còi kết thúc, LED xanh | [ ] |
-| 2.5 | Nhận diện node đúng trình tự | Quan sát toàn bộ tour | Robot dừng ĐÚNG node theo thứ tự, không bỏ node, không dừng nhầm giữa đường | [ ] |
+| 2.2 | Đến node 1 | Robot chạy chặng LEG1 (rẽ 90° 3 lần) đến node màu đỏ đầu tiên | Robot dừng; app tự mở nội dung node History (`NODE_START:1`); Serial log `[STATE] Reached -> AT_NODE: History Hall` | [ ] |
+| 2.3 | "Đi tiếp" sau node | Bấm "Đi tiếp" | App gửi `NODE_DONE:<id>`; robot `NODE_COMPLETE:1` → bắt đầu chặng lùi-ra LEG2; map đánh dấu node đã xong ✓ | [ ] |
+| 2.4 | Đi hết 5 điểm dừng | Lặp 2.2–2.3 hết 4 node, chặng cuối LEG5 đi tới điểm đỏ Finish | Node cuối: KHÔNG mở node app; robot `ALL_DONE` + còi kết thúc; app màn Celebration | [ ] |
+| 2.5 | Nhận diện node đúng trình tự | Quan sát toàn bộ tour | Robot dừng ĐÚNG 4 node theo thứ tự (History→Ceramics→Artifacts→Special), KHÔNG bỏ node, KHÔNG dừng nhầm giữa đường; mỗi node gửi đúng 1 `NODE_START:<id>` | [ ] |
 | 2.6 | Nút STOP app | Đang chạy → bấm "Dừng" (nếu có trên UI hiện tại) hoặc gửi `STOP` | Robot dừng ngay, state IDLE, Serial log `[CMD] STOP -> IDLE` | [ ] |
 | 2.7 | Nhấn ngắn switch (robot) — hành vi hiện tại | Nhấn nhả nhanh nút vật lý | Gửi `SWITCH_PRESS` → app mở "Hỏi Buddy"; nhấn giữ ≥10s → SOS (xem 4.3) | [ ] |
 
@@ -180,7 +180,10 @@ Target: **10s ± 1s** (đo từ lúc robot dừng)
 | Thời gian (s) | | | | | | | |
 
 ### 9.5 Độ chính xác nhận diện node (Color Sensor — giữ số liệu V3)
-Số node đúng / tổng node trong tour: **___ / 13** (3 tour) · Lỗi phát hiện: ___
+Số node đúng / tổng node trong tour: **___ / 4 điểm dừng** (3 tour) · Lỗi phát hiện: ___
+
+### 9.6 Độ chính xác rẽ 90° tại ngã ba (leg-based — mục B)
+Số lần rẽ đúng / tổng số lần rẽ (mỗi leg 3 lần chạy, tổng 75 lần rẽ theo LEG1..5): **___ / ___** · Số lần FAILED (turn timeout): ___
 
 ---
 

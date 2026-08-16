@@ -43,7 +43,16 @@
 #define CALIB_HOLD_MS         2000
 #define CALIB_SWEEP_MS        2000
 
-#define TOTAL_NODES            13
+// ─── Điều hướng leg-based (PLAN-MOVEMENT-FINAL) ─────────
+// Xoay tại chỗ 90° ở ngã ba: nhanh/vừa, PID không liên quan.
+#define TURN_SPEED              35
+// Thoát khỏi pha rẽ khi line nằm giữa sensor: |err| < tol && w trong khoảng này.
+#define LINE_CENTER_ERR_TOL     0.8f
+#define LINE_CENTER_WIDTH_MIN   2
+#define LINE_CENTER_WIDTH_MAX   4
+// Rẽ quá lâu mà không thấy line (line đứt quãng/quá rộng) → FAILED về IDLE,
+// không xoay vô hạn.
+#define TURN_TIMEOUT_MS         4000
 
 #define LOOP_DELAY_MS          20
 #define PIR_ALARM_COOLDOWN_MS  3000

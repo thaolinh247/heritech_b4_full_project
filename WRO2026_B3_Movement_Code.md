@@ -1,5 +1,6 @@
 # WRO 2026 B3 — TOÀN BỘ CODE & LỘ TRÌNH DI CHUYỂN (mục B plan-ver2)
 
+> **⚠️ CẬP NHẬT 16/08:** file này mô tả chế độ "bám line liên tục + đỏ=node" (round 1 mục B). Từ `PLAN-MOVEMENT-FINAL.md` + commit tiếp theo, robot chuyển sang **điều hướng leg-based** (rẽ 90° tại ngã ba, 5 chặng, dừng hẳn mỗi node) — code mới nằm ở `heritech_robot/src/route_config.h` + `maneuver_nav.h`. File này vẫn giữ làm tài liệu tham chiếu PID/thư viện và lộ trình test calibration (Bước 1–2).
 > **Ngày cập nhật:** 2026-08-16 (đóng băng tính năng 17/08)
 > **Trạng thái:** B2 (ngã ba → WARN:turn_l/r) + calibration đã code xong, build PlatformIO sạch (RAM 47.9%, Flash 46.9%).
 > **Mục đích file:** tổng hợp TOÀN BỘ mã lệnh liên quan di chuyển (bám line, node, ngã ba, calibration) để đọc kiểm tra, kèm lộ trình thực test trên tuyến.
