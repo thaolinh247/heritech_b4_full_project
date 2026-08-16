@@ -3,7 +3,7 @@
 ## [Unreleased]
 
 ### Fixed
-- **Bấm START bánh xe không quay (chẩn đoán 16/08)**: `heritech_robot/src/maneuver_nav.h` — (1) thêm debug `[LEG] leg=... step=.../... junc= err= w=` in mỗi 2s + log mỗi lần đổi bước/leg DONE để biết robot kẹt ở đâu; (2) thêm `STEP_MIN_MS=500` (`config.h`): mỗi bước thao tác phải chạy tối thiểu 500ms mới được phép xác nhận (junction/đỏ/line-centered) — chống kịch bản robot đứng NGAY tại ngã ba/đỏ lúc bắt đầu (cảm biến đọc đúng type tức thì → bỏ qua bước rẽ/lùi → chuỗi bước nhảy liên tiếp → robot chỉ nhúc nhích rồi đứng im, nhìn như "không chạy"). Nghi ngờ khác khi test: START chưa tới (check `[BLE RX] START`) hoặc PIR bắt người đứng gần → `WAIT_CLEAR` dừng ngay (check `[PIR] WARN:person`).
+- **Robot nhận START nhưng KHÔNG di chuyển (16/08)**: firmware điều khiển động cơ qua cổng **M1/M2** (`MiniR4.M1/M2.setPower()` + `DriveDC.begin(1,2,...)` + `setPPR_RPM`), nhưng dây động cơ thật được nối ở cổng **M3/M4** — khớp code team chạy được (`C:\Users\thaol\Downloads\WRO 2026 B3\src\main.cpp` hàm `setTankRaw`: `MiniR4.M3.setSpeed(...)`/`M4.setSpeed(...)`, `INVERT_LEFT=false`, `INVERT_RIGHT=true`). Hậu quả: robot nhận lệnh, state FOLLOW_LINE, LED xanh nhưng không bánh xe nào quay. Sửa: `motor_control.cpp` — thêm `setDrive(left, right)` ghi M3/M4 (M4 nghịch dấu), mọi hàm `move()/followLine()/turnLeft90()/turnRight90()/stop()/brake()` chuyển sang `setDrive`; `main.cpp` `setup()` bỏ toàn bộ cấu hình M1/M2 + DriveDC (không cần — M3/M4 dùng trực tiếp `setSpeed()`, không cần khởi tạo). Build sạch PlatformIO (RAM 47.9%, Flash 47.0%).
 
 ### Added
 - **Entrance = node cuối, chỉ tính khi quay về (16/08, theo yêu cầu team)**: 

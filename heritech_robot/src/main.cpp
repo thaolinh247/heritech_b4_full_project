@@ -129,13 +129,10 @@ void setup()
     state.setState(RobotState::IDLE);  // Trạng thái ban đầu: IDLE
     Serial.println("[System] HeritageBuddy ready");
 
-    // Cấu hình motor M1 (trái) – M2 (phải)
-    MiniR4.M1.setPPR_RPM(545, 200);
-    MiniR4.M2.setPPR_RPM(545, 200);
-    MiniR4.M1.setReverse(false);
-    MiniR4.M2.setReverse(true);
-    MiniR4.DriveDC.begin(1, 2, false, true);
-    MiniR4.DriveDC.setMoveSyncPID(0.02, 0.00, 0.04);
+    // Cấu hình motor: động cơ kéo ở cổng M3 (trái) / M4 (phải) — KHÔNG cần
+    // khởi tạo riêng, dùng trực tiếp `M3/M4.setSpeed()` (khớp code team WRO 2026 B3,
+    // hàm `setTankRaw`: INVERT_LEFT=false, INVERT_RIGHT=true — áp dụng trong
+    // `MotorControl::setDrive()`). KHÔNG đụng M1/M2 — cổng này không nối động cơ.
 
 }
 

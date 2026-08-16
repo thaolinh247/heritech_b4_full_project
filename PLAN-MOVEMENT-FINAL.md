@@ -43,8 +43,8 @@ Chuỗi ngã ba từng chặng (theo `maneuver_nav.h`):
 
 ### 2.3 `src/motor_control.h/.cpp` — thêm 3 method, KHÔNG sửa `followLine()/PID`
 ```cpp
-void turnLeft90();   // M1=-TURN_SPEED, M2=+TURN_SPEED (xoay trái tại chỗ)
-void turnRight90();  // M1=+TURN_SPEED, M2=-TURN_SPEED
+void turnLeft90();   // setDrive(-TURN_SPEED, +TURN_SPEED) — bánh trái lùi, bánh phải tiến (M3/M4)
+void turnRight90();  // setDrive(+TURN_SPEED, -TURN_SPEED)
 bool isLineCentered(SensorManager& sensors); // |err|<0.8 && w∈[2,4] — thoát khỏi pha rẽ khi line nằm giữa
 ```
 - `TURN_SPEED=35`, `LINE_CENTER_ERR_TOL=0.8f`, `LINE_CENTER_WIDTH_MIN/MAX=2/4` — hằng số thêm vào `src/config.h` (không sửa dòng PID hiện có).

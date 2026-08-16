@@ -54,12 +54,6 @@
 // không xoay vô hạn.
 #define TURN_TIMEOUT_MS         4000
 
-// Mỗi bước thao tác phải chạy tối thiểu bấy nhiêu ms trước khi được phép
-// "xác nhận" (junction/đỏ/line-centered). Chống kịch bản: robot đứng ngay
-// tại ngã ba/đỏ lúc bắt đầu → cảm biến đọc đúng type TỨC THÌ → bỏ qua bước
-// (không rẽ/lùi), chuỗi bước nhảy liên tiếp → robot tưởng như không chạy.
-#define STEP_MIN_MS             500
-
 #define LOOP_DELAY_MS          20
 #define PIR_ALARM_COOLDOWN_MS  3000
 #define BUZZER_ALARM_MS        200

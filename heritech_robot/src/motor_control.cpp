@@ -10,9 +10,21 @@ void MotorControl::begin() {
     _integral = 0;
 }
 
+// ─────────────────────────────────────────────────────────────
+// Động cơ kéo của robot nằm ở cổng M3 (trái) / M4 (phải) — KHỚP
+// code team WRO 2026 B3 (`C:\Users\thaol\Downloads\WRO 2026 B3\src\main.cpp`
+// hàm `setTankRaw`): `INVERT_LEFT=false` (ghi thẳng), `INVERT_RIGHT=true`
+// (nghịch dấu). Trước đây ghi `MiniR4.M1/M2.setPower()` — cổng M1/M2
+// KHÔNG nối dây động cơ → robot nhận START nhưng không di chuyển.
+// MatrixMotor::setSpeed() nhận -100..100, không cần khởi tạo trước.
+// ─────────────────────────────────────────────────────────────
+void MotorControl::setDrive(int16_t left, int16_t right) {
+    MiniR4.M3.setSpeed(left);   // bánh trái — INVERT_LEFT = false
+    MiniR4.M4.setSpeed(-right); // bánh phải — INVERT_RIGHT = true
+}
+
 void MotorControl::move(int16_t leftPower, int16_t rightPower) {
-    MiniR4.M1.setPower(leftPower);
-    MiniR4.M2.setPower(rightPower);
+    setDrive(leftPower, rightPower);
 }
 
 void MotorControl::followLine(float error) {
@@ -31,18 +43,15 @@ void MotorControl::followLine(float error) {
     leftPower  = constrain(leftPower,  -MAX_SPEED, MAX_SPEED);
     rightPower = constrain(rightPower, -MAX_SPEED, MAX_SPEED);
 
-    MiniR4.M1.setPower(leftPower);
-    MiniR4.M2.setPower(rightPower);
+    setDrive(leftPower, rightPower);
 }
 
 void MotorControl::turnLeft90() {
-    MiniR4.M1.setPower(-TURN_SPEED);
-    MiniR4.M2.setPower(TURN_SPEED);
+    setDrive(-TURN_SPEED, TURN_SPEED); // bánh trái lùi, bánh phải tiến → xoay trái
 }
 
 void MotorControl::turnRight90() {
-    MiniR4.M1.setPower(TURN_SPEED);
-    MiniR4.M2.setPower(-TURN_SPEED);
+    setDrive(TURN_SPEED, -TURN_SPEED); // bánh trái tiến, bánh phải lùi → xoay phải
 }
 
 // Thoát khỏi pha rẽ khi line đã nằm giữa sensor (|err| nhỏ + bề rộng line hợp lý).
@@ -55,15 +64,14 @@ bool MotorControl::isLineCentered(SensorManager& sensors) {
 }
 
 void MotorControl::stop() {
-    MiniR4.M1.setPower(0);
-    MiniR4.M2.setPower(0);
+    setDrive(0, 0);
     _integral = 0;
     _lastError = 0;
 }
 
 void MotorControl::brake() {
-    MiniR4.M1.setBrake(true);
-    MiniR4.M2.setBrake(true);
+    MiniR4.M3.setBrake(true);
+    MiniR4.M4.setBrake(true);
     _integral = 0;
     _lastError = 0;
 }

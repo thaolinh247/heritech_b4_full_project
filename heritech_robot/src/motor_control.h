@@ -8,6 +8,7 @@ class SensorManager; // forward declaration — chỉ dùng tham chiếu trong i
 class MotorControl {
 public:
     void begin();
+    void setDrive(int16_t left, int16_t right); // Ghi 2 động cơ M3/M4 (khớp code team WRO)
     void move(int16_t leftPower, int16_t rightPower);
     void followLine(float error);
     void turnLeft90();                       // Xoay tại chỗ 90° sang trái (leg-based)
