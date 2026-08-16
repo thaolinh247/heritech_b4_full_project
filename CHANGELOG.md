@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Bấm START bánh xe không quay (chẩn đoán 16/08)**: `heritech_robot/src/maneuver_nav.h` — (1) thêm debug `[LEG] leg=... step=.../... junc= err= w=` in mỗi 2s + log mỗi lần đổi bước/leg DONE để biết robot kẹt ở đâu; (2) thêm `STEP_MIN_MS=500` (`config.h`): mỗi bước thao tác phải chạy tối thiểu 500ms mới được phép xác nhận (junction/đỏ/line-centered) — chống kịch bản robot đứng NGAY tại ngã ba/đỏ lúc bắt đầu (cảm biến đọc đúng type tức thì → bỏ qua bước rẽ/lùi → chuỗi bước nhảy liên tiếp → robot chỉ nhúc nhích rồi đứng im, nhìn như "không chạy"). Nghi ngờ khác khi test: START chưa tới (check `[BLE RX] START`) hoặc PIR bắt người đứng gần → `WAIT_CLEAR` dừng ngay (check `[PIR] WARN:person`).
+
 ### Added
 - **Entrance = node cuối, chỉ tính khi quay về (16/08, theo yêu cầu team)**: 
   - `heritage-buddy-app/src/data/museum-map.ts` — node `entrance` chuyển từ order 0 → **order 5** (hiện SAU node 4 trên bản đồ); lúc xuất phát KHÔNG tính (badge tối đa 4/5 đến khi về); mô tả đổi thành "đã quay về cổng bảo tàng, hành trình hoàn thành".

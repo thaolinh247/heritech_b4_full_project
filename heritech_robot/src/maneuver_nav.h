@@ -131,6 +131,10 @@ public:
         _result = (legIndex == 0 || legIndex >= ROUTE_LEGS_LEN)
                       ? LegResult::DONE
                       : LegResult::RUNNING;
+        if (_result == LegResult::RUNNING) {
+            Serial.print("[LEG] start leg ");
+            Serial.println(legIndex);
+        }
     }
 
     bool isStarted() const { return _started; }
@@ -144,29 +148,53 @@ public:
         const Leg& leg = ROUTE_LEGS[_leg];
         if (_step >= leg.count) { motors.stop(); _result = LegResult::DONE; return; }
 
+        // Debug: log trạng thái mỗi 2s để biết robot đang kẹt ở bước nào
+        // (sửa lỗi "bấm START bánh xe không quay" 16/08).
+        if (millis() - _stepLogMs >= 2000)
+        {
+            _stepLogMs = millis();
+            Serial.print("[LEG] leg=");
+            Serial.print(_leg);
+            Serial.print(" step=");
+            Serial.print(_step);
+            Serial.print("/");
+            Serial.print(leg.count);
+            Serial.print(" junc=");
+            Serial.print(sensors.readJunctionType());
+            Serial.print(" err=");
+            Serial.print(sensors.readLineError(), 2);
+            Serial.print(" w=");
+            Serial.println(sensors.readLineWidth());
+        }
+
+        // STEP_MIN_MS: bước phải chạy đủ thời gian tối thiểu mới được phép
+        // xác nhận — robot đứng ngay tại ngã ba/đỏ lúc bắt đầu sẽ không bị
+        // bỏ qua bước (không rẽ/lùi) vì cảm biến đọc đúng type tức thì.
+        bool confirmEnabled = millis() - _stepStartMs >= STEP_MIN_MS;
+
         const Maneuver& mv = leg.steps[_step];
         switch (mv.type) {
         case M_FWD_TO_JUNCTION:
             motors.followLine(sensors.readLineError());
-            if (junctionMatches(sensors, mv.juncTypeExpected)) advanceStep(motors);
+            if (confirmEnabled && junctionMatches(sensors, mv.juncTypeExpected)) advanceStep(motors);
             break;
         case M_BACK_TO_JUNCTION:
             motors.move(-BASE_SPEED, -BASE_SPEED); // lùi thẳng
-            if (junctionMatches(sensors, mv.juncTypeExpected)) advanceStep(motors);
+            if (confirmEnabled && junctionMatches(sensors, mv.juncTypeExpected)) advanceStep(motors);
             break;
         case M_TURN_LEFT:
             motors.turnLeft90();
-            if (motors.isLineCentered(sensors)) advanceStep(motors);
+            if (confirmEnabled && motors.isLineCentered(sensors)) advanceStep(motors);
             else if (turnTimedOut()) failStep(motors);
             break;
         case M_TURN_RIGHT:
             motors.turnRight90();
-            if (motors.isLineCentered(sensors)) advanceStep(motors);
+            if (confirmEnabled && motors.isLineCentered(sensors)) advanceStep(motors);
             else if (turnTimedOut()) failStep(motors);
             break;
         case M_FWD_TO_RED:
             motors.followLine(sensors.readLineError());
-            if (sensors.isRedDetected()) {
+            if (confirmEnabled && sensors.isRedDetected()) {
                 if (++_confirmCount >= COLOR_STABLE_COUNT) advanceStep(motors);
             } else {
                 _confirmCount = 0;
@@ -192,9 +220,16 @@ private:
         _confirmCount = 0;
         _step++;
         _stepStartMs = millis();
+        Serial.print("[LEG] -> step ");
+        Serial.print(_step);
+        Serial.print("/");
+        Serial.println(ROUTE_LEGS[_leg].count);
         if (_step >= ROUTE_LEGS[_leg].count) {
             _result = LegResult::DONE;
             motors.stop();
+            Serial.print("[LEG] leg ");
+            Serial.print(_leg);
+            Serial.println(" DONE");
         }
     }
 
@@ -207,6 +242,7 @@ private:
     uint8_t  _leg = 0, _step = 0;
     uint16_t _confirmCount = 0;
     unsigned long _stepStartMs = 0;
+    unsigned long _stepLogMs = 0;
     bool     _started = false;
     LegResult _result = LegResult::DONE;
 };
