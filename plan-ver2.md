@@ -86,9 +86,9 @@ Kiến trúc thực thi là kiến trúc chính thức của dự án — không
 - [ ] Test bàn (robot đứng yên, không cần di chuyển): kích PIR bằng tay → cả vòng `WARN:person → (ngừng vẫy tay, PIR im ≥2s) → STATUS:auto_resumed`; vẫy tay liên tục → timeout 10s → `STATUS:auto_resumed`; long-press switch → SOS; app hiển thị đúng từng trạng thái.
 
 ### B. 🟢 DI CHUYỂN (ưu tiên 2 — làm sau A)
-- [ ] Xác nhận lại Line Tracer (PID bám tuyến) + Color Sensor ("3 lần đọc ổn định") chạy ổn định như V3 — không sửa, chỉ chạy xác nhận 1 tour đầy đủ.
-- [ ] Hiệu chỉnh phát hiện ngã ba (`readJunctionType()`) để gửi `WARN:turn_l/r` đúng, không báo trùng — đây là phần điều chỉnh duy nhất cho phép ở luồng di chuyển.
-- [ ] Kiểm tra lại Laser/PIR/Gesture/Switch và AI (LLM + RAG qua backend proxy) — không sửa.
+- [ ] Xác nhận lại Line Tracer (PID bám tuyến) + Color Sensor ("3 lần đọc ổn định") chạy ổn định như V3 — không sửa, chỉ chạy xác nhận 1 tour đầy đủ. *(16/08: đã thêm debug `[LINE] err=/w=/junc=` mỗi 2s, KHÔNG sửa logic — chỉ còn chờ chạy 1 tour thật.)*
+- [x] Hiệu chỉnh phát hiện ngã ba (`readJunctionType()`) để gửi `WARN:turn_l/r` đúng, không báo trùng — **CODE XONG 16/08** (`main.cpp` `checkJunction()`: xác nhận 3 lần đọc liên tiếp + latch/rearm 500ms, gửi đúng 1 lần, chỉ khi `FOLLOW_LINE`; log `[JUNC]`). Chờ chạy tuyến thật; dự phòng Phase 2: custom theo `WRO2026_B3_LineFollowing_Turns.md` (width≥8 + kênh) nếu thư viện nhiễu. Chi tiết: `WRO2026_B3_Movement_Code.md`.
+- [ ] Kiểm tra lại PIR/Gesture/Switch và AI (LLM + RAG qua backend proxy) — không sửa. *(Laser: BỎ khỏi mục B theo quyết định team — không có trong firmware; PIR warm-up/debounce + gesture auto-retry + I2C2 đã sửa ở round trước, build sạch.)*
 
 ### C. 🟢 Kiểm thử tích hợp trên tuyến thật → GATE 1
 - [ ] Chạy vòng tương tác đầy đủ trên tuyến: robot chạy → PIR kích → `WARN:person` → dừng → TTS + banner → người cản đi khỏi → tự `STATUS:auto_resumed` → chạy tiếp; test cả nhánh PIR báo liên tục → timeout 10s.

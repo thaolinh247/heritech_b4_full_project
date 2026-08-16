@@ -98,6 +98,14 @@ bool SensorManager::readPIR() {
     return digitalRead(PIN_PIR) == HIGH;
 }
 
+void SensorManager::calibrateBegin() {
+    _lineTracer.startCalibration();
+}
+
+void SensorManager::calibrateEnd() {
+    _lineTracer.endCalibration();
+}
+
 bool SensorManager::readSwitch() {
     return digitalRead(PIN_SWITCH) == LOW;
 }

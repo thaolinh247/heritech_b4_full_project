@@ -80,7 +80,7 @@
 
 ---
 
-## 5. Cảnh báo rẽ WARN:turn_l / turn_r (app đã hỗ trợ; firmware sẽ gửi khi hiệu chỉnh ngã ba — phần B)
+## 5. Cảnh báo rẽ WARN:turn_l / turn_r (app + firmware ĐÃ hỗ trợ — mục B plan-ver2 code xong 16/08)
 
 > Test app KHÔNG cần robot chạy: dùng UART terminal gửi giả `WARN:turn_l` / `WARN:turn_r` về app.
 
@@ -89,7 +89,8 @@
 | 5.1 | Toast rẽ trái | Gửi `WARN:turn_l` | App hiện toast "Robot đang rẽ trái" ~3.5s + TTS "Robot đang rẽ trái"; KHÔNG có nút, KHÔNG chặn màn hình | [ ] |
 | 5.2 | Toast rẽ phải | Gửi `WARN:turn_r` | Như 5.1 với "rẽ phải" | [ ] |
 | 5.3 | Tự tắt sau 3.5s | Quan sát | Toast biến mất tự động, không cần thao tác | [ ] |
-| 5.4 | Trên tuyến thật (sau khi làm B) | Robot chạy qua ngã ba | Mỗi ngã ba gửi đúng 1 lần `WARN:turn_*`, không báo trùng lặp liên tục; robot KHÔNG dừng | [ ] |
+| 5.4 | Trên tuyến thật (sau khi làm B) | Robot chạy qua ngã ba | Mỗi ngã ba gửi đúng 1 lần `WARN:turn_*`, không báo trùng lặp liên tục; robot KHÔNG dừng (đếm dòng `[JUNC]` trên Serial) | [ ] |
+| 5.5 | Hiệu chỉnh Line Tracer (BTN_UP, mới) | Robot IDLE → giữ BTN_UP ≥2s | Bíp 1 tiếng + log `[CALIB] START`; quét robot qua line trong 2s → bíp 2 tiếng + log `[CALIB] DONE`; sau đó `[LINE] w=` cho giá trị hợp lý (2–4 khi trên line) | [ ] |
 
 ---
 

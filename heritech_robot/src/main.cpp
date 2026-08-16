@@ -19,8 +19,13 @@ unsigned long lastPIRWarn = 0;        // Lần cuối gửi WARN:person (chống
 unsigned long warnClearDeadline = 0; // Hạn chót chờ đường thoáng sau WARN:person (state WAIT_CLEAR)
 unsigned long pirGraceUntil = 0;      // Đến thời điểm này PIR bị bỏ qua (sau khi robot rời node)
 unsigned long pirClearSince = 0;      // Thời điểm PIR bắt đầu im lặng liên tục (xác nhận đường thoáng)
+unsigned long pirHighSince = 0;       // Thời điểm PIR bắt đầu HIGH liên tục (debounce trước khi WARN)
 int redStableCount = 0;         // Đếm số lần đọc được màu đỏ liên tiếp (xác nhận tới node)
 bool nodeNotified = false;      // Đã gửi NODE_START cho app chưa? (tránh gửi trùng)
+int junctionPendingType = 0;    // Type ngã ba đang chờ xác nhận (1=trái, 2=phải)
+int junctionPendingFrames = 0;  // Số lần đọc liên tiếp cùng type ngã ba
+bool junctionLatched = false;   // Đã gửi WARN:turn_* cho ngã ba này — chờ rearm
+unsigned long junctionLatchUntil = 0; // Chặn gửi lại cho tới thời điểm này (rearm)
 
 // ─── Khai báo forward các hàm ──────────────
 void checkButton();      // Kiểm tra nút nhấn trên robot
@@ -28,6 +33,8 @@ void checkBLECommands(); // Xử lý lệnh nhận từ app qua BLE
 void checkPIR();         // Kiểm tra cảm biến chuyển động PIR
 void checkSwitch();      // Kiểm tra công tắc vật lý
 void checkGesture();     // Kiểm tra cảm biến cử chỉ
+void retryGestureInit(); // Thử khởi tạo lại cảm biến cử chỉ (chạy định kỳ, cả khi chưa kết nối BLE)
+void checkJunction();    // Phát hiện ngã ba → gửi WARN:turn_l/r (chỉ báo, không dừng)
 void handleIdle();       // Xử lý trạng thái IDLE (dừng robot)
 void handleFollowLine(); // Xử lý trạng thái FOLLOW_LINE (đang chạy)
 void handleWaitClear();   // Xử lý trạng thái WAIT_CLEAR (đang chờ đường thoáng)
@@ -169,6 +176,10 @@ void loop()
     if (!ble.isConnected())
     {
         motors.stop(); // AN TOÀN: không chạy tiếp với lệnh tốc độ cũ khi mất kết nối
+        retryGestureInit(); // PAJ7620 mất vài giây ổn định sau khi bật nguồn — init sớm
+                            // kể cả khi điện thoại chưa kết nối (trước đây chỉ retry khi
+                            // đã có BLE → nếu robot bật nguồn lâu trước khi kết nối thì
+                            // sensor cử chỉ không bao giờ sẵn sàng)
         static unsigned long lastBlink = 0; // Lần chớp LED gần nhất
         unsigned long now = millis();
         if (now - lastBlink >= 500)
@@ -187,6 +198,7 @@ void loop()
     checkPIR();         // Đọc cảm biến chuyển động
     checkSwitch();      // Đọc công tắc vật lý
     checkGesture();     // Đọc cảm biến cử chỉ
+    checkJunction();    // Ngã ba → WARN:turn_l/r (chỉ báo, không dừng)
 
     // ─── Máy trạng thái: xử lý theo trạng thái ──
     switch (state.getState())
@@ -229,6 +241,9 @@ void loop()
 
 // ─── NÚT NHẤN ─────────────────────────────
 // Nút DOWN trên robot: nhấn = dừng, nhả = xuất phát
+// Nút UP: giữ >= CALIB_HOLD_MS khi robot IDLE → hiệu chỉnh Line Tracer
+// (quét robot qua nền trắng/line đen trong CALIB_SWEEP_MS, sensor tự ghi
+// min/max ánh sáng hiện trường — không block loop, BLE vẫn chạy).
 
 void checkButton()
 {
@@ -263,6 +278,46 @@ void checkButton()
     }
 
     lastState = current; // Lưu trạng thái cho lần đọc sau
+
+    // ── Hiệu chỉnh Line Tracer qua BTN_UP (non-blocking state machine) ──
+    static bool calibHolding = false;  // Đang giữ nút
+    static unsigned long calibHoldStart = 0;
+    static bool calibActive = false;   // Đang trong cửa sổ quét 2s
+    static unsigned long calibUntil = 0;
+
+    bool btnUp = MiniR4.BTN_UP.getState();
+
+    if (btnUp)
+    {
+        if (!calibHolding)
+        {
+            calibHolding = true;
+            calibHoldStart = millis();
+        }
+        // Giữ đủ lâu + robot đang IDLE → bắt đầu quét calibration
+        if (!calibActive && state.getState() == RobotState::IDLE &&
+            millis() - calibHoldStart >= CALIB_HOLD_MS)
+        {
+            calibActive = true;
+            calibUntil = millis() + CALIB_SWEEP_MS;
+            MiniR4.Buzzer.Tone(1000, 100); // Bíp báo BẮT ĐẦU
+            sensors.calibrateBegin();
+            Serial.println("[CALIB] START - sweep robot over line for 2s");
+        }
+    }
+    else
+    {
+        calibHolding = false;
+    }
+
+    // Hết cửa sổ quét → kết thúc calibration (không cần nhả nút)
+    if (calibActive && millis() >= calibUntil)
+    {
+        calibActive = false;
+        sensors.calibrateEnd();
+        MiniR4.Buzzer.Tone(1500, 150); // Bíp báo XONG
+        Serial.println("[CALIB] DONE");
+    }
 }
 
 // ─── LỆNH BLE TỪ APP ─────────────────────────
@@ -409,8 +464,31 @@ void checkPIR()
         Serial.println(pirRaw ? "HIGH" : "LOW");
     }
 
-    if (!pirRaw)
-        return; // Không có chuyển động → thoát
+    // PIR cần thời gian ổn định sau khi bật nguồn (~30-60s): trong lúc này module
+    // tự phát xung HIGH giả dù không có người → bỏ qua để tránh WARN:person lúc
+    // khởi động (trước đây: 3 cảnh báo liên tiếp mỗi 3s ngay sau khi bật nguồn).
+    static unsigned long bootMs = millis();
+    if (millis() - bootMs < PIR_WARMUP_MS)
+    {
+        pirHighSince = 0;
+        return;
+    }
+
+    // Debounce: chỉ tin PIR khi HIGH liên tục >= PIR_DEBOUNCE_MS để lọc xung
+    // nhiễu ngắn / cạnh giật (người đi thật làm PIR HIGH vài giây nên không
+    // bị ảnh hưởng).
+    if (pirRaw)
+    {
+        if (pirHighSince == 0)
+            pirHighSince = millis();
+        if (millis() - pirHighSince < PIR_DEBOUNCE_MS)
+            return;
+    }
+    else
+    {
+        pirHighSince = 0;
+        return;
+    }
 
     // Bỏ qua phát hiện người trong cửa sổ "grace" sau khi rời node (xem PIR_GRACE_AFTER_LEAVE_MS)
     if (millis() < pirGraceUntil)
@@ -495,30 +573,43 @@ void checkSwitch() {
 // tiếp theo dùng nhầm (app tự bỏ qua khi không ở /node/, nhưng chặn ở
 // firmware sạch hơn và tránh spam BLE).
 
+// Thử khởi tạo lại cảm biến cử chỉ (PAJ7620) nếu chưa sẵn sàng. Chạy định kỳ
+// mỗi GESTURE_REINIT_INTERVAL_MS, KHÔNG block loop: khi sensor chưa cắm / chưa
+// ổn định, begin() thất bại nhanh (I2C không có slave → timeout ngắn). Gọi cả
+// khi chưa kết nối BLE để sensor kịp sẵn sàng trước khi tour bắt đầu.
+void retryGestureInit()
+{
+    static unsigned long lastGestureReinit = 0;
+    if (sensors.isGestureReady())
+        return;
+
+    unsigned long now = millis();
+    if (now - lastGestureReinit < GESTURE_REINIT_INTERVAL_MS)
+        return;
+    lastGestureReinit = now;
+
+    if (sensors.reinitGesture())
+    {
+        Serial.println("[GESTURE] sensor recovered");
+    }
+    else
+    {
+        static unsigned long lastGestureInitLog = 0;
+        if (now - lastGestureInitLog >= 5000)
+        {
+            lastGestureInitLog = now;
+            Serial.println("[GESTURE] sensor not ready - check wiring");
+        }
+    }
+}
+
 void checkGesture()
 {
     // Sensor chưa init thành công (cắm muộn / nguồn chưa ổn định) → thử lại
-    // định kỳ thay vì bỏ mặc. Điều chỉnh tần suất để không block loop bằng
-    // I2C timeout khi sensor chưa được cắm.
-    static unsigned long lastGestureReinit = 0;
-    static unsigned long lastGestureInitLog = 0;
-    const unsigned long GESTURE_REINIT_INTERVAL_MS = 2000;
+    // định kỳ thay vì bỏ mặc. Chạy cả khi chưa kết nối BLE (xem retryGestureInit).
     if (!sensors.isGestureReady())
     {
-        unsigned long now = millis();
-        if (now - lastGestureReinit >= GESTURE_REINIT_INTERVAL_MS)
-        {
-            lastGestureReinit = now;
-            if (sensors.reinitGesture())
-            {
-                Serial.println("[GESTURE] sensor recovered");
-            }
-            else if (now - lastGestureInitLog >= 5000)
-            {
-                lastGestureInitLog = now;
-                Serial.println("[GESTURE] sensor not ready - check wiring");
-            }
-        }
+        retryGestureInit();
         return;
     }
 
@@ -553,6 +644,69 @@ void checkGesture()
     }
 }
 
+// ─── CẢNH BÁO RẼ (WARN:turn_*) ─────────────
+// Robot bám tuyến đi qua ngã ba trái/phải → gửi WARN:turn_l/r cho app phát
+// toast + TTS cho khách. Chỉ THÔNG BÁO, không dừng (protocol plan-ver2 mục 4).
+// Chống báo trùng bằng 3 lớp:
+//   1. Debounce: type 1/2 phải ổn định >= JUNCTION_CONFIRM_FRAMES lần đọc
+//   2. Latch: sau khi gửi, chặn tới khi junctionType về 0/4 (hết ngã ba)
+//   3. Rearm tối thiểu JUNCTION_REARM_MS — chặn trường hợp nhấp nháy 1-0-1-0
+
+void checkJunction()
+{
+    if (state.getState() != RobotState::FOLLOW_LINE)
+        return; // Chỉ báo khi robot đang chạy giữa các node
+
+    int juncType = sensors.readJunctionType(); // 0=None, 1=Left, 2=Right, 3=T/Cross, 4=Unknown
+
+    // Không phải ngã ba trái/phải → xóa bộ đếm chờ; về 0/4 (hết ngã ba) → mở khóa latch
+    if (juncType != 1 && juncType != 2)
+    {
+        junctionPendingType = 0;
+        junctionPendingFrames = 0;
+        if ((juncType == 0 || juncType == 4) && millis() >= junctionLatchUntil)
+        {
+            junctionLatched = false;
+        }
+        return;
+    }
+
+    if (junctionLatched)
+        return; // Đã báo ngã ba này rồi — chờ rearm
+
+    // Xác nhận cùng type qua nhiều lần đọc liên tiếp (chống nhiễu 1 lần đọc)
+    if (junctionPendingType == juncType)
+    {
+        if (junctionPendingFrames < 255)
+            junctionPendingFrames++;
+    }
+    else
+    {
+        junctionPendingType = juncType;
+        junctionPendingFrames = 1;
+    }
+
+    if (junctionPendingFrames < JUNCTION_CONFIRM_FRAMES)
+        return;
+
+    // Đạt đủ số lần đọc ổn định → gửi đúng 1 lần
+    junctionLatched = true;
+    junctionPendingType = 0;
+    junctionPendingFrames = 0;
+    junctionLatchUntil = millis() + JUNCTION_REARM_MS;
+
+    if (juncType == 1)
+    {
+        ble.sendMessage("WARN:turn_l");
+        Serial.println("[JUNC] WARN:turn_l (LEFT)");
+    }
+    else
+    {
+        ble.sendMessage("WARN:turn_r");
+        Serial.println("[JUNC] WARN:turn_r (RIGHT)");
+    }
+}
+
 // ─── XỬ LÝ IDLE ──────────────────────────────
 // Robot đang dừng, chờ lệnh START
 
@@ -569,6 +723,20 @@ void handleFollowLine()
     if (state.isStateChanged())
     {
         Serial.println("[STATE] FOLLOW_LINE");
+    }
+
+    // Debug quan sát mỗi 2s (phục vụ B1/B2): lỗi bám line, bề rộng line,
+    // type ngã ba — KHÔNG đổi hành vi, để theo dõi trên tuyến thật.
+    static unsigned long lastLineDebug = 0;
+    if (millis() - lastLineDebug >= 2000)
+    {
+        lastLineDebug = millis();
+        Serial.print("[LINE] err=");
+        Serial.print(sensors.readLineError(), 2);
+        Serial.print(" w=");
+        Serial.print(sensors.readLineWidth());
+        Serial.print(" junc=");
+        Serial.println(sensors.readJunctionType());
     }
 
     float lineError = sensors.readLineError();

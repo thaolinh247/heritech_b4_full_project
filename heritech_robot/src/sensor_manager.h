@@ -21,6 +21,8 @@ public:
     bool readSwitch();
     bool isGestureReady();
     bool reinitGesture();
+    void calibrateBegin();
+    void calibrateEnd();
 
 private:
     bool initGestureSensor();

@@ -14,7 +14,8 @@
 #define MUX_ADDRESS            0x70
 #define I2C_CH_LINE            0
 #define I2C_CH_COLOR           2
-#define I2C_CH_GESTURE         3
+// Cổng vật lý ↔ kênh MUX (xem MatrixMiniR4.h): I2C1=0, I2C2=1, I2C3=2, I2C4=3
+#define I2C_CH_GESTURE         1   // Cổng I2C2
 
 #define LINE_THRESHOLD         50
 #define BASE_SPEED             40
@@ -26,6 +27,21 @@
 
 #define COLOR_RED_ID           9
 #define COLOR_STABLE_COUNT     3
+
+// ─── Ngã ba & WARN:turn_* (mục B2) ───────────
+// Type 1 (trái) / 2 (phải) phải ổn định liên tục bấy nhiêu lần đọc liên tiếp
+// mới tính là ngã ba thật (chống nhiễu) — cùng mô hình COLOR_STABLE_COUNT.
+#define JUNCTION_CONFIRM_FRAMES 3
+// Sau khi gửi WARN:turn_*, chặn gửi lại cho tới khi junctionType về 0/4
+// VÀ qua tối thiểu bấy nhiêu ms — robot rẽ qua ngã ba chỉ báo đúng 1 lần,
+// kể cả khi type nhấp nháy 1-0-1-0 trong lúc rẽ.
+#define JUNCTION_REARM_MS     500
+
+// ─── Hiệu chỉnh Line Tracer (BTN_UP) ────────
+// Giữ BTN_UP >= CALIB_HOLD_MS khi robot IDLE → bắt đầu quét calibration;
+// sensor ghi min/max ánh sáng hiện trường trong CALIB_SWEEP_MS rồi tự kết thúc.
+#define CALIB_HOLD_MS         2000
+#define CALIB_SWEEP_MS        2000
 
 #define TOTAL_NODES            13
 
@@ -42,5 +58,17 @@
 // Tránh kịch bản: khách đứng trước robot vẫy tay điều khiển → PIR bắt chuyển động ngay sau
 // đó → robot vừa chạy đi đã dừng lại vì WARN:person, gesture tưởng như "không ăn".
 #define PIR_GRACE_AFTER_LEAVE_MS 4000
+
+// PIR cần thời gian ổn định sau khi bật nguồn (~30-60s): trong lúc này module tự phát
+// vài xung HIGH giả (không có người/vật) → bỏ qua để tránh WARN:person lúc khởi động.
+#define PIR_WARMUP_MS         60000
+
+// Chỉ tin PIR khi HIGH liên tục bấy nhiêu ms — lọc xung nhiễu ngắn / cạnh giật
+// (người đi thật thường làm PIR HIGH vài giây nên ngưỡng này không ảnh hưởng).
+#define PIR_DEBOUNCE_MS       400
+
+// Chu kỳ thử khởi tạo lại cảm biến cử chỉ khi chưa sẵn sàng (PAJ7620 mất vài giây
+// để ổn định sau khi cấp nguồn, hoặc cắm muộn).
+#define GESTURE_REINIT_INTERVAL_MS 2000
 
 #endif
