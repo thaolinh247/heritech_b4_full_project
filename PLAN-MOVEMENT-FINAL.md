@@ -81,7 +81,7 @@ AT_NODE: chờ NODE_DONE/VOICE_NEXT/NEXT_NODE ──► FOLLOW_LINE(legExec.star
 
 ## 3. ⚠️ ĐIỂM MỞ — CẦN CHỐT TRƯỚC KHI CODE (4 câu hỏi)
 
-1. **App có 13 node trên bản đồ nhưng tuyến thật chỉ 4 điểm dừng.** Robot giờ gửi `NODE_START:1..4` (số) → app mở `MUSEUM_NODES[idx]` — node hiển thị không khớp vị trí thật, tour kết thúc sớm. → Sửa app: `museum-map.ts` rút còn 5 node (Entrance/History/Ceramics/Artifacts/Special) + đồng bộ giao diện? Hay giữ nguyên 13 node (chỉ demo 4 điểm)? **Bắt buộc chốt — đụng app, tốn thời gian.**
+1. **App có 13 node trên bản đồ nhưng tuyến thật chỉ 4 điểm dừng.** — ✅ **ĐÃ CHỐT + XONG 16/08:** rút `museum-map.ts` xuống **5 node** — index 0 = Entrance (robot không bao giờ gửi NODE_START:0), index 1..4 = 4 điểm dừng (tạm lấy 4 vật đầu: ancient-01/02/03 + medieval-01) khớp NodeID 1..4 firmware. Lưu ý còn: badge tiến độ app hiển thị tối đa 4/5 (Entrance không tính hoàn thành).
 2. **Không còn gửi `NODE_COMPLETE:<id>`** → map app không đánh dấu ✓ node đã xong. Chấp nhận bỏ tính năng này?
 3. **Cách rẽ 90°:** paste dùng "xoay tại chỗ + thoát khi `isLineCentered()`". Phương án dự phòng tốt hơn: **IMU gyro** (`MiniR4.Motion.begin()` + `turnByAngle()` — đã có sẵn ở `C:\Users\thaol\Downloads\WRO 2026 B3\src\utils.cpp:180`, vòng PI trên `gyroZ`, quay đúng góc không phụ thuộc line). → Thử line-centered trước (đơn giản), IMU làm kế hoạch B?
 4. **Sensor Line Tracer khi lùi (`M_BACK_TO_JUNCTION`):** xác nhận cảm biến quét được ngã ba khi robot đang lùi (câu 2.2 ở trên). Nếu không → đổi thành: lùi theo thời gian cố định tới vị trí biết trước rồi rẽ (đo sẵn trên tuyến thật).
@@ -132,7 +132,7 @@ AT_NODE: chờ NODE_DONE/VOICE_NEXT/NEXT_NODE ──► FOLLOW_LINE(legExec.star
 |---|---|---|
 | Rẽ 90° không chính xác (line-centered phụ thuộc sensor giữa line) | Cao | TURN_TIMEOUT + fallback IMU `turnByAngle` (có sẵn) |
 | Lùi không thấy ngã ba (vị trí sensor) | Cao | Xác nhận vật lý TRƯỚC khi code; fallback lùi thời gian cố định |
-| App 13 node vs tuyến 4 điểm dừng | TB | Chốt câu 1 trước khi code app |
+| App 13 node vs tuyến 4 điểm dừng | TB | ✅ Chốt 16/08: app rút còn 5 node khớp NodeID 1..4; badge hiển thị tối đa 4/5 |
 | Hết thời gian (freeze 17/08) | TB | Fallback mode cũ luôn sẵn sàng; GATE 1 độc lập leg-based |
 | `NEXT_NODE`/`NODE_DONE` cũ có thể tới khi đang FOLLOW_LINE (app cũ/nhiễu) | Thấp | Chỉ xử lý khi AT_NODE (paste đã chốt) |
 

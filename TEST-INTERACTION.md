@@ -12,7 +12,7 @@
 |---|---|
 | Firmware | Nạp bản mới nhất qua PlatformIO (`pio run -t upload`), mở Serial Monitor @9600 để xem log |
 | App | Build + cài lên smartphone gắn trên robot (Android khuyến nghị — BLE) |
-| Sa bàn | Tuyến line hoàn chỉnh 13 node, màu đỏ tại node, không có vật cản |
+| Sa bàn | Tuyến line hoàn chỉnh 5 điểm dừng (4 node + Finish), màu đỏ tại node, không có vật cản |
 | Nguồn | Pin robot đầy; điện thoại cắm sạc (tour dài) |
 | Công cụ đo | Đồng hồ bấm giờ; (tùy chọn) app BLE UART terminal (nRF Connect / Serial Bluetooth Terminal) để gửi lệnh giả kiểm tra app |
 | Người test | 2 người: 1 người vận hành robot + theo dõi Serial, 1 người bấm app + bấm giờ |

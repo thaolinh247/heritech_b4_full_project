@@ -62,7 +62,7 @@
 
 | # | Test case | Các bước | Kết quả mong đợi | KQ |
 |---|---|---|---|---|
-| 3.1 | Hiển thị 13 node | Vào `/museum-map` | 13 node theo thứ tự 1–13 đúng tọa độ `x/y` + đường path SVG nối giữa chúng; 4 section banner | [ ] |
+| 3.1 | Hiển thị 5 node | Vào `/museum-map` | 5 node theo thứ tự 1–5 (Entrance + 4 điểm dừng) đúng tọa độ `x/y` + đường path SVG nối giữa chúng | [ ] |
 | 3.2 | Trạng thái node ban đầu | Progress trống | Node 1 là `current` (pulse + glow cam), node 2–13 là `locked` (🔒 xám); badge `0/13` | [ ] |
 | 3.3 | Chỉ mở được node hiện tại | Bấm node locked | Không điều hướng (Pressable disabled, accessibilityState disabled) | [ ] |
 | 3.4 | Mở node current/completed | Bấm node 1 (current) | `router.push("/node/ancient-01")` | [ ] |
@@ -238,7 +238,7 @@ Target: **< 15s** (kể cả scan)
 
 | GATE | Tiêu chí | Đạt? | Ghi chú |
 |---|---|---|---|
-| GATE A | App khởi động, onboarding song ngữ, map 13 node, video node, celebration — không crash | [ ] | |
+| GATE A | App khởi động, onboarding song ngữ, map 5 node, video node, celebration — không crash | [ ] | |
 | GATE B | Chat Buddy: text + voice + audio fallback + TTS + lệnh điều hướng; lỗi mạng xử lý thân thiện | [ ] | |
 | GATE C | Nhận diện ký hiệu tay on-device (ảnh mẫu + camera + upload) chạy offline, thời gian đạt target | [ ] | |
 | GATE D | Robot ↔ App: BLE, NODE_START/COMPLETE, SWITCH, gesture, WARN, STATUS, SOS, ALL_DONE (tham chiếu TEST-INTERACTION.md) | [ ] | |

@@ -537,10 +537,8 @@ void checkSwitch() {
 
 // ─── CẢM BIẾN CỬ CHỈ (M-Vision Cam) ─────────
 // Nhận diện cử chỉ tay: vuốt trái / vuốt phải = đi tiếp
-// Chỉ gửi khi robot ĐANG Ở NODE (AT_NODE) — cử chỉ "đi tiếp" chỉ có nghĩa
-// ở điểm dừng; gửi khi đang chạy sẽ tạo gesture cũ mà app màn hình node
-// tiếp theo dùng nhầm (app tự bỏ qua khi không ở /node/, nhưng chặn ở
-// firmware sạch hơn và tránh spam BLE).
+// LƯU Ý (16/08, đang test): bỏ gate "chỉ ở AT_NODE" — robot gửi GESTURE:* bất
+// cứ lúc nào để tiện kiểm tra cảm biến; app tự chặn khi không ở màn hình node.
 
 // Thử khởi tạo lại cảm biến cử chỉ (PAJ7620) nếu chưa sẵn sàng. Chạy định kỳ
 // mỗi GESTURE_REINIT_INTERVAL_MS, KHÔNG block loop: khi sensor chưa cắm / chưa
@@ -589,12 +587,6 @@ void checkGesture()
     // Log mọi cử chỉ không phải 0 để dễ debug (kể cả Up/Down không dùng)
     Serial.print("[GESTURE] raw=");
     Serial.println(gesture);
-
-    if (state.getState() != RobotState::AT_NODE)
-    {
-        Serial.println("[GESTURE] ignored - robot not at node");
-        return;
-    }
 
     // MatrixGesture::getGesture() trả về mã số (xem MiniR4_MXGesture.cpp):
     //   1 = Right, 2 = Left, 9 = Wave, 10 = WaveSlowlyLeftRight,

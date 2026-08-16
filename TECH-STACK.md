@@ -220,7 +220,7 @@ IDLE ──► FOLLOW_LINE ──► AT_NODE ──► END
 
 ## 6. Cơ sở dữ liệu
 
-**Không sử dụng database.** Toàn bộ nội dung bảo tàng (13 node hiện vật) hardcode trong `src/data/museum-map.ts`.  
+**Không sử dụng database.** Toàn bộ nội dung bảo tàng (hiện vật, tuyến 5 điểm dừng) hardcode trong `src/data/museum-map.ts`.  
 State persistence chỉ dùng **AsyncStorage** cho cài đặt accessibility.  
 Ứng dụng không có tài khoản người dùng — sử dụng ẩn danh.
 
@@ -339,7 +339,7 @@ State persistence chỉ dùng **AsyncStorage** cho cài đặt accessibility.
 
 | Thuật ngữ | Giải thích |
 |-----------|------------|
-| **Node** | Một điểm dừng của robot trước một hiện vật trong bảo tàng (tổng cộng 13 node) |
+| **Node** | Một điểm dừng của robot trước một hiện vật trong bảo tàng (tuyến thật 4 điểm dừng + Entrance, 16/08) |
 | **Mascot (Buddy)** | Linh vật hổ con chibi với 6 trạng thái cảm xúc (default, happy, listening, thinking, confused, idle) |
 | **Narration** | Giọng đọc tự động mô tả hiện vật khi robot đến node |
 | **Voice Chat** | Tính năng hỏi đáp bằng giọng nói với Gemini LLM về hiện vật |
