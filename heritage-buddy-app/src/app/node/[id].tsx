@@ -165,7 +165,7 @@ function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[nu
               ? isAlreadyCompleted
                 ? t("node.watched")
                 : t("node.watchHint")
-              : pickViEn(node.description, node.descriptionEn)}
+              : pickViEn(node.description ?? "", node.descriptionEn)}
           </Text>
         </View>
 

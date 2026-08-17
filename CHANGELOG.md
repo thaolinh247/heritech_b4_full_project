@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Docs
+- **`TEST-ROBOT.md` — chương trình kiểm thử robot + tích hợp app cho buổi chốt dự án (17/08)**: tài liệu test phần cứng firmware (PlatformIO) + tích hợp BLE với app trước ngày chốt: mục 0 chốt thông số hardware đã sửa (chỉ M1/M2, chiều motor đã đảo, line tracer cổng A3/I2C0, PIR_MODE, BLE không cần `\n`); checklist khởi động + SCAN I2C + heartbeat; test motor/LED (MOTOR_TEST 1/3); test line tracer (trắng/đen/ngã ba/đỏ); chạy tuyến 5A/5B (bám line, rẽ, dừng đỏ, PIR cắt ngang, mất line, SOS); PIR & công tắc (warmup 60s, PIR_MODE:LOW/HIGH, SWITCH_PRESS, SOS 10s); gesture; tích hợp app↔robot (auto-connect ≤15s, NODE_START/COMPLETE, SOS 2 chiều, ALL_DONE); GATE A0–GATE E chốt dự án (3 vòng tuyến liên tục, metric đo 5 lần, tag v1.0.0 sau khi pass).
+- **Chốt dự án cập nhật lần cuối (17/08)**: bổ sung tài liệu `TEST-ROBOT.md` (test runbook phần cứng + GATE chốt dự án).
+
+### Fixed
+- **tsc sửa lỗi duy nhất còn lại `node/[id].tsx:168` (17/08)**: `pickViEn(node.description, node.descriptionEn)` — `description?` là optional (string|undefined) không gán được vào tham số `string` → thêm `?? ""`. `npx tsc --noEmit` giờ sạch hoàn toàn 0 lỗi; cùng lúc `npx expo lint` 0 lỗi (3 warning có sẵn) và `npx jest` 11/11 pass — đạt GATE 4/GATE 5 tĩnh của TEST-ROBOT.
+
 ### Fixed
 - **Line tracer chuyển sang đọc trực tiếp cổng I2C0 (Port A3) — kiểu B3 (16/08)**: `raw=NO_RESPONSE` từ heartbeat chứng minh line tracer KHÔNG có trên bus Wire1/MUX. SensorManager giờ trỏ `_lineTracer` vào `MiniR4.I2C0.MXLineTracer` (Wire trực tiếp, đúng như code B3 hoạt động). Đồng thời: lệnh `PIR_MODE:LOW`/`HIGH` đảo mức báo PIR (module active-low: người → chân xuống LOW, đổi sang INPUT_PULLUP + đảo logic; tự kiểm chứng qua `pir=`+`pm=` trên heartbeat), quét I2C toàn bộ cổng (`SCAN A3/...`, `MUX0x70`, `ch0..7`) báo qua BLE mỗi lần kết nối + Serial lúc khởi động. Build sạch PlatformIO.
 - **Heartbeat + DUMP kèm giá trị thô 10 kênh line tracer `raw=s1..s10` (16/08)**: heartbeat cho thấy `err=0.2 w=0` — không rõ sensor đang đọc được gì (sai cổng MUX vs I2C0) hay đọc được nhưng ngưỡng/montage sai. Thêm `SensorManager::readLineRaw()` (gọi `getAllSensors`) in 10 giá trị thô vào heartbeat 2s và DUMP 400ms — nếu `raw=NO_RESPONSE` → sensor không ở bus đang đọc (chuyển sang Wire trực tiếp kiểu B3 `MiniR4.I2C0`); nếu có giá trị → so sánh nền trắng vs vạch đen để chỉnh `LINE_THRESHOLD`. Build sạch PlatformIO.
