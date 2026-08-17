@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Docs
+- **Plan màn hình "Máy chủ AI" + hướng dẫn sử dụng (17/08)**: `PLAN-SERVER-SETTINGS.md` — phương án tối ưu cho vấn đề `EXPO_PUBLIC_BACKEND_URL` nạp cứng lúc build (DHCP đổi IP → "Hỏi Buddy" hỏng, phải build lại): thêm ô nhập URL + nút "Lưu & Kiểm tra" trong app (5 file + 2 file mới: `store/server.ts`, `app/settings.tsx`, sửa `lib/llm.ts` đọc URL động mỗi lần gọi + trả lỗi kèm URL đang thử, ⚙️ trên museum-map, key i18n, test store) → đổi IP trong 30 giây, không bao giờ build lại. Kèm bảng so sánh IP tĩnh vs ô nhập. `HUONG-DAN-SU-DUNG.md` — cẩm nang vận hành demo cho người dùng: cài APK (eas login/build/list), bật máy chủ AI (`server/`), quy tắc 30 giây kiểm tra máy chủ trong ⚙️, bảng thao tác demo, trục trặc thường gặp, checklist ngày demo.
+
 ### Fixed
 - **App không kết nối được máy chủ LLM — 2 nguyên nhân (17/08)**: (1) **IP đổi**: máy chạy server giờ là `192.168.1.147` trong khi `.env` nạp cứng IP cũ `192.168.1.33` (DHCP đổi) → điện thoại gọi vào IP cũ không có server. Sửa `EXPO_PUBLIC_BACKEND_URL=http://192.168.1.147:3000` (đã test: cổng mở + `/api/health` trả `ok=True hasApiKey=True`). (2) **Android chặn HTTP trần**: APK standalone Android 9+ chặn `http://IP-LAN` mặc định → thêm plugin `expo-build-properties` (`usesCleartextTraffic: true`) vào app.json. **Lưu ý vận hành**: IP này nạp cứng lúc build — đặt IP tĩnh cho máy server (reservation router) nếu không mỗi lần DHCP đổi phải sửa `.env` + build lại; trong Expo Go (dev) thì hostUri tự dò nên không ảnh hưởng. Đã xác thực `npx expo config` — plugin + permissions (BLE, camera, mic, cleartext) đầy đủ.
 
