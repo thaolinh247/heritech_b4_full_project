@@ -222,6 +222,17 @@ void loop()
     checkGesture();     // Đọc cảm biến cử chỉ
     checkJunction();    // Ngã ba → WARN:turn_l/r (chỉ báo, không dừng)
 
+    // ─── Heartbeat mỗi 2s (chẩn đoán BLE) ────
+    // Giúp kiểm tra ngay chiều robot→điện thoại: nếu app nhận được dòng
+    // STATUS:heartbeat đều đặn nghĩa là Notify đã bật đúng — lệnh MOTOR_TEST
+    // và các echo khác CHẮC CHẮN sẽ hiện được. (Có thể xóa sau khi xong debug.)
+    static unsigned long lastHeartbeat = 0;
+    if (millis() - lastHeartbeat >= 2000)
+    {
+        lastHeartbeat = millis();
+        ble.sendMessage("STATUS:heartbeat");
+    }
+
     // ─── Máy trạng thái: xử lý theo trạng thái ──
     switch (state.getState())
     {

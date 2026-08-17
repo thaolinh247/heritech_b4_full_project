@@ -54,6 +54,13 @@ void BLEHandler::update() {
         Serial.println("[BLE] Disconnected");
         _central = BLEDevice();
     }
+
+    // Khoan dung lệnh thiếu ký tự kết thúc: nếu 150ms không nhận thêm byte nào
+    // mà buffer còn dữ liệu thì coi là hết lệnh. Chống kịch bản nRF Connect
+    // gửi "MOTOR_TEST:40:40" mà quên bật end-of-line (\n không đến nơi).
+    if (_rxBuffer.length() > 0 && millis() - _lastWriteMs > 150) {
+        _msgReady = true;
+    }
 }
 
 void BLEHandler::sendMessage(const String& msg) {
@@ -103,4 +110,5 @@ void BLEHandler::onRXWritten(BLEDevice central, BLECharacteristic characteristic
             instance->_rxBuffer += c;
         }
     }
+    instance->_lastWriteMs = millis();
 }

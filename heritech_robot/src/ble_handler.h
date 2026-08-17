@@ -27,6 +27,7 @@ private:
     String _rxBuffer;
     bool _msgReady = false;
     bool _prevConnected = false;
+    unsigned long _lastWriteMs = 0;
 
     static void onRXWritten(BLEDevice central, BLECharacteristic characteristic);
 };
