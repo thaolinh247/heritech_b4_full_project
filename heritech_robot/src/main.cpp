@@ -224,6 +224,13 @@ void loop()
             setLedStopped();                   // LED xanh dương: robot đang dừng (chờ lệnh)
             playConnectSound();                // Non-blocking, trả về ngay
             Serial.println("[BLE] Connected");
+            // Chẩn đoán: tự chạy SENSOR_DUMP 8s mỗi khi vừa kết nối — không cần
+            // gửi lệnh, chỉ cần kết nối là log DUMP hiện ngay trên điện thoại.
+            if (sensorDumpUntil == 0)
+            {
+                sensorDumpUntil = millis() + 8000;
+                ble.sendMessage("STATUS:sensor_dump:start");
+            }
         }
         else
         {                                      // Mất kết nối?
@@ -556,7 +563,7 @@ void checkBLECommands()
     // In giá trị TẤT CẢ cảm biến mỗi 400ms trong 8s (BLE + Serial) để xác
     // định cổng cắm thật: line err/width/junc có đổi khi robot chạy qua line
     // không, PIR có lên HIGH khi đưa tay không, color/gesture đọc được gì.
-    else if (cmd == "SENSOR_DUMP")
+    else if (cmd == "SENSOR_DUMP" || cmd == "DUMP")
     {
         sensorDumpUntil = millis() + 8000;
         ble.sendMessage("STATUS:sensor_dump:start");
