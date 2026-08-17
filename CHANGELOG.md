@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Fixed
+- **Heartbeat kèm giá trị cảm biến (16/08)**: user chỉ thấy `STATUS:heartbeat` mà không thấy dòng DUMP (nghi chưa flash đúng bản hoặc 8s trôi qua). Giờ mỗi heartbeat 2s mang sẵn `err/w` (line), `pir` HIGH/LOW, `color` — chỉ cần nhìn dòng heartbeat là biết sensor đọc được gì, không cần lệnh. Build sạch PlatformIO.
 - **`SENSOR_DUMP` tự chạy 8s ngay khi kết nối BLE + alias `DUMP` (16/08)**: user không thấy log DUMP khi gửi lệnh → nghi lệnh không khớp/không tới. Giờ chỉ cần kết nối là robot tự bắt đầu dump cảm biến (không cần gửi lệnh), lệnh chấp nhận thêm `DUMP`. Build sạch PlatformIO.
 - **Thêm lệnh chẩn đoán `SENSOR_DUMP` (16/08)**: robot giờ chạy nhưng **chạy thẳng không bám line** (err=0 mọi lúc → drive thẳng vô định) và **PIR không báo**. Code tham chiếu B3 đọc line tracer trực tiếp `MiniR4.I2C0.MXLineTracer` (cổng I2C0) còn code hiện tại đọc qua MUX/Wire1 — nghi cắm sai cổng. `SENSOR_DUMP` in mọi cảm biến mỗi 400ms trong 8s qua BLE+Serial: `err/w/junc` (line), `color`, `gest`, `pir` (HIGH/LOW), `v` (pin) — biết ngay sensor nào chết/không đọc được. Build sạch PlatformIO.
 - **Đảo chiều động cơ M1/M2 — robot đi LÙI → đi TỚI (16/08)**: team xác nhận robot chỉ có 2 bánh kéo ở M1/M2 (không có M3/M4) và MOTOR_TEST:40:40 làm robot chạy lùi → `setup()` đảo `M1.setReverse(false→true)`, `M2.setReverse(true→false)` để `+power` = đi tới; `DriveDC.begin(1,2,false,true→true,false)` đồng bộ cùng pha. Rẽ trái/phải đảo theo nên chiều xoay thực tế vẫn đúng. Build sạch PlatformIO.

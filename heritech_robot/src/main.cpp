@@ -302,15 +302,20 @@ void loop()
         }
     }
 
-    // ─── Heartbeat mỗi 2s (chẩn đoán BLE) ────
+    // ─── Heartbeat mỗi 2s (chẩn đoán BLE + cảm biến) ──
     // Giúp kiểm tra ngay chiều robot→điện thoại: nếu app nhận được dòng
     // STATUS:heartbeat đều đặn nghĩa là Notify đã bật đúng — lệnh MOTOR_TEST
-    // và các echo khác CHẮC CHẮN sẽ hiện được. (Có thể xóa sau khi xong debug.)
+    // và các echo khác CHẮC CHẮN sẽ hiện được. Heartbeat kèm sẵn giá trị
+    // line error/width + PIR + màu để xem wiring cảm biến mà không cần lệnh.
     static unsigned long lastHeartbeat = 0;
     if (millis() - lastHeartbeat >= 2000)
     {
         lastHeartbeat = millis();
-        ble.sendMessage("STATUS:heartbeat");
+        String hb = "STATUS:heartbeat err=" + String(sensors.readLineError(), 1)
+                  + " w=" + String(sensors.readLineWidth())
+                  + " pir=" + String(sensors.readPIR() ? "HIGH" : "LOW")
+                  + " color=" + String(sensors.readColorID());
+        ble.sendMessage(hb);
     }
 
     // ─── Máy trạng thái: xử lý theo trạng thái ──
