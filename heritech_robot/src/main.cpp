@@ -44,6 +44,15 @@ void handleAtNode();     // Xử lý trạng thái AT_NODE (đã tới điểm d
 void handleEnd();        // Xử lý trạng thái END (kết thúc tour)
 
 unsigned long beepUntil = 0; // Thời điểm tắt còi (cho phép còi kêu trong 2s)
+unsigned long motorTestUntil = 0; // Hết thời điểm này thì dừng MOTOR_TEST (0 = không test)
+
+// ─── MÀU LED THEO TRẠNG THÁI (16/08, theo yêu cầu team) ───
+//   - Robot DỪNG (IDLE / AT_NODE / WAIT_CLEAR / END / mất BLE) → xanh dương (0,0,255)
+//   - Robot DI CHUYỂN (FOLLOW_LINE) → xanh lá (0,255,0)
+//   - Dừng do SOS (nút app / công tắc giữ ≥10s) → đỏ (255,0,0)
+void setLedStopped() { MiniR4.LED.setColor(1, 0, 0, 255); }
+void setLedMoving()  { MiniR4.LED.setColor(1, 0, 255, 0); }
+void setLedSos()     { MiniR4.LED.setColor(1, 255, 0, 0); }
 
 // ─── Non-blocking sound state machine ────────
 // Tránh delay() blocking làm BLE.poll() không chạy → ATT discovery timeout
@@ -120,7 +129,7 @@ void setup()
 {
     Serial.begin(9600);
     MiniR4.begin();
-    MiniR4.LED.setColor(1, 0, 0, 255); // LED xanh dương (chờ kết nối BLE)
+    setLedStopped();                     // LED xanh dương: robot dừng, chờ kết nối BLE
     sensors.begin();                   // IMPORTANT: khởi tạo cảm biến (I2C, dò tia, màu, gesture)
     ble.begin();                       // Bắt đầu quảng bá BLE
     MiniR4.PWR.setBattCell(2);
@@ -152,13 +161,13 @@ void loop()
     { // Vừa có thay đổi trạng thái kết nối?
         if (ble.isConnected())
         {                                      // Đã kết nối?
-            MiniR4.LED.setColor(1, 0, 255, 0); // LED xanh lá
+            setLedStopped();                   // LED xanh dương: robot đang dừng (chờ lệnh)
             playConnectSound();                // Non-blocking, trả về ngay
             Serial.println("[BLE] Connected");
         }
         else
         {                                      // Mất kết nối?
-            MiniR4.LED.setColor(1, 255, 0, 0); // LED đỏ
+            setLedStopped();                   // LED xanh dương: robot dừng (an toàn)
             playDisconnectSound();             // Non-blocking, trả về ngay
             Serial.println("[BLE] Disconnected");
         }
@@ -174,11 +183,10 @@ void loop()
 
     checkButton(); // Kiểm tra nút nhấn trên robot
 
-    // ─── Nếu chưa kết nối BLE: vẫn chạy bình thường, robot độc lập ───
-    // (nút vật lý START/STOP + state machine hoạt động KHÔNG cần điện thoại;
-    // trước đây motors.stop() + return ở đây khiến nút START không bao giờ chạy)
+    // ─── Nếu mất kết nối BLE ────────────────
     if (!ble.isConnected())
     {
+        motors.stop(); // AN TOÀN: không chạy tiếp với lệnh tốc độ cũ khi mất kết nối
         retryGestureInit(); // PAJ7620 mất vài giây ổn định sau khi bật nguồn — init sớm
                             // kể cả khi điện thoại chưa kết nối (trước đây chỉ retry khi
                             // đã có BLE → nếu robot bật nguồn lâu trước khi kết nối thì
@@ -192,12 +200,12 @@ void loop()
             ledOn = !ledOn; // Đảo trạng thái LED
             MiniR4.LED.setColor(1, 0, 0, ledOn ? 255 : 0);
         }
-    }
-    else
-    {
-        checkBLECommands(); // Xử lý lệnh từ app
+        delay(LOOP_DELAY_MS); // Chờ 20ms rồi thoát (không xử lý tiếp)
+        return;
     }
 
+    // ─── Nếu đã kết nối BLE ─────────────────
+    checkBLECommands(); // Xử lý lệnh từ app
     checkPIR();         // Đọc cảm biến chuyển động
     checkSwitch();      // Đọc công tắc vật lý
     checkGesture();     // Đọc cảm biến cử chỉ
@@ -258,7 +266,7 @@ void checkButton()
     {
         motors.stop();                     // Tắt động cơ
         state.setState(RobotState::IDLE);  // Về trạng thái IDLE
-        MiniR4.LED.setColor(1, 255, 0, 0); // LED đỏ
+        setLedStopped();                   // LED xanh dương: robot dừng
         MiniR4.Buzzer.Tone(200, 100);      // Còi "bíp" ngắn
         Serial.println("[BTN] DOWN -> STOP");
     }
@@ -272,7 +280,7 @@ void checkButton()
             legExec.start(1);                        // Bắt đầu chặng 1 (Entrance -> Node1)
             state.setState(RobotState::FOLLOW_LINE); // Sang trạng thái chạy
             motors.setSpeed(BASE_SPEED);             // Tốc độ cơ bản (PID bám line)
-            MiniR4.LED.setColor(1, 0, 255, 0);       // LED xanh lá
+            setLedMoving();                          // LED xanh lá: robot đang di chuyển
             MiniR4.Buzzer.Tone(400, 100);            // Còi báo bắt đầu
             delay(50);
             MiniR4.Buzzer.NoTone();
@@ -345,6 +353,7 @@ void checkBLECommands()
         legExec.start(1);                  // Chặng 1: Entrance -> Node1
         state.setState(RobotState::FOLLOW_LINE);
         motors.setSpeed(BASE_SPEED);
+        setLedMoving();                    // LED xanh lá: robot đang di chuyển
         Serial.println("[CMD] START -> FOLLOW_LINE (leg 1)");
     }
     // ── LỆNH: STOP ───────────────────────────
@@ -371,7 +380,7 @@ void checkBLECommands()
                 motors.stop();
                 ble.sendMessage("ALL_DONE");
                 state.setState(RobotState::END);
-                MiniR4.LED.setColor(1, 0, 255, 0);
+                setLedStopped();           // Robot dừng hẳn → xanh dương
                 Serial.println("[CMD] next at Finish -> ALL_DONE");
                 return;
             }
@@ -381,6 +390,7 @@ void checkBLECommands()
             legExec.start(nodes.index() + 1);      // Chặng kế tiếp (bắt đầu bằng lùi-ra)
             state.setState(RobotState::FOLLOW_LINE);
             motors.setSpeed(BASE_SPEED);
+            setLedMoving();                        // LED xanh lá: robot di chuyển tiếp
             pirGraceUntil = millis() + PIR_GRACE_AFTER_LEAVE_MS; // Bỏ qua PIR trong lúc rời node
             Serial.print("[CMD] next signal -> start leg ");
             Serial.println(legExec.leg());
@@ -410,7 +420,7 @@ void checkBLECommands()
                 legExec.start(1); // Tour chưa chạy (SOS ngay tại Entrance) → bắt đầu leg 1
             state.setState(RobotState::FOLLOW_LINE);
             motors.setSpeed(BASE_SPEED);
-            MiniR4.LED.setColor(1, 0, 255, 0);
+            setLedMoving();
             ble.sendMessage("STATUS:resumed");
             Serial.println("[CMD] RESUME -> FOLLOW_LINE");
         }
@@ -421,10 +431,34 @@ void checkBLECommands()
     {
         motors.stop();
         state.setState(RobotState::IDLE);
-        MiniR4.LED.setColor(1, 255, 0, 0);
+        setLedSos();
         MiniR4.Buzzer.Tone(600, 1000);
         ble.sendMessage("STATUS:sos");
         Serial.println("[CMD] SOS -> STOP + STATUS:sos");
+    }
+    // ── LỆNH: MOTOR_TEST:<L>:<R> ─────────────
+    // Kiểm tra bánh xe độc lập với tuyến: kê robot lên, gửi "MOTOR_TEST:40:40"
+    // → 2 bánh quay 2 giây rồi dừng. Dùng để xác định ngay nguyên nhân
+    // "bấm START nhưng không chạy" (wiring / nguồn / code).
+    else if (cmd.startsWith("MOTOR_TEST:"))
+    {
+        int sep = cmd.indexOf(':', 11);
+        if (sep > 0)
+        {
+            int16_t l = (int16_t)cmd.substring(11, sep).toInt();
+            int16_t r = (int16_t)cmd.substring(sep + 1).toInt();
+            motors.move(l, r);
+            motorTestUntil = millis() + 2000;
+            state.setState(RobotState::IDLE);
+            Serial.print("[MOTOR] TEST L=");
+            Serial.print(l);
+            Serial.print(" R=");
+            Serial.println(r);
+        }
+        else
+        {
+            Serial.println("[MOTOR] TEST format: MOTOR_TEST:<L>:<R>");
+        }
     }
 }
 
@@ -498,7 +532,7 @@ void checkPIR()
         state.setState(RobotState::WAIT_CLEAR);
         warnClearDeadline = now + WARN_CLEAR_TIMEOUT_MS;
         pirClearSince = 0;
-        MiniR4.LED.setColor(1, 255, 128, 0); // LED vàng cam: đang chờ đường thoáng
+        setLedStopped();                       // LED xanh dương: robot dừng chờ đường thoáng
         Serial.println("[STATE] PIR -> WAIT_CLEAR");
     }
 }
@@ -534,7 +568,7 @@ void checkSwitch() {
                 if (millis() - pressStart >= SOS_HOLD_MS) {
                     motors.stop();
                     state.setState(RobotState::IDLE);
-                    MiniR4.LED.setColor(1, 255, 0, 0);
+                    setLedSos();
                     MiniR4.Buzzer.Tone(600, 1000);
                     ble.sendMessage("STATUS:sos");
                     Serial.println("[SWITCH] Long press >= 10s -> SOS");
@@ -687,6 +721,17 @@ void checkJunction()
 
 void handleIdle()
 {
+    // Đang trong cửa sổ MOTOR_TEST: giữ motor quay, hết 2s thì dừng hẳn
+    if (motorTestUntil > 0)
+    {
+        if (millis() >= motorTestUntil)
+        {
+            motors.stop();
+            motorTestUntil = 0;
+            Serial.println("[MOTOR] TEST done - motors stopped");
+        }
+        return;
+    }
     motors.stop(); // Đảm bảo động cơ tắt
 }
 
@@ -704,8 +749,7 @@ void handleFollowLine()
     }
 
     // Debug quan sát mỗi 2s (phục vụ hiệu chỉnh trên tuyến): lỗi bám line,
-    // bề rộng line, type ngã ba — KHÔNG đổi hành vi. Kèm encoder M1/M2:
-    // counter tăng = bánh xe THẬT SỰ quay (kiểm tra "xe không chạy khi START").
+    // bề rộng line, type ngã ba — KHÔNG đổi hành vi.
     static unsigned long lastLineDebug = 0;
     if (millis() - lastLineDebug >= 2000)
     {
@@ -715,11 +759,7 @@ void handleFollowLine()
         Serial.print(" w=");
         Serial.print(sensors.readLineWidth());
         Serial.print(" junc=");
-        Serial.print(sensors.readJunctionType());
-        Serial.print(" encM1=");
-        Serial.print(MiniR4.M1.getCounter());
-        Serial.print(" encM2=");
-        Serial.println(MiniR4.M2.getCounter());
+        Serial.println(sensors.readJunctionType());
     }
 
     legExec.update(sensors, motors);
@@ -756,7 +796,7 @@ void handleFollowLine()
     case LegResult::FAILED:
         motors.stop();
         state.setState(RobotState::IDLE);
-        MiniR4.LED.setColor(1, 255, 0, 0);
+        setLedStopped();                   // Robot dừng (không phải SOS) → xanh dương
         Serial.println("[STATE] Leg FAILED -> IDLE (check turn params / track)");
         break;
     }
@@ -802,7 +842,7 @@ void resumeAfterWarn()
 {
     state.setState(RobotState::FOLLOW_LINE);
     motors.setSpeed(BASE_SPEED);
-    MiniR4.LED.setColor(1, 0, 255, 0);
+    setLedMoving();                        // LED xanh lá: robot di chuyển tiếp
     ble.sendMessage("STATUS:auto_resumed");
     // Bỏ qua PIR một lát để robot kịp rời khỏi người đang đứng gần
     // (nếu không, PIR còn cao sẽ khiến robot dừng lại ngay lập tức)
@@ -819,6 +859,7 @@ void handleAtNode()
     if (state.isStateChanged())
     {
         Serial.println("[STATE] AT_NODE");
+        setLedStopped();                   // Robot dừng tại node → xanh dương
     }
 
     motors.stop(); // Dừng robot — đứng yên tuyệt đối cho tới khi app cho phép
@@ -846,7 +887,7 @@ void handleEnd()
     {                                      // Chỉ chạy một lần khi vào END
         motors.stop();                     // Dừng robot
         ble.sendMessage("ALL_DONE");       // Báo app kết thúc
-        MiniR4.LED.setColor(1, 0, 255, 0); // LED xanh
+        setLedStopped();                   // LED xanh dương: tour xong, robot dừng
         MiniR4.Buzzer.Tone(1000, 300);     // Còi báo kết thúc
         delay(150);
         MiniR4.Buzzer.Tone(1500, 300);
