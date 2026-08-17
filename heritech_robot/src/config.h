@@ -87,9 +87,11 @@
 // ─── Tour TỰ ĐỘNG (demo) ─────────────────────
 // Robot dừng tại node bao lâu (ms) trước khi TỰ đi tiếp chặng kế tiếp — mở
 // node theo đúng thứ tự (lần đỏ thứ 1 → node 1, lần 2 → node 2...) mà không
-// cần chạm app. Nhấn "Tiếp tục" trên app vẫn chạy NGAY (không chờ hết hạn).
-// Finish: tự gửi ALL_DONE + kết thúc tour.
-#define AUTO_NODE_DWELL_MS    15000
+// cần chạm app. Bình thường app TỰ gửi "đi tiếp" NGAY khi video hết (playToEnd)
+// — hằng số này CHỈ là phao cứu sinh khi app không gửi (màn hình khác/ngắt kết
+// nối): phải đủ dài để không cắt ngang video dài nhất. Nhấn "Tiếp tục" trên app
+// vẫn chạy NGAY (không chờ hết hạn). Finish: tự gửi ALL_DONE + kết thúc tour.
+#define AUTO_NODE_DWELL_MS    45000
 // Còi NHỎ báo "đã tới điểm dừng" — kêu khi đọc màu đỏ ổn định (ms).
 #define NODE_ARRIVAL_BEEP_MS  200
 

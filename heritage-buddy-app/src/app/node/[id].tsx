@@ -9,7 +9,7 @@ import { useGestureNavigation } from "@/hooks/use-gesture-navigation";
 import { useRobotConnection } from "@/hooks/use-robot-connection";
 import { images } from "@/constants/images";
 import { Image } from "expo-image";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useT, pickViEn } from "@/lib/i18n";
 
 export default function NodeVideoScreen() {
@@ -114,6 +114,22 @@ function NodeVideoContent({ node }: { node: NonNullable<(typeof MUSEUM_NODES)[nu
       router.replace("/museum-map");
     }
   }, [node.id, isAlreadyCompleted, isLastNode, node.order, completeNode, router, sendCommand, isConnected]);
+
+  // ── Tour TỰ ĐỘNG: video phát HẾT → chờ 1.2s → TỰ gửi "Đi tiếp" (NODE_DONE) ──
+  // Robot chạy chặng kế tiếp ngay, không cần khách bấm gì. Chạy đúng 1 lần.
+  // (Node không có video như Entrance: không có playToEnd → robot tự đi tiếp
+  // sau AUTO_NODE_DWELL_MS ở firmware — phao cứu sinh.)
+  const autoAdvancedRef = useRef(false);
+  const handleCompleteRef = useRef(handleComplete);
+  useEffect(() => {
+    handleCompleteRef.current = handleComplete;
+  }, [handleComplete]);
+
+  useEventListener(player, "playToEnd", () => {
+    if (!node.videoSource || autoAdvancedRef.current) return;
+    autoAdvancedRef.current = true;
+    setTimeout(() => handleCompleteRef.current(), 1200);
+  });
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FDF3E7" }}>

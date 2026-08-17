@@ -208,7 +208,14 @@ public:
         case M_FWD_TO_RED:
             motors.followLine(sensors.readLineError());
             if (confirmEnabled && sensors.isRedDetected()) {
-                if (++_confirmCount >= COLOR_STABLE_COUNT) advanceStep(motors, false);
+                if (++_confirmCount >= COLOR_STABLE_COUNT) {
+                    // Đỏ ổn định → in rõ lên Serial để theo dõi tuyến (không chỉ
+                    // bước nhảy step): người vận hành biết robot ĐÃ đọc được đỏ.
+                    Serial.print("[RED] Red stable (leg ");
+                    Serial.print(_leg);
+                    Serial.println(") -> node reached");
+                    advanceStep(motors, false);
+                }
             } else {
                 _confirmCount = 0;
             }
