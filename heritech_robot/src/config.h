@@ -18,8 +18,8 @@
 #define I2C_CH_GESTURE         1   // Cổng I2C2
 
 #define LINE_THRESHOLD         50
-#define BASE_SPEED             40
-#define MAX_SPEED              60
+#define BASE_SPEED             30
+#define MAX_SPEED              45
 #define MIN_SPEED              10
 #define PID_KP                 0.8
 #define PID_KI                 0.02
@@ -45,7 +45,7 @@
 
 // ─── Điều hướng leg-based (PLAN-MOVEMENT-FINAL) ─────────
 // Xoay tại chỗ 90° ở ngã ba: nhanh/vừa, PID không liên quan.
-#define TURN_SPEED              35
+#define TURN_SPEED              28
 // Thoát khỏi pha rẽ khi line nằm giữa sensor: |err| < tol && w trong khoảng này.
 #define LINE_CENTER_ERR_TOL     0.8f
 #define LINE_CENTER_WIDTH_MIN   2

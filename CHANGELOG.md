@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 ### Changed
+- **Giảm tốc độ di chuyển + xác nhận luồng PIR dừng/tự đi tiếp (17/08)**: `BASE_SPEED` 40 → **30**, `MAX_SPEED` 60 → **45**, `TURN_SPEED` (xoay tại ngã ba) 35 → **28** — robot chạy chậm rãi, dễ quan sát khi demo. Luồng PIR giữ nguyên thiết kế đã có: đang chạy (`FOLLOW_LINE`) gặp người → `motors.stop()` + `WAIT_CLEAR` ngay (còi + `WARN:person` + LED xanh dương); hết người liên tục `PIR_CLEAR_CONFIRM_MS=2000ms` → tự `resumeAfterWarn()` (LED xanh lá + `STATUS:auto_resumed`); quá `WARN_CLEAR_TIMEOUT_MS=10s` vẫn tự chạy tiếp (an toàn). Lưu ý vận hành: kiểm tra mode PIR qua heartbeat `pm=` — module báo LOW khi có người thì gửi `PIR_MODE:LOW` qua nRF Connect, nếu không đúng mode robot sẽ chỉ tự đi tiếp sau đúng 10s timeout. Không thấy `STATUS:auto_resumed` trên app = mode PIR ngược hoặc dây PIR đứt. Build sạch PlatformIO (RAM 47.8%, Flash 48.8%).
+
+### Changed
 - **Tự dò vị trí màu sắc + gesture — robot demo-ready không cần chỉnh cổng (17/08)**: bỏ cố định MUX ch2/ch1 cho color sensor (TCS34725 `0x29`) và gesture (PAJ7620 `0x73`). `SensorManager::begin()` giờ tự quét: A3/Wire trực tiếp trước, rồi MUX `ch2`/`ch1` cấu hình cũ, rồi toàn bộ `ch0..7` — thiết bị cắm bất kỳ đâu cũng được tìm thấy, không cần sửa code/sửa dây. Line tracer giữ cố định A3/I2C0 (đã chứng minh qua heartbeat `raw=NO_RESPONSE`). In vị trí tìm thấy từng sensor ra Serial (log `@ A3/Wire` / `@ MUX chX`) giúp xác định dây thật 30 giây. Build sạch PlatformIO (RAM 47.8%, Flash 48.8%).
 
 ### Docs
