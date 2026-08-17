@@ -938,7 +938,10 @@ void handleWaitClear()
     if (millis() >= warnClearDeadline)
     {
         resumeAfterWarn();
-        Serial.println("[STATE] WARN timeout -> auto resume");
+        // PIR còn kẹt HIGH (mode ngược/dây hở) → cho robot chạy lâu hơn trước
+        // khi bị cảnh báo dừng lại lần nữa (chống giật cục dừng-đi-dừng-đi).
+        pirGraceUntil = millis() + STUCK_PIR_GRACE_MS;
+        Serial.println("[STATE] WARN timeout -> auto resume (stuck PIR grace)");
     }
 }
 

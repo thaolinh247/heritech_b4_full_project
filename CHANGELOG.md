@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 ### Fixed
+- **"Banner PIR biến mất nhưng robot không đi tiếp" — banner app tự tắt sớm 10.5s (17/08)**: app tự xoá banner sau 10.5s BẤT KỂ robot có chạy hay không → khách thấy hết cảnh báo nhưng robot vẫn đứng (PIR kẹt HIGH). Sửa 2 phía: (1) app `robot-interaction-overlay.tsx`: `WARN_PERSON_DISMISS_MS` 10.5s → **60s** — banner CHỈ biến mất khi robot gửi `STATUS:auto_resumed` (tức robot đã thực sự chạy tiếp); 60s chỉ là phao cứu sinh khi mất kết nối hẳn. (2) Firmware `handleWaitClear()`: khi resume do HẾT HẠN 10s (PIR không bao giờ thấy trống — kẹt HIGH do mode ngược/dây hở), kéo dài bỏ qua PIR `STUCK_PIR_GRACE_MS=8s` → robot chạy liền 8s thay vì dừng-đi-dừng-đi mỗi vài giây. **Chẩn đoán gốc (quan trọng)**: nếu không có người mà `pir=HIGH` trên heartbeat → module báo ngược mức → gửi `PIR_MODE:LOW`/`HIGH` qua nRF Connect cho tới khi `pir=LOW` lúc trống. Build sạch PlatformIO (RAM 47.8%, Flash 49.0%); `tsc` 0 lỗi, lint 0 lỗi.
+
+### Fixed
 - **App KHÔNG còn tự gửi "đi tiếp" khi video hết (17/08)**: bỏ block `playToEnd` auto-advance trong `node/[id].tsx` (vừa thêm 17/08) — theo yêu cầu: app chỉ gửi `NODE_DONE`/`VOICE_NEXT` khi nhận hiệu lệnh từ **giọng nói** (`use-voice-assistant` gửi `VOICE_NEXT`), **gesture vẫy tay** (`use-gesture-navigation` gửi `VOICE_NEXT`) hoặc bấm nút "Tiếp tục" trên màn hình. Luồng demo: đỏ → còi + `NODE_START` → app mở node → video tự phát → khách ra hiệu đi tiếp → robot chạy chặng kế. Firmware giữ phao cứu sinh `AUTO_NODE_DWELL_MS=45s` (chỉ chạy khi không ai ra hiệu). `tsc` 0 lỗi, `expo lint` 0 lỗi (3 warning cũ).
 
 ### Changed

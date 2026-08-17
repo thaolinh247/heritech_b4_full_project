@@ -13,7 +13,11 @@ import type { WarnType } from "@/types/robot";
 
 // ─── Hằng số thời gian ───────────────────────
 
-const WARN_PERSON_DISMISS_MS = 10500; // Firmware timeout 10s + biên an toàn khi mất BLE
+// Banner cảnh báo PIR CHỈ biến mất khi robot gửi STATUS:auto_resumed (robot
+// đã thực sự chạy tiếp). 60s chỉ là phao cứu sinh khi robot mất kết nối hẳn
+// (không có robot nào gửi auto_resumed) — trước đây 10.5s khiến banner tự tắt
+// sớm trong khi robot vẫn đứng yên → khách tưởng robot đi nhưng không.
+const WARN_PERSON_DISMISS_MS = 60000;
 const WARN_TURN_TOAST_MS = 3500;      // Toast thông báo rẽ
 const STATUS_TOAST_MS = 2600;         // Toast xác nhận trạng thái robot
 const SOS_HOLD_MS = 2000;             // Giữ ≥2s để kích hoạt SOS

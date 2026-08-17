@@ -83,6 +83,10 @@
 // Tránh kịch bản: khách đứng trước robot vẫy tay điều khiển → PIR bắt chuyển động ngay sau
 // đó → robot vừa chạy đi đã dừng lại vì WARN:person, gesture tưởng như "không ăn".
 #define PIR_GRACE_AFTER_LEAVE_MS 4000
+// Resume do HẾT HẠN an toàn (PIR vẫn báo liên tục — kẹt HIGH do mode ngược/dây
+// hở): cho robot chạy lâu hơn mức grace thường trước khi cảnh báo lại, giảm
+// giật cục dừng-đi-dừng-đi khi PIR không bao giờ thấy trống.
+#define STUCK_PIR_GRACE_MS     8000
 
 // ─── Tour TỰ ĐỘNG (demo) ─────────────────────
 // Robot dừng tại node bao lâu (ms) trước khi TỰ đi tiếp chặng kế tiếp — mở
