@@ -198,9 +198,11 @@ void setup()
     // Cấu hình motor M1 (trái) – M2 (phải)
     MiniR4.M1.setPPR_RPM(545, 200);
     MiniR4.M2.setPPR_RPM(545, 200);
-    MiniR4.M1.setReverse(false);
-    MiniR4.M2.setReverse(true);
-    MiniR4.DriveDC.begin(1, 2, false, true);
+    // Test thực tế MOTOR_TEST:40:40 (16/08): +power 2 bánh → robot đi LÙI.
+    // Đảo cả 2 cờ để +power = đi TỚI (rẽ trái/phải cũng đảo theo → vẫn đúng chiều).
+    MiniR4.M1.setReverse(true);
+    MiniR4.M2.setReverse(false);
+    MiniR4.DriveDC.begin(1, 2, true, false); // cùng pha với setReverse ở trên
     MiniR4.DriveDC.setMoveSyncPID(0.02, 0.00, 0.04);
 
 }
