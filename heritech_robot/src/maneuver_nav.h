@@ -143,6 +143,13 @@ public:
     uint8_t leg() const { return _leg; }
     uint8_t step() const { return _step; }
 
+    // Thông báo đi lên app — được main.cpp cấu hình trong setup().
+    // onTurnNotice: robot VỪA bước vào bước xoay (đang rẽ THẬT — báo không thể
+    //               nói dối như checkJunction trước đây).
+    // onStuckNotice: bước FWD tự mở khóa vì hết hạn chờ ngã ba đúng loại.
+    void (*onTurnNotice)(bool left) = nullptr;
+    void (*onStuckNotice)() = nullptr;
+
     void update(SensorManager& sensors, MotorControl& motors) {
         if (_result != LegResult::RUNNING) return;
         const Leg& leg = ROUTE_LEGS[_leg];
@@ -176,26 +183,32 @@ public:
         switch (mv.type) {
         case M_FWD_TO_JUNCTION:
             motors.followLine(sensors.readLineError());
-            if (confirmEnabled && junctionMatches(sensors, mv.juncTypeExpected)) advanceStep(motors);
+            markJunctionSeen(sensors);
+            if (confirmEnabled && junctionMatches(sensors, mv.juncTypeExpected)) advanceStep(motors, false);
+            // Hết hạn mà chưa xác nhận ĐÚNG loại nhưng ĐÃ thấy ngã ba bất kỳ →
+            // vẫn rẽ theo kế hoạch (không kẹt vì type lệch 1↔2).
+            else if (confirmEnabled && junctionStuckWithSeen()) advanceStep(motors, true);
             break;
         case M_BACK_TO_JUNCTION:
             motors.move(-BASE_SPEED, -BASE_SPEED); // lùi thẳng
-            if (confirmEnabled && junctionMatches(sensors, mv.juncTypeExpected)) advanceStep(motors);
+            markJunctionSeen(sensors);
+            if (confirmEnabled && junctionMatches(sensors, mv.juncTypeExpected)) advanceStep(motors, false);
+            else if (confirmEnabled && junctionStuckWithSeen()) advanceStep(motors, true);
             break;
         case M_TURN_LEFT:
             motors.turnLeft90();
-            if (confirmEnabled && motors.isLineCentered(sensors)) advanceStep(motors);
-            else if (turnTimedOut()) failStep(motors);
+            if (confirmEnabled && motors.isLineCentered(sensors)) advanceStep(motors, false);
+            else if (turnTimedOut()) retryOrFailTurn(motors);
             break;
         case M_TURN_RIGHT:
             motors.turnRight90();
-            if (confirmEnabled && motors.isLineCentered(sensors)) advanceStep(motors);
-            else if (turnTimedOut()) failStep(motors);
+            if (confirmEnabled && motors.isLineCentered(sensors)) advanceStep(motors, false);
+            else if (turnTimedOut()) retryOrFailTurn(motors);
             break;
         case M_FWD_TO_RED:
             motors.followLine(sensors.readLineError());
             if (confirmEnabled && sensors.isRedDetected()) {
-                if (++_confirmCount >= COLOR_STABLE_COUNT) advanceStep(motors);
+                if (++_confirmCount >= COLOR_STABLE_COUNT) advanceStep(motors, false);
             } else {
                 _confirmCount = 0;
             }
@@ -211,20 +224,52 @@ private:
         return (++_confirmCount >= JUNCTION_CONFIRM_FRAMES);
     }
 
+    // Đánh dấu "đã thấy ít nhất 1 ngã ba bất kỳ" trong bước đang chạy — dùng
+    // cho FWD_JUNC_TIMEOUT_MS: chỉ tự mở khóa khi robot đã thực sự đi qua một
+    // ngã ba (không mở khóa mù khi track không có ngã ba nào).
+    void markJunctionSeen(SensorManager& sensors) {
+        uint8_t j = sensors.readJunctionType();
+        if (j == 1 || j == 2 || j == 3) _juncSeen = true;
+    }
+
+    bool junctionStuckWithSeen() const {
+        return millis() - _stepStartMs >= FWD_JUNC_TIMEOUT_MS && _juncSeen;
+    }
+
+    // Timeout xoay 90°: xoay lại từ đầu (tối đa TURN_RETRY_MAX lần) trước khi
+    // bỏ cuộc — line đứt/quá rộng một lần không được phép phá hỏng cả tour.
+    void retryOrFailTurn(MotorControl& motors) {
+        if (++_turnRetries <= TURN_RETRY_MAX) {
+            _stepStartMs = millis();
+            Serial.print("[LEG] turn retry ");
+            Serial.println(_turnRetries);
+            return;
+        }
+        failStep(motors);
+    }
+
     bool turnTimedOut() const {
         return millis() - _stepStartMs >= TURN_TIMEOUT_MS;
     }
 
-    void advanceStep(MotorControl& motors) {
+    void advanceStep(MotorControl& motors, bool stuckAuto) {
         motors.stop();
         _confirmCount = 0;
+        _juncSeen = false;
+        _turnRetries = 0;
         _step++;
         _stepStartMs = millis();
         Serial.print("[LEG] -> step ");
         Serial.print(_step);
         Serial.print("/");
         Serial.println(ROUTE_LEGS[_leg].count);
-        if (_step >= ROUTE_LEGS[_leg].count) {
+        const Leg& leg = ROUTE_LEGS[_leg];
+        if (_step < leg.count && leg.steps[_step].type == M_TURN_LEFT) {
+            if (onTurnNotice) onTurnNotice(true);
+        } else if (_step < leg.count && leg.steps[_step].type == M_TURN_RIGHT) {
+            if (onTurnNotice) onTurnNotice(false);
+        }
+        if (_step >= leg.count) {
             _result = LegResult::DONE;
             motors.stop();
             Serial.print("[LEG] leg ");
@@ -244,6 +289,8 @@ private:
     unsigned long _stepStartMs = 0;
     unsigned long _stepLogMs = 0;
     bool     _started = false;
+    bool     _juncSeen = false;   // Đã thấy ngã ba (1/2/3) trong bước hiện tại
+    uint8_t  _turnRetries = 0;    // Số lần xoay lại sau timeout
     LegResult _result = LegResult::DONE;
 };
 

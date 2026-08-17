@@ -37,6 +37,9 @@ nên việc cắm tai nào vào cổng nào gần như không quan trọng nữa
 
 - **Robot không bám line** → cắm lại line tracer vào **Port A3** (cổng analog 3, 4 chân), vặn biến trở trên
   sensor cho tới khi led chỉ bật khi trên màu đen.
+- **Robot "báo rẽ" nhưng không rẽ** → đã sửa triệt để 17/08: báo rẽ giờ phát ra đúng lúc robot bắt đầu xoay
+  (không còn 2 bộ phát hiện ngã ba độc lập). Nếu vẫn xoay lệch/không chụp được line sau rẽ → robot tự xoay lại
+  thêm tối đa 2 lần rồi mới dừng; kiểm tra ngã ba có băng keo đen đủ rộng (≥ 2 cm) và không bị đứt quãng.
 - **Không dừng ở điểm đỏ** → điểm đỏ phải nằm **đúng trên line**, băng keo dán thẳng, robot chạy qua trung tâm.
 - **App không kết nối** → tắt Bluetooth rồi bật lại; vào Settings → HeritageBuddy → Forget, mở lại app.
 - **Cảnh báo người giả liên tục** → là dây PIR đứt/hở (xin đổi dây) hoặc PIR bị chiếu sáng mạnh; thử lệnh

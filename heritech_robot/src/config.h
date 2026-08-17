@@ -36,6 +36,16 @@
 // VÀ qua tối thiểu bấy nhiêu ms — robot rẽ qua ngã ba chỉ báo đúng 1 lần,
 // kể cả khi type nhấp nháy 1-0-1-0 trong lúc rẽ.
 #define JUNCTION_REARM_MS     500
+// Bước M_FWD_TO_JUNCTION / M_BACK_TO_JUNCTION: hết hạn này mà CHƯA xác nhận
+// đúng loại ngã ba mong đợi — nhưng ĐÃ thấy ngã ba loại bất kỳ (1/2/3) trong
+// bước — thì tự mở khóa để bước rẽ kế tiếp chạy theo kế hoạch. Chống kịch bản
+// type 1↔2 lệch (sensor gắn ngược/track lệch): robot báo rẽ nhưng kẹt cứng
+// không bao giờ xoay.
+#define FWD_JUNC_TIMEOUT_MS  8000
+// Bước xoay 90° (M_TURN_LEFT/RIGHT): chạm TURN_TIMEOUT_MS mà line chưa về
+// giữa sensor → xoay LẠI từ đầu tối đa bấy nhiêu lần trước khi bỏ cuộc
+// (line bị đứt/quá rộng ở ngã ba, xoay lại lần 2 thường chụp được line).
+#define TURN_RETRY_MAX         2
 
 // ─── Hiệu chỉnh Line Tracer (BTN_UP) ────────
 // Giữ BTN_UP >= CALIB_HOLD_MS khi robot IDLE → bắt đầu quét calibration;

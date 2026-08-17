@@ -23,10 +23,6 @@ unsigned long pirGraceUntil = 0;      // Đến thời điểm này PIR bị b�
 unsigned long pirClearSince = 0;      // Thời điểm PIR bắt đầu im lặng liên tục (xác nhận đường thoáng)
 unsigned long pirHighSince = 0;       // Thời điểm PIR bắt đầu HIGH liên tục (debounce trước khi WARN)
 bool nodeNotified = false;      // Đã gửi NODE_START cho app chưa? (tránh gửi trùng)
-int junctionPendingType = 0;    // Type ngã ba đang chờ xác nhận (1=trái, 2=phải)
-int junctionPendingFrames = 0;  // Số lần đọc liên tiếp cùng type ngã ba
-bool junctionLatched = false;   // Đã gửi WARN:turn_* cho ngã ba này — chờ rearm
-unsigned long junctionLatchUntil = 0; // Chặn gửi lại cho tới thời điểm này (rearm)
 
 // ─── Khai báo forward các hàm ──────────────
 void checkButton();      // Kiểm tra nút nhấn trên robot
@@ -35,7 +31,6 @@ void checkPIR();         // Kiểm tra cảm biến chuyển động PIR
 void checkSwitch();      // Kiểm tra công tắc vật lý
 void checkGesture();     // Kiểm tra cảm biến cử chỉ
 void retryGestureInit(); // Thử khởi tạo lại cảm biến cử chỉ (chạy định kỳ, cả khi chưa kết nối BLE)
-void checkJunction();    // Phát hiện ngã ba → gửi WARN:turn_l/r (chỉ báo, không dừng)
 void handleIdle();       // Xử lý trạng thái IDLE (dừng robot)
 void handleFollowLine(); // Xử lý trạng thái FOLLOW_LINE (đang chạy)
 void handleWaitClear();   // Xử lý trạng thái WAIT_CLEAR (đang chờ đường thoáng)
@@ -206,6 +201,20 @@ void setup()
     MiniR4.DriveDC.begin(1, 2, true, false); // cùng pha với setReverse ở trên
     MiniR4.DriveDC.setMoveSyncPID(0.02, 0.00, 0.04);
 
+    // ─── Báo rẽ = lúc robot THỰC SỰ bắt đầu xoay ───
+    // Trước đây có 2 bộ phát hiện ngã ba độc lập: checkJunction() (báo WARN:turn_*
+    // chỉ cần 3 lần đọc type 1/2 ổn định — KHÔNG quan tâm LegExecutor đang ở bước
+    // nào) và junctionMatches() trong LegExecutor (quyết định rẽ). Symptom thực tế
+    // 17/08: app báo "rẽ trái" nhưng robot cứ đi thẳng — bộ báo nói, bộ chạy im.
+    // Giờ bỏ checkJunction: thông báo phát ra TỪ LegExecutor ngay khi advanceStep
+    // vào bước xoay — thông báo không thể nói dối.
+    legExec.onTurnNotice = [](bool left) {
+        ble.sendMessage(left ? "WARN:turn_l" : "WARN:turn_r");
+    };
+    legExec.onStuckNotice = []() {
+        ble.sendMessage("STATUS:junc_timeout");
+    };
+
 }
 
 // ─── Vòng lặp chính (chạy liên tục) ─────────
@@ -289,7 +298,6 @@ void loop()
     checkPIR();         // Đọc cảm biến chuyển động
     checkSwitch();      // Đọc công tắc vật lý
     checkGesture();     // Đọc cảm biến cử chỉ
-    checkJunction();    // Ngã ba → WARN:turn_l/r (chỉ báo, không dừng)
 
     // ─── SENSOR_DUMP: in toàn bộ cảm biến mỗi 400ms (chẩn đoán cổng cắm) ──
     static unsigned long lastDump = 0;
@@ -833,61 +841,6 @@ void checkGesture()
 //   1. Debounce: type 1/2 phải ổn định >= JUNCTION_CONFIRM_FRAMES lần đọc
 //   2. Latch: sau khi gửi, chặn tới khi junctionType về 0/4 (hết ngã ba)
 //   3. Rearm tối thiểu JUNCTION_REARM_MS — chặn trường hợp nhấp nháy 1-0-1-0
-
-void checkJunction()
-{
-    if (state.getState() != RobotState::FOLLOW_LINE)
-        return; // Chỉ báo khi robot đang chạy giữa các node
-
-    int juncType = sensors.readJunctionType(); // 0=None, 1=Left, 2=Right, 3=T/Cross, 4=Unknown
-
-    // Không phải ngã ba trái/phải → xóa bộ đếm chờ; về 0/4 (hết ngã ba) → mở khóa latch
-    if (juncType != 1 && juncType != 2)
-    {
-        junctionPendingType = 0;
-        junctionPendingFrames = 0;
-        if ((juncType == 0 || juncType == 4) && millis() >= junctionLatchUntil)
-        {
-            junctionLatched = false;
-        }
-        return;
-    }
-
-    if (junctionLatched)
-        return; // Đã báo ngã ba này rồi — chờ rearm
-
-    // Xác nhận cùng type qua nhiều lần đọc liên tiếp (chống nhiễu 1 lần đọc)
-    if (junctionPendingType == juncType)
-    {
-        if (junctionPendingFrames < 255)
-            junctionPendingFrames++;
-    }
-    else
-    {
-        junctionPendingType = juncType;
-        junctionPendingFrames = 1;
-    }
-
-    if (junctionPendingFrames < JUNCTION_CONFIRM_FRAMES)
-        return;
-
-    // Đạt đủ số lần đọc ổn định → gửi đúng 1 lần
-    junctionLatched = true;
-    junctionPendingType = 0;
-    junctionPendingFrames = 0;
-    junctionLatchUntil = millis() + JUNCTION_REARM_MS;
-
-    if (juncType == 1)
-    {
-        ble.sendMessage("WARN:turn_l");
-        Serial.println("[JUNC] WARN:turn_l (LEFT)");
-    }
-    else
-    {
-        ble.sendMessage("WARN:turn_r");
-        Serial.println("[JUNC] WARN:turn_r (RIGHT)");
-    }
-}
 
 // ─── XỬ LÝ IDLE ──────────────────────────────
 // Robot đang dừng, chờ lệnh START
