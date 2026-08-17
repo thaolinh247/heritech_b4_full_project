@@ -25,15 +25,15 @@ nên việc cắm tai nào vào cổng nào gần như không quan trọng nữa
 |---|---|---|
 | 1 | Đặt robot ngay **đầu tuyến** (trên line, trước điểm đỏ đầu tiên) | — |
 | 2 | Trên app bấm **Bắt đầu tour** | App: "Kết nối… Đang chạy"; robot chạy chậm (~30%) |
-| 3 | Điểm đỏ thứ 1 → **tự động** | Còi nhỏ bíp; robot dừng; app TỰ MỞ node 1, chạy audio + phụ đề |
-| 4 | Sau 15s (hoặc bấm "Tiếp tục") | Robot TỰ đi tiếp, tự rẽ ở ngã ba |
+| 3 | Điểm đỏ thứ 1 → **tự động** | Còi nhỏ bíp; robot dừng; app TỰ MỞ node 1, video tự phát |
+| 4 | Khách ra hiệu **"đi tiếp"** (nói / vẫy tay / bấm nút sau lưng robot) | Robot TỰ rời node, chạy chặng kế tiếp, tự rẽ ở ngã ba |
 | 5 | Cứ mỗi điểm đỏ | Lặp lại bước 3–4: node 2, node 3, node 4 mở tự động theo thứ tự |
 | 6 | Khán giả vẫy tay trước cảm biến | App: hộp cử chỉ hiện **SWIPE** (nếu cắm gesture) |
 | 7 | Người đi tới trước robot | Robot dừng + cảnh báo; người rời đi → **banner biến mất → robot tự đi tiếp** |
 | 8 | Điểm đỏ cuối (Finish) | Sau 15s: app tự sang màn hình **Hoàn thành tour** + huy chương 🎉 |
 
-> Không cần chạm app trong suốt tour — robot tự mở node theo thứ tự (đỏ lần 1 = node 1, lần 2 = node 2...).
-> Muốn rút ngắn thời gian dừng: sửa `AUTO_NODE_DWELL_MS` trong `heritech_robot/src/config.h`.
+> Không cần chạm màn hình trong suốt tour — robot tự mở node theo thứ tự (đỏ lần 1 = node 1, lần 2 = node 2...).
+> App KHÔNG tự gửi "đi tiếp": robot chỉ rời node khi nhận hiệu lệnh từ **giọng nói / vẫy tay / nút sau lưng** (hoặc bấm "Tiếp tục" trên màn hình — dự phòng an toàn 45s ở firmware).
 
 > Luật an toàn mặc định: robot chỉ dừng khi có **người cắt ngang** phía trước, không cản khán giả đứng bên cạnh.
 
