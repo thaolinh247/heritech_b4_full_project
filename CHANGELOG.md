@@ -2,9 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+- **Tự dò vị trí màu sắc + gesture — robot demo-ready không cần chỉnh cổng (17/08)**: bỏ cố định MUX ch2/ch1 cho color sensor (TCS34725 `0x29`) và gesture (PAJ7620 `0x73`). `SensorManager::begin()` giờ tự quét: A3/Wire trực tiếp trước, rồi MUX `ch2`/`ch1` cấu hình cũ, rồi toàn bộ `ch0..7` — thiết bị cắm bất kỳ đâu cũng được tìm thấy, không cần sửa code/sửa dây. Line tracer giữ cố định A3/I2C0 (đã chứng minh qua heartbeat `raw=NO_RESPONSE`). In vị trí tìm thấy từng sensor ra Serial (log `@ A3/Wire` / `@ MUX chX`) giúp xác định dây thật 30 giây. Build sạch PlatformIO (RAM 47.8%, Flash 48.8%).
+
 ### Docs
+- **`DEMO-GUIDE.md` — cẩm nang 1 trang chạy demo tour (17/08)**: thay thế cách "test từng cảm biến" bằng kịch bản demo 4 phút đúng 7 bước (đặt đầu tuyến → START từ app → robot bám line/đi tiếp theo nút → dừng điểm đỏ mở node → vẫy tay gesture → PIR dừng cảnh báo → ALL_DONE + huy chương); mục trước demo 10 phút (bố trí line + 5 điểm đỏ, nạp firmware, warm-up PIR ≥1 phút); mục xử lý trục trặc 30 giây (line không bám → check Port A3 + biến trở, không dừng đỏ → điểm đỏ đúng trên line, app không kết nối → quên thiết bị BLE, PIR báo giả → dây hở / `PIR_MODE:HIGH`); kịch bản 3 bước sau demo. Nhấn mạnh thay đổi firmware: không cần phần cứng đúng cổng cho demo.
 - **`TEST-ROBOT.md` — chương trình kiểm thử robot + tích hợp app cho buổi chốt dự án (17/08)**: tài liệu test phần cứng firmware (PlatformIO) + tích hợp BLE với app trước ngày chốt: mục 0 chốt thông số hardware đã sửa (chỉ M1/M2, chiều motor đã đảo, line tracer cổng A3/I2C0, PIR_MODE, BLE không cần `\n`); checklist khởi động + SCAN I2C + heartbeat; test motor/LED (MOTOR_TEST 1/3); test line tracer (trắng/đen/ngã ba/đỏ); chạy tuyến 5A/5B (bám line, rẽ, dừng đỏ, PIR cắt ngang, mất line, SOS); PIR & công tắc (warmup 60s, PIR_MODE:LOW/HIGH, SWITCH_PRESS, SOS 10s); gesture; tích hợp app↔robot (auto-connect ≤15s, NODE_START/COMPLETE, SOS 2 chiều, ALL_DONE); GATE A0–GATE E chốt dự án (3 vòng tuyến liên tục, metric đo 5 lần, tag v1.0.0 sau khi pass).
-- **Chốt dự án cập nhật lần cuối (17/08)**: bổ sung tài liệu `TEST-ROBOT.md` (test runbook phần cứng + GATE chốt dự án).
 
 ### Fixed
 - **tsc sửa lỗi duy nhất còn lại `node/[id].tsx:168` (17/08)**: `pickViEn(node.description, node.descriptionEn)` — `description?` là optional (string|undefined) không gán được vào tham số `string` → thêm `?? ""`. `npx tsc --noEmit` giờ sạch hoàn toàn 0 lỗi; cùng lúc `npx expo lint` 0 lỗi (3 warning có sẵn) và `npx jest` 11/11 pass — đạt GATE 4/GATE 5 tĩnh của TEST-ROBOT.

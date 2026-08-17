@@ -12,57 +12,101 @@ void SensorManager::begin() {
     _lineTracer->begin();
     _lineTracer->setThreshold(LINE_THRESHOLD);
 
-    _colorSensor._ch = I2C_CH_COLOR;
-    _colorSensor._pWire = &Wire1;
-    _colorSensor.begin();
-
-    _gestureSensor._ch = I2C_CH_GESTURE;
-    _gestureSensor._pWire = &Wire1;
+    // Màu sắc (0x29) và gesture (0x73): TỰ DÒ — thử A3/Wire trước, rồi MUX
+    // ch0..7 — robot chạy demo được ngay dù cắm cổng nào.
+    locateColorSensor();
     initGestureSensor();
 
     // INPUT_PULLDOWN: nếu dây tín hiệu PIR bị đứt/hở, chân sẽ đọc LOW thay vì
     // nổi HIGH — tránh WARN:person giả liên tục khi không có người.
     // (Module báo mức LOW khi có người? gửi lệnh PIR_MODE:LOW để đảo.)
-    pinMode(PIN_PIR, INPUT_PULLDOWN);
+    pinMode(PIN_PIR, _pirActiveLow ? INPUT_PULLUP : INPUT_PULLDOWN);
     pinMode(PIN_SWITCH, INPUT_PULLUP);
 
     Serial.println("[Sensor] All sensors initialised");
     Serial.println(scanI2CReport());
 }
 
-bool SensorManager::tryGestureOnChannel(int ch) {
+void SensorManager::selectMuxChannel(uint8_t ch) {
+    // MUX PCA9548 trên bus Wire1 — chọn kênh 0..7 (byte = 1<<ch).
+    // Gọi an toàn kể cả khi MUX không tồn tại (write bị bỏ qua, không ACK).
+    Wire1.beginTransmission(ADDR_PCA954X);
+    Wire1.write(1 << ch);
+    Wire1.endTransmission();
+    delayMicroseconds(100);
+}
+
+// Thử xem thiết bị địa chỉ `addr` có nằm trên spot (wire, ch) không.
+// ch = 255 → không qua MUX (đường A3/Wire trực tiếp).
+static bool devicePresentOnSpot(TwoWire* wire, uint8_t ch, uint8_t addr) {
+    if (ch != 255 && wire == &Wire1) {
+        Wire1.beginTransmission(ADDR_PCA954X);
+        Wire1.write(1 << ch);
+        Wire1.endTransmission();
+        delayMicroseconds(100);
+    }
+    wire->beginTransmission(addr);
+    return wire->endTransmission() == 0;
+}
+
+bool SensorManager::tryGestureOnWire(TwoWire* wire, uint8_t ch) {
+    if (ch == 255 && wire != &Wire) return false;     // A3 luôn là Wire
+    if (!devicePresentOnSpot(wire, ch, PAJ7620_IIC_ADDR)) return false;
     _gestureSensor._ch = ch;
-    _gestureSensor._pWire = &Wire1;
+    _gestureSensor._pWire = wire;
     int result = _gestureSensor.begin();
     if (result == 0) {
-        Serial.print("[Sensor] Gesture sensor OK on channel ");
-        Serial.println(ch);
+        Serial.print("[Sensor] Gesture OK @ ");
+        Serial.print(wire == &Wire ? "A3/Wire" : "MUX ch");
+        if (wire != &Wire) Serial.print(ch);
+        Serial.println();
         _gestureOK = true;
         return true;
     }
-    Serial.print("[Sensor] Gesture sensor init failed on channel ");
-    Serial.print(ch);
-    Serial.print(" (code ");
-    Serial.print(result);
-    Serial.println(")");
     return false;
 }
 
 bool SensorManager::initGestureSensor() {
     _gestureOK = false;
-
-    // Thử kênh cấu hình trước; nếu thất bại, quét toàn bộ kênh MUX để tìm
-    // sensor (tránh lỗi "cắm nhầm cổng → sensor im lặng vĩnh viễn").
-    if (tryGestureOnChannel(I2C_CH_GESTURE)) return true;
-
+    // Ưu tiên: cấu hình cũ (MUX ch1) → A3/Wire → quét toàn bộ kênh MUX.
+    if (tryGestureOnWire(&Wire1, I2C_CH_GESTURE)) return true;
+    if (tryGestureOnWire(&Wire, 255)) return true;
     for (int ch = 0; ch < 8; ch++) {
         if (ch == I2C_CH_GESTURE) continue;
-        if (tryGestureOnChannel(ch)) return true;
-        delay(50);
+        if (tryGestureOnWire(&Wire1, (uint8_t)ch)) return true;
     }
-
-    Serial.println("[Sensor] Gesture sensor NOT found on any MUX channel");
+    Serial.println("[Sensor] Gesture sensor NOT found");
     return false;
+}
+
+void SensorManager::locateColorSensor() {
+    // Ưu tiên: A3/Wire → cấu hình cũ (MUX ch2) → quét toàn bộ kênh MUX.
+    if (devicePresentOnSpot(&Wire, 255, TCS34725_ADDRESS)) {
+        _colorSensor._ch = 255;
+        _colorSensor._pWire = &Wire;
+        _colorSensor.begin();
+        Serial.println("[Sensor] Color sensor @ A3/Wire");
+        return;
+    }
+    if (devicePresentOnSpot(&Wire1, I2C_CH_COLOR, TCS34725_ADDRESS)) {
+        _colorSensor._ch = I2C_CH_COLOR;
+        _colorSensor._pWire = &Wire1;
+        _colorSensor.begin();
+        Serial.println("[Sensor] Color sensor @ MUX ch2");
+        return;
+    }
+    for (int ch = 0; ch < 8; ch++) {
+        if (ch == I2C_CH_COLOR) continue;
+        if (devicePresentOnSpot(&Wire1, (uint8_t)ch, TCS34725_ADDRESS)) {
+            _colorSensor._ch = (uint8_t)ch;
+            _colorSensor._pWire = &Wire1;
+            _colorSensor.begin();
+            Serial.print("[Sensor] Color sensor @ MUX ch");
+            Serial.println(ch);
+            return;
+        }
+    }
+    Serial.println("[Sensor] Color sensor NOT found");
 }
 
 bool SensorManager::isGestureReady() {

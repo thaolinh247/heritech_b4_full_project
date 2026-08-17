@@ -30,7 +30,9 @@ public:
 
 private:
     bool initGestureSensor();
-    bool tryGestureOnChannel(int ch);
+    bool tryGestureOnWire(TwoWire* wire, uint8_t ch); // ch=255: không qua MUX (A3/Wire)
+    void locateColorSensor();
+    void selectMuxChannel(uint8_t ch);
 
     // Line tracer cắm ở cổng I2C0 (Port A3) — Wire TRỰC TIẾP không qua MUX
     // (giống code B3). Trỏ vào instance của chính thư viện MiniR4.
