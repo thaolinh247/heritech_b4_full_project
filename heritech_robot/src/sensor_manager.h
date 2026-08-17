@@ -14,6 +14,7 @@ public:
     float readLineError();
     uint8_t readLineWidth();
     uint8_t readJunctionType();
+    bool readLineRaw(uint8_t out[10]);
     int8_t readColorID();
     bool isRedDetected();
     int readGesture();

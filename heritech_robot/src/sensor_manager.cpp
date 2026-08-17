@@ -74,6 +74,10 @@ float SensorManager::readLineError() {
     return _lineTracer.getError();
 }
 
+bool SensorManager::readLineRaw(uint8_t out[10]) {
+    return _lineTracer.getAllSensors(out);
+}
+
 uint8_t SensorManager::readLineWidth() {
     return _lineTracer.getLineWidth();
 }

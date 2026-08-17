@@ -290,6 +290,8 @@ void loop()
         else if (millis() - lastDump >= 400)
         {
             lastDump = millis();
+            uint8_t raws[10];
+            bool gotRaw = sensors.readLineRaw(raws);
             String d = "DUMP:err=" + String(sensors.readLineError(), 1)
                      + " w=" + String(sensors.readLineWidth())
                      + " junc=" + String(sensors.readJunctionType())
@@ -297,6 +299,19 @@ void loop()
                      + " gest=" + String(sensors.readGesture())
                      + " pir=" + String(sensors.readPIR() ? "HIGH" : "LOW")
                      + " v=" + String(MiniR4.PWR.getBattVoltage(), 2);
+            if (gotRaw)
+            {
+                d += " raw=";
+                for (int i = 0; i < 10; i++)
+                {
+                    d += String(raws[i]);
+                    if (i < 9) d += ",";
+                }
+            }
+            else
+            {
+                d += " raw=NO_RESPONSE";
+            }
             Serial.println(d);
             ble.sendMessage(d);
         }
@@ -311,10 +326,25 @@ void loop()
     if (millis() - lastHeartbeat >= 2000)
     {
         lastHeartbeat = millis();
+        uint8_t raws[10];
+        bool gotRaw = sensors.readLineRaw(raws);
         String hb = "STATUS:heartbeat err=" + String(sensors.readLineError(), 1)
                   + " w=" + String(sensors.readLineWidth())
                   + " pir=" + String(sensors.readPIR() ? "HIGH" : "LOW")
                   + " color=" + String(sensors.readColorID());
+        if (gotRaw)
+        {
+            hb += " raw=";
+            for (int i = 0; i < 10; i++)
+            {
+                hb += String(raws[i]);
+                if (i < 9) hb += ",";
+            }
+        }
+        else
+        {
+            hb += " raw=NO_RESPONSE";
+        }
         ble.sendMessage(hb);
     }
 
