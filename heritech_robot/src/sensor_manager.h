@@ -24,15 +24,21 @@ public:
     bool reinitGesture();
     void calibrateBegin();
     void calibrateEnd();
+    void setPIRMode(bool activeLow);
+    bool isPIRActiveLow();
+    String scanI2CReport();
 
 private:
     bool initGestureSensor();
     bool tryGestureOnChannel(int ch);
 
-    MatrixLineTracer _lineTracer;
+    // Line tracer cắm ở cổng I2C0 (Port A3) — Wire TRỰC TIẾP không qua MUX
+    // (giống code B3). Trỏ vào instance của chính thư viện MiniR4.
+    MatrixLineTracer* _lineTracer;
     MatrixColorV3    _colorSensor;
     MatrixGesture    _gestureSensor;
     bool             _gestureOK = false;
+    bool             _pirActiveLow = false; // module PIR báo mức LOW khi có người
 };
 
 #endif

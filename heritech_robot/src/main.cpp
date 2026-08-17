@@ -231,6 +231,19 @@ void loop()
                 sensorDumpUntil = millis() + 8000;
                 ble.sendMessage("STATUS:sensor_dump:start");
             }
+            // Báo sơ đồ I2C một lần mỗi lần kết nối: cổng nào có thiết bị gì.
+            {
+                String scan = sensors.scanI2CReport();
+                int start = 0;
+                while (true)
+                {
+                    int end = scan.indexOf('|', start);
+                    if (end < 0) end = scan.length();
+                    ble.sendMessage(scan.substring(start, end));
+                    if (end >= (int)scan.length()) break;
+                    start = end + 1;
+                }
+            }
         }
         else
         {                                      // Mất kết nối?
@@ -331,6 +344,7 @@ void loop()
         String hb = "STATUS:heartbeat err=" + String(sensors.readLineError(), 1)
                   + " w=" + String(sensors.readLineWidth())
                   + " pir=" + String(sensors.readPIR() ? "HIGH" : "LOW")
+                  + " pm=" + String(sensors.isPIRActiveLow() ? "lo" : "hi")
                   + " color=" + String(sensors.readColorID());
         if (gotRaw)
         {
@@ -603,6 +617,21 @@ void checkBLECommands()
         sensorDumpUntil = millis() + 8000;
         ble.sendMessage("STATUS:sensor_dump:start");
         Serial.println("[DMP] SENSOR_DUMP start - 8s");
+    }
+    // ── LỆNH: PIR_MODE:LOW / PIR_MODE:HIGH ───
+    // Đảo mức báo của module PIR (một số module báo LOW khi có người).
+    // Tự kiểm chứng qua heartbeat: sau PIR_MODE:LOW, idle phải thấy pir=LOW,
+    // đưa tay qua phải thấy pir=HIGH. Nếu ngược lại → module là active-high,
+    // gửi PIR_MODE:HIGH về như cũ.
+    else if (cmd == "PIR_MODE:LOW")
+    {
+        sensors.setPIRMode(true);
+        ble.sendMessage("STATUS:pir_mode:low");
+    }
+    else if (cmd == "PIR_MODE:HIGH")
+    {
+        sensors.setPIRMode(false);
+        ble.sendMessage("STATUS:pir_mode:high");
     }
 }
 
