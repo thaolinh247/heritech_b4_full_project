@@ -84,6 +84,15 @@
 // đó → robot vừa chạy đi đã dừng lại vì WARN:person, gesture tưởng như "không ăn".
 #define PIR_GRACE_AFTER_LEAVE_MS 4000
 
+// ─── Tour TỰ ĐỘNG (demo) ─────────────────────
+// Robot dừng tại node bao lâu (ms) trước khi TỰ đi tiếp chặng kế tiếp — mở
+// node theo đúng thứ tự (lần đỏ thứ 1 → node 1, lần 2 → node 2...) mà không
+// cần chạm app. Nhấn "Tiếp tục" trên app vẫn chạy NGAY (không chờ hết hạn).
+// Finish: tự gửi ALL_DONE + kết thúc tour.
+#define AUTO_NODE_DWELL_MS    15000
+// Còi NHỎ báo "đã tới điểm dừng" — kêu khi đọc màu đỏ ổn định (ms).
+#define NODE_ARRIVAL_BEEP_MS  200
+
 // PIR cần thời gian ổn định sau khi bật nguồn (~30-60s): trong lúc này module tự phát
 // vài xung HIGH giả (không có người/vật) → bỏ qua để tránh WARN:person lúc khởi động.
 #define PIR_WARMUP_MS         60000

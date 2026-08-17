@@ -35,12 +35,14 @@ void handleIdle();       // Xử lý trạng thái IDLE (dừng robot)
 void handleFollowLine(); // Xử lý trạng thái FOLLOW_LINE (đang chạy)
 void handleWaitClear();   // Xử lý trạng thái WAIT_CLEAR (đang chờ đường thoáng)
 void resumeAfterWarn();  // Tự động đi tiếp sau WARN:person (đường thoáng hoặc quá hạn)
+void processNextSignal(); // Tín hiệu "đi tiếp" — từ app (NODE_DONE/NEXT_NODE/VOICE_NEXT) hoặc TỰ ĐỘNG (hết thời gian dừng)
 void handleAtNode();     // Xử lý trạng thái AT_NODE (đã tới điểm dừng)
 void handleEnd();        // Xử lý trạng thái END (kết thúc tour)
 
 unsigned long beepUntil = 0; // Thời điểm tắt còi (cho phép còi kêu trong 2s)
 unsigned long motorTestUntil = 0; // Hết thời điểm này thì dừng MOTOR_TEST (0 = không test)
 unsigned long sensorDumpUntil = 0; // Hết thời điểm này thì ngừng SENSOR_DUMP (0 = không dump)
+unsigned long nodeAutoContinueAt = 0; // Hết thời điểm này thì TỰ đi tiếp (tour tự động)
 
 // Dừng TOÀN BỘ 4 cổng motor (kể cả cặp đang test) — không cổng nào còn xung PWM
 // treo sau MOTOR_TEST (motors.stop() chỉ chạm M1/M2).
@@ -530,31 +532,10 @@ void checkBLECommands()
     //   - Finish (= Entrance, đã quay về) → kết thúc tour (ALL_DONE + END).
     else if (cmd.startsWith("NODE_DONE:") || cmd == "NEXT_NODE" || cmd == "VOICE_NEXT")
     {
-        if (state.getState() == RobotState::AT_NODE)
-        {
-            // Đứng tại Finish (= Entrance, đã quay về) → "đi tiếp" = KẾT THÚC tour:
-            // không có leg kế tiếp, báo app màn hình chúc mừng.
-            if (nodes.current().isFinish)
-            {
-                motors.stop();
-                ble.sendMessage("ALL_DONE");
-                state.setState(RobotState::END);
-                setLedStopped();           // Robot dừng hẳn → xanh dương
-                Serial.println("[CMD] next at Finish -> ALL_DONE");
-                return;
-            }
-
-            // Node vừa hoàn thành = nodes.current() (chưa advance) — báo app đánh dấu ✓
-            ble.sendMessage("NODE_COMPLETE:" + String(nodes.current().nodeId));
-            legExec.start(nodes.index() + 1);      // Chặng kế tiếp (bắt đầu bằng lùi-ra)
-            state.setState(RobotState::FOLLOW_LINE);
-            motors.setSpeed(BASE_SPEED);
-            setLedMoving();                        // LED xanh lá: robot di chuyển tiếp
-            pirGraceUntil = millis() + PIR_GRACE_AFTER_LEAVE_MS; // Bỏ qua PIR trong lúc rời node
-            Serial.print("[CMD] next signal -> start leg ");
-            Serial.println(legExec.leg());
-        }
-        else
+        // Đi tiếp: từ app (chạy NGAY) — xử lý chung với tự động (processNextSignal).
+        // processNextSignal() tự kiểm tra AT_NODE — ngoài node thì bỏ qua.
+        processNextSignal();
+        if (state.getState() != RobotState::AT_NODE)
         {
             Serial.println("[CMD] next signal ignored - not at node");
         }
@@ -977,8 +958,39 @@ void resumeAfterWarn()
 }
 
 // ─── XỬ LÝ AT_NODE ───────────────────────────
-// Robot đã tới điểm dừng: CHỈ đứng yên + gửi NODE_START một lần.
-// KHÔNG có logic tự rời node — chờ checkBLECommands() xử lý tín hiệu "đi tiếp".
+// Robot đã tới điểm dừng (đọc được màu đỏ ổn định): đứng yên + còi nhỏ +
+// gửi NODE_START một lần (app TỰ ĐỘNG mở node theo thứ tự). Tour chạy hoàn
+// toàn tự động: hết AUTO_NODE_DWELL_MS chưa có lệnh từ app → tự đi tiếp.
+
+void processNextSignal()
+{
+    if (state.getState() != RobotState::AT_NODE)
+        return; // Ngoài node (IDLE sau SOS/STOP...) → bỏ qua, không tự chạy
+
+    nodeAutoContinueAt = 0; // Hủy hẹn giờ tự động (đã xử lý)
+
+    // Đứng tại Finish (= Entrance, đã quay về) → "đi tiếp" = KẾT THÚC tour:
+    // không có leg kế tiếp, báo app màn hình chúc mừng.
+    if (nodes.current().isFinish)
+    {
+        motors.stop();
+        ble.sendMessage("ALL_DONE");
+        state.setState(RobotState::END);
+        setLedStopped();           // Robot dừng hẳn → xanh dương
+        Serial.println("[NODE] next at Finish -> ALL_DONE");
+        return;
+    }
+
+    // Node vừa hoàn thành = nodes.current() (chưa advance) — báo app đánh dấu ✓
+    ble.sendMessage("NODE_COMPLETE:" + String(nodes.current().nodeId));
+    legExec.start(nodes.index() + 1);      // Chặng kế tiếp (bắt đầu bằng lùi-ra)
+    state.setState(RobotState::FOLLOW_LINE);
+    motors.setSpeed(BASE_SPEED);
+    setLedMoving();                        // LED xanh lá: robot di chuyển tiếp
+    pirGraceUntil = millis() + PIR_GRACE_AFTER_LEAVE_MS; // Bỏ qua PIR trong lúc rời node
+    Serial.print("[NODE] next signal -> start leg ");
+    Serial.println(legExec.leg());
+}
 
 void handleAtNode()
 {
@@ -988,7 +1000,7 @@ void handleAtNode()
         setLedStopped();                   // Robot dừng tại node → xanh dương
     }
 
-    motors.stop(); // Dừng robot — đứng yên tuyệt đối cho tới khi app cho phép
+    motors.stop(); // Đứng yên tuyệt đối khi tại node
 
     // Chỉ gửi NODE_START một lần (tránh gửi trùng khi ở cùng node)
     if (!nodeNotified)
@@ -996,11 +1008,30 @@ void handleAtNode()
         const RouteNode& node = nodes.current();
         ble.sendMessage("NODE_START:" + String(node.nodeId)); // Báo app mở nội dung node
         nodeNotified = true;
+
+        // Còi NHỎ báo "đã tới điểm dừng" (đọc màu đỏ thành công) — tự tắt sau
+        // NODE_ARRIVAL_BEEP_MS qua cơ chế beepUntil trong loop().
+        MiniR4.Buzzer.Tone(880, NODE_ARRIVAL_BEEP_MS);
+        beepUntil = millis() + NODE_ARRIVAL_BEEP_MS;
+
+        // Hẹn giờ TỰ ĐỘNG đi tiếp — app nhấn "Tiếp tục" thì chạy ngay, không chờ.
+        nodeAutoContinueAt = millis() + AUTO_NODE_DWELL_MS;
+
         Serial.print("[NODE] ");
         Serial.print(node.name);
         Serial.print(" (id=");
         Serial.print(node.nodeId);
-        Serial.println(")");
+        Serial.print(") - auto continue in ");
+        Serial.print(AUTO_NODE_DWELL_MS / 1000);
+        Serial.println("s");
+    }
+
+    // ── Tour tự động: hết thời gian dừng mà app chưa ra lệnh → tự đi tiếp ──
+    if (nodeAutoContinueAt > 0 && millis() >= nodeAutoContinueAt)
+    {
+        nodeAutoContinueAt = 0;
+        Serial.println("[NODE] dwell timeout -> auto continue");
+        processNextSignal();
     }
 }
 

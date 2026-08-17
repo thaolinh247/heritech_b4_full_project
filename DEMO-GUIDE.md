@@ -19,17 +19,21 @@ nên việc cắm tai nào vào cổng nào gần như không quan trọng nữa
    (Kiểm tra nhanh: máy tính mở nRF Connect, connect, bật Notify trên service TX → thấy
    `STATUS:heartbeat … raw=s1..s10 …` là ổn. Khi nằm trên line đen, `err=` dao động quanh 0.)
 
-## 1. Chạy demo (kịch bản 4 phút)
+## 1. Chạy demo (kịch bản 4 phút — hoàn toàn tự động)
 
 | Bước | Người dẫn | Robot / App hiển thị |
 |---|---|---|
 | 1 | Đặt robot ngay **đầu tuyến** (trên line, trước điểm đỏ đầu tiên) | — |
-| 2 | Trên app bấm **Bắt đầu tour** | App: "Kết nối… Đang chạy"; robot chạy chậm (~40%) |
-| 3 | Tại mỗi điểm đỏ | Robot dừng; app mở node tương ứng, chạy audio + phụ đề |
-| 4 | Trên app bấm **Tiếp tục** | Robot đi tiếp, tự rẽ ở ngã ba |
-| 5 | Khán giả đưa tay vẫy trước cảm biến | App: hộp cử chỉ hiện **SWIPE** (nếu cắm gesture) |
-| 6 | Người đi tới trước robot | Robot dừng + cảnh báo "Có người phía trước", báo quay lại thì chạy tiếp |
-| 7 | Điểm đỏ cuối cùng | Robot dừng; app: **Hoàn thành tour** + huy chương 🎉 |
+| 2 | Trên app bấm **Bắt đầu tour** | App: "Kết nối… Đang chạy"; robot chạy chậm (~30%) |
+| 3 | Điểm đỏ thứ 1 → **tự động** | Còi nhỏ bíp; robot dừng; app TỰ MỞ node 1, chạy audio + phụ đề |
+| 4 | Sau 15s (hoặc bấm "Tiếp tục") | Robot TỰ đi tiếp, tự rẽ ở ngã ba |
+| 5 | Cứ mỗi điểm đỏ | Lặp lại bước 3–4: node 2, node 3, node 4 mở tự động theo thứ tự |
+| 6 | Khán giả vẫy tay trước cảm biến | App: hộp cử chỉ hiện **SWIPE** (nếu cắm gesture) |
+| 7 | Người đi tới trước robot | Robot dừng + cảnh báo; người rời đi → **banner biến mất → robot tự đi tiếp** |
+| 8 | Điểm đỏ cuối (Finish) | Sau 15s: app tự sang màn hình **Hoàn thành tour** + huy chương 🎉 |
+
+> Không cần chạm app trong suốt tour — robot tự mở node theo thứ tự (đỏ lần 1 = node 1, lần 2 = node 2...).
+> Muốn rút ngắn thời gian dừng: sửa `AUTO_NODE_DWELL_MS` trong `heritech_robot/src/config.h`.
 
 > Luật an toàn mặc định: robot chỉ dừng khi có **người cắt ngang** phía trước, không cản khán giả đứng bên cạnh.
 
