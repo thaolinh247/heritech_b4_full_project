@@ -45,6 +45,14 @@
         {
           "cameraPermission": "Buddy cần camera để nhận diện ký hiệu tay."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
       ]
     ],
     "experiments": {

@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- **App không kết nối được máy chủ LLM — 2 nguyên nhân (17/08)**: (1) **IP đổi**: máy chạy server giờ là `192.168.1.147` trong khi `.env` nạp cứng IP cũ `192.168.1.33` (DHCP đổi) → điện thoại gọi vào IP cũ không có server. Sửa `EXPO_PUBLIC_BACKEND_URL=http://192.168.1.147:3000` (đã test: cổng mở + `/api/health` trả `ok=True hasApiKey=True`). (2) **Android chặn HTTP trần**: APK standalone Android 9+ chặn `http://IP-LAN` mặc định → thêm plugin `expo-build-properties` (`usesCleartextTraffic: true`) vào app.json. **Lưu ý vận hành**: IP này nạp cứng lúc build — đặt IP tĩnh cho máy server (reservation router) nếu không mỗi lần DHCP đổi phải sửa `.env` + build lại; trong Expo Go (dev) thì hostUri tự dò nên không ảnh hưởng. Đã xác thực `npx expo config` — plugin + permissions (BLE, camera, mic, cleartext) đầy đủ.
+
 ### Added
 - **Build APK standalone qua EAS (17/08)**: tạo `eas.json` (profile `preview` = APK internal distribution + `production` = AAB autoIncrement), thêm `android.versionCode: 1` vào `app.json`. App giờ xuất bản được thành file APK cài trực tiếp lên điện thoại — mở app là kết nối BLE + demo ngay, KHÔNG cần máy tính/Expo dev server. Cài `eas-cli` toàn cục, cập nhật DEMO-GUIDE (mục 0: `eas login` → `eas build -p android --profile preview`, link APK, lưu ý `EXPO_PUBLIC_BACKEND_URL` nạp cứng lúc build → máy server cần IP tĩnh cho tính năng "Hỏi Buddy"; tour demo không cần server). Lệnh còn lại do người dùng đăng nhập tài khoản Expo rồi build.
 
