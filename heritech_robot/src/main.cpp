@@ -57,6 +57,52 @@ void stopAllMotors()
     MiniR4.M4.setSpeed(0);
 }
 
+// Chạy MOTOR_TEST trên 1 cặp cổng (pair: 1 = M1/M2 bằng setPower, 3 = M3/M4
+// bằng setSpeed theo quy ước team B3, 0 = cả 2 cặp) trong 2 giây rồi dừng.
+// Dùng để xác định cặp cổng robot đấu dây thật và chiều quay chuẩn.
+void startMotorTest(uint8_t pair, const String& args)
+{
+    int sep = args.indexOf(':');
+    int16_t l, r;
+    if (sep > 0)
+    {
+        l = (int16_t)args.substring(0, sep).toInt();
+        r = (int16_t)args.substring(sep + 1).toInt();
+    }
+    else
+    {
+        ble.sendMessage("STATUS:motor_test:bad_format");
+        Serial.println("[MOTOR] TEST format: MOTOR_TEST(L/1/3):<L>:<R>");
+        return;
+    }
+
+    stopAllMotors();
+    if (pair == 0 || pair == 1)
+    {
+        MiniR4.M1.setPower(l);
+        MiniR4.M2.setPower(r);
+    }
+    if (pair == 0 || pair == 3)
+    {
+        MiniR4.M3.setSpeed(l);
+        MiniR4.M4.setSpeed(-r); // team B3: INVERT_RIGHT=true → nghịch dấu
+    }
+    motorTestUntil = millis() + 2000;
+    state.setState(RobotState::IDLE);
+    Serial.print("[MOTOR] TEST");
+    if (pair == 1) Serial.print("1");
+    else if (pair == 3) Serial.print("3");
+    Serial.print(" L=");
+    Serial.print(l);
+    Serial.print(" R=");
+    Serial.print(r);
+    Serial.print(" batt=");
+    Serial.print(MiniR4.PWR.getBattVoltage(), 2);
+    Serial.println("V");
+    ble.sendMessage(pair == 0 ? "STATUS:motor_test:ok"
+                              : (pair == 1 ? "STATUS:motor_test1:ok" : "STATUS:motor_test3:ok"));
+}
+
 // ─── MÀU LED THEO TRẠNG THÁI (16/08, theo yêu cầu team) ───
 //   - Robot DỪNG (IDLE / AT_NODE / WAIT_CLEAR / END / mất BLE) → xanh dương (0,0,255)
 //   - Robot DI CHUYỂN (FOLLOW_LINE) → xanh lá (0,255,0)
@@ -462,35 +508,22 @@ void checkBLECommands()
     // Kiểm tra bánh xe độc lập với tuyến: kê robot lên, gửi "MOTOR_TEST:40:40"
     // → bánh quay 2 giây rồi dừng. CHẠY CẢ 2 CẶP CỔNG cùng lúc (M1/M2 bằng
     // setPower, M3/M4 bằng setSpeed theo quy ước team WRO 2026 B3) — cặp cổng
-    // nào có bánh quay chính là cặp robot đấu dây thật. Baáo ln trả BLE echo
+    // nào có bánh quay chính là cặp robot đấu dây thật. Trả BLE echo
     // "STATUS:motor_test" + log pin để loại trừ nguồn yếu/cắt.
+    //
+    // Test riêng từng cặp (khỏi đoán):  MOTOR_TEST1:<L>:<R> → chỉ M1/M2
+    //                                  MOTOR_TEST3:<L>:<R> → chỉ M3/M4
+    else if (cmd.startsWith("MOTOR_TEST1:"))
+    {
+        startMotorTest(1, cmd.substring(12));
+    }
+    else if (cmd.startsWith("MOTOR_TEST3:"))
+    {
+        startMotorTest(3, cmd.substring(12));
+    }
     else if (cmd.startsWith("MOTOR_TEST:"))
     {
-        int sep = cmd.indexOf(':', 11);
-        if (sep > 0)
-        {
-            int16_t l = (int16_t)cmd.substring(11, sep).toInt();
-            int16_t r = (int16_t)cmd.substring(sep + 1).toInt();
-            MiniR4.M1.setPower(l);
-            MiniR4.M2.setPower(r);
-            MiniR4.M3.setSpeed(l);   // cặp M3/M4 (team B3): INVERT_LEFT=false, INVERT_RIGHT=true
-            MiniR4.M4.setSpeed(-r);
-            motorTestUntil = millis() + 2000;
-            state.setState(RobotState::IDLE);
-            Serial.print("[MOTOR] TEST L=");
-            Serial.print(l);
-            Serial.print(" R=");
-            Serial.print(r);
-            Serial.print(" batt=");
-            Serial.print(MiniR4.PWR.getBattVoltage(), 2);
-            Serial.println("V");
-            ble.sendMessage("STATUS:motor_test:ok");
-        }
-        else
-        {
-            ble.sendMessage("STATUS:motor_test:bad_format");
-            Serial.println("[MOTOR] TEST format: MOTOR_TEST:<L>:<R>");
-        }
+        startMotorTest(0, cmd.substring(11));
     }
 }
 
