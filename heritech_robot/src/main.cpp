@@ -174,10 +174,11 @@ void loop()
 
     checkButton(); // Kiểm tra nút nhấn trên robot
 
-    // ─── Nếu mất kết nối BLE ────────────────
+    // ─── Nếu chưa kết nối BLE: vẫn chạy bình thường, robot độc lập ───
+    // (nút vật lý START/STOP + state machine hoạt động KHÔNG cần điện thoại;
+    // trước đây motors.stop() + return ở đây khiến nút START không bao giờ chạy)
     if (!ble.isConnected())
     {
-        motors.stop(); // AN TOÀN: không chạy tiếp với lệnh tốc độ cũ khi mất kết nối
         retryGestureInit(); // PAJ7620 mất vài giây ổn định sau khi bật nguồn — init sớm
                             // kể cả khi điện thoại chưa kết nối (trước đây chỉ retry khi
                             // đã có BLE → nếu robot bật nguồn lâu trước khi kết nối thì
@@ -191,12 +192,12 @@ void loop()
             ledOn = !ledOn; // Đảo trạng thái LED
             MiniR4.LED.setColor(1, 0, 0, ledOn ? 255 : 0);
         }
-        delay(LOOP_DELAY_MS); // Chờ 20ms rồi thoát (không xử lý tiếp)
-        return;
+    }
+    else
+    {
+        checkBLECommands(); // Xử lý lệnh từ app
     }
 
-    // ─── Nếu đã kết nối BLE ─────────────────
-    checkBLECommands(); // Xử lý lệnh từ app
     checkPIR();         // Đọc cảm biến chuyển động
     checkSwitch();      // Đọc công tắc vật lý
     checkGesture();     // Đọc cảm biến cử chỉ
@@ -703,7 +704,8 @@ void handleFollowLine()
     }
 
     // Debug quan sát mỗi 2s (phục vụ hiệu chỉnh trên tuyến): lỗi bám line,
-    // bề rộng line, type ngã ba — KHÔNG đổi hành vi.
+    // bề rộng line, type ngã ba — KHÔNG đổi hành vi. Kèm encoder M1/M2:
+    // counter tăng = bánh xe THẬT SỰ quay (kiểm tra "xe không chạy khi START").
     static unsigned long lastLineDebug = 0;
     if (millis() - lastLineDebug >= 2000)
     {
@@ -713,7 +715,11 @@ void handleFollowLine()
         Serial.print(" w=");
         Serial.print(sensors.readLineWidth());
         Serial.print(" junc=");
-        Serial.println(sensors.readJunctionType());
+        Serial.print(sensors.readJunctionType());
+        Serial.print(" encM1=");
+        Serial.print(MiniR4.M1.getCounter());
+        Serial.print(" encM2=");
+        Serial.println(MiniR4.M2.getCounter());
     }
 
     legExec.update(sensors, motors);
