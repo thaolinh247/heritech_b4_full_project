@@ -45,6 +45,7 @@ void handleEnd();        // Xử lý trạng thái END (kết thúc tour)
 
 unsigned long beepUntil = 0; // Thời điểm tắt còi (cho phép còi kêu trong 2s)
 unsigned long motorTestUntil = 0; // Hết thời điểm này thì dừng MOTOR_TEST (0 = không test)
+unsigned long sensorDumpUntil = 0; // Hết thời điểm này thì ngừng SENSOR_DUMP (0 = không dump)
 
 // Dừng TOÀN BỘ 4 cổng motor (kể cả cặp đang test) — không cổng nào còn xung PWM
 // treo sau MOTOR_TEST (motors.stop() chỉ chạm M1/M2).
@@ -269,6 +270,30 @@ void loop()
     checkSwitch();      // Đọc công tắc vật lý
     checkGesture();     // Đọc cảm biến cử chỉ
     checkJunction();    // Ngã ba → WARN:turn_l/r (chỉ báo, không dừng)
+
+    // ─── SENSOR_DUMP: in toàn bộ cảm biến mỗi 400ms (chẩn đoán cổng cắm) ──
+    static unsigned long lastDump = 0;
+    if (sensorDumpUntil > 0)
+    {
+        if (millis() >= sensorDumpUntil)
+        {
+            sensorDumpUntil = 0;
+            Serial.println("[DMP] end");
+        }
+        else if (millis() - lastDump >= 400)
+        {
+            lastDump = millis();
+            String d = "DUMP:err=" + String(sensors.readLineError(), 1)
+                     + " w=" + String(sensors.readLineWidth())
+                     + " junc=" + String(sensors.readJunctionType())
+                     + " color=" + String(sensors.readColorID())
+                     + " gest=" + String(sensors.readGesture())
+                     + " pir=" + String(sensors.readPIR() ? "HIGH" : "LOW")
+                     + " v=" + String(MiniR4.PWR.getBattVoltage(), 2);
+            Serial.println(d);
+            ble.sendMessage(d);
+        }
+    }
 
     // ─── Heartbeat mỗi 2s (chẩn đoán BLE) ────
     // Giúp kiểm tra ngay chiều robot→điện thoại: nếu app nhận được dòng
@@ -526,6 +551,16 @@ void checkBLECommands()
     else if (cmd.startsWith("MOTOR_TEST:"))
     {
         startMotorTest(0, cmd.substring(11));
+    }
+    // ── LỆNH: SENSOR_DUMP ─────────────────────
+    // In giá trị TẤT CẢ cảm biến mỗi 400ms trong 8s (BLE + Serial) để xác
+    // định cổng cắm thật: line err/width/junc có đổi khi robot chạy qua line
+    // không, PIR có lên HIGH khi đưa tay không, color/gesture đọc được gì.
+    else if (cmd == "SENSOR_DUMP")
+    {
+        sensorDumpUntil = millis() + 8000;
+        ble.sendMessage("STATUS:sensor_dump:start");
+        Serial.println("[DMP] SENSOR_DUMP start - 8s");
     }
 }
 
