@@ -11,14 +11,15 @@
 ## 1. Tổng quan kiến trúc di chuyển
 
 ```
-[Line Tracer 10CH] ──getError() (centroid) + PID──► [MotorControl] ──► M3 (trái) / M4 (phải)
+[Line Tracer 10CH] ──getError() (centroid) + PID──► [MotorControl] ──► M1 (trái) / M2 (phải)
        │                                                  
        ├── getJunctionType() (1=Left, 2=Right) ──► checkJunction() ──► BLE "WARN:turn_l/r" (chỉ báo, không dừng)
        └── readLineWidth() / readJunctionType() ──► [LINE] debug log mỗi 2s (B1 quan sát)
 
 > ⚠️ 16/08: robot đã chuyển sang **leg-based** (xem `PLAN-MOVEMENT-FINAL.md` + `maneuver_nav.h`),
-> `handleFollowLine()` không còn PID+đỏ. Phần dưới mô tả motor đã đồng bộ:
-> động cơ kéo ở cổng **M3/M4** (KHÔNG phải M1/M2 — xem fix bên dưới).
+> `handleFollowLine()` không còn PID+đỏ. Động cơ kéo của robot HERITECH nằm ở cổng
+> **M1 (trái) / M2 (phải)** — điều hướng bằng `MiniR4.M1/M2.setPower()` trực tiếp
+> (đã verify với team: KHÔNG phải M3/M4 như robot WRO 2026 B3 tham khảo).
 
 [Color Sensor] ──readColorID()==9 đỏ ổn định 3 lần──► AT_NODE ──► BLE "NODE_START:<id>" ──► app mở node
 [PIR] ──► WARN:person ──► dừng (FOLLOW_LINE) ──► WAIT_CLEAR ──► đường thoáng/timeout 10s ──► auto resume
@@ -155,17 +156,9 @@ void MotorControl::begin() {
     _integral = 0;
 }
 
-// Động cơ kéo ở cổng M3 (trái) / M4 (phải) — KHỚP code team WRO 2026 B3
-// (`Downloads\WRO 2026 B3\src\main.cpp` hàm `setTankRaw`): INVERT_LEFT=false,
-// INVERT_RIGHT=true. ⚠️ Trước 16/08 code ghi `MiniR4.M1/M2.setPower()` — cổng
-// M1/M2 KHÔNG nối dây động cơ → robot nhận START nhưng không di chuyển.
-void MotorControl::setDrive(int16_t left, int16_t right) {
-    MiniR4.M3.setSpeed(left);   // bánh trái — INVERT_LEFT = false
-    MiniR4.M4.setSpeed(-right); // bánh phải — INVERT_RIGHT = true
-}
-
 void MotorControl::move(int16_t leftPower, int16_t rightPower) {
-    setDrive(leftPower, rightPower);
+    MiniR4.M1.setPower(leftPower);  // M1 = bánh trái (setReverse(false) trong setup)
+    MiniR4.M2.setPower(rightPower); // M2 = bánh phải (setReverse(true) trong setup)
 }
 
 void MotorControl::followLine(float error) {
@@ -184,18 +177,20 @@ void MotorControl::followLine(float error) {
     leftPower  = constrain(leftPower,  -MAX_SPEED, MAX_SPEED);
     rightPower = constrain(rightPower, -MAX_SPEED, MAX_SPEED);
 
-    setDrive(leftPower, rightPower);
+    MiniR4.M1.setPower(leftPower);
+    MiniR4.M2.setPower(rightPower);
 }
 
 void MotorControl::stop() {
-    setDrive(0, 0);
+    MiniR4.M1.setPower(0);
+    MiniR4.M2.setPower(0);
     _integral = 0;
     _lastError = 0;
 }
 
 void MotorControl::brake() {
-    MiniR4.M3.setBrake(true);
-    MiniR4.M4.setBrake(true);
+    MiniR4.M1.setBrake(true);
+    MiniR4.M2.setBrake(true);
     _integral = 0;
     _lastError = 0;
 }
@@ -221,13 +216,20 @@ bool junctionLatched = false;         // Đã gửi WARN:turn_* cho ngã ba này
 unsigned long junctionLatchUntil = 0; // Chặn gửi lại cho tới thời điểm này (rearm)
 ```
 
-Cấu hình motor trong `setup()` (16/08 — M3/M4 dùng trực tiếp, KHÔNG cần khởi tạo; đã bỏ M1/M2 + DriveDC):
+Cấu hình motor trong `setup()` (động cơ ở M1/M2 — bánh trái/phải):
 
 ```cpp
-// (đã xóa) MiniR4.M1.setPPR_RPM(545, 200);  → cổng M1/M2 không nối động cơ
-// (đã xóa) MiniR4.DriveDC.begin(1, 2, ...); → không dùng sync PID nữa
-// Động cơ kéo ở M3 (trái) / M4 (phải), ghi qua MotorControl::setDrive() → M3/M4.setSpeed()
+MiniR4.M1.setPPR_RPM(545, 200);   // encoder PPR + RPM max (cho setSpeed/rotateFor)
+MiniR4.M2.setPPR_RPM(545, 200);
+MiniR4.M1.setReverse(false);      // M1 ghi thuận
+MiniR4.M2.setReverse(true);       // M2 đảo chiều (dây lắp ngược)
+MiniR4.DriveDC.begin(1, 2, false, true);  // chốt 2 motor kéo = M1/M2
+MiniR4.DriveDC.setMoveSyncPID(0.02, 0.00, 0.04);
 ```
+
+> ⚠️ 16/08: từng có bước điều tra sai hướng chuyển sang M3/M4 (theo code robot
+> WRO 2026 B3 dùng `M3/M4.setSpeed()`), nhưng robot HERITECH đấu dây động cơ
+> ở **M1/M2 → đã revert**. M3/M4 trên robot heritech là cổng KHÔNG dùng cho kéo.
 
 ### 2.5 `main.cpp` — checkButton() (gồm calibration BTN_UP)
 
