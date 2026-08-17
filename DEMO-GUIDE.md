@@ -6,7 +6,7 @@ nên việc cắm tai nào vào cổng nào gần như không quan trọng nữa
 
 ---
 
-## 0. Trước demo (10 phút)
+## 1. Trước demo (10 phút)
 
 1. **Bố trí tuyến**: đường line kín, có 4 ngã ba rẽ và 5 điểm màu **ĐỎ** (nút đánh dấu mỗi chặng).
    Nếu chưa có đủ điểm đỏ, dán **băng keo đỏ 8–10 cm** lên line tại các vị trí dừng.
@@ -19,7 +19,21 @@ nên việc cắm tai nào vào cổng nào gần như không quan trọng nữa
    (Kiểm tra nhanh: máy tính mở nRF Connect, connect, bật Notify trên service TX → thấy
    `STATUS:heartbeat … raw=s1..s10 …` là ổn. Khi nằm trên line đen, `err=` dao động quanh 0.)
 
-## 1. Chạy demo (kịch bản 4 phút — hoàn toàn tự động)
+## 0. Cài app lên điện thoại (1 lần — không cần máy tính lúc demo)
+
+App chạy **standalone**: mở là kết nối BLE + demo ngay, không cần máy tính/Expo dev server.
+
+```bash
+npm i -g eas-cli          # cài 1 lần
+eas login                 # đăng nhập tài khoản Expo (lần đầu)
+eas build -p android --profile preview   # build APK trên cloud ~10-20 phút
+```
+
+- Sau build, EAS in link tải APK → cài vào điện thoại (`Cài đặt > cho phép nguồn không xác định`).
+- Lệnh lại: `eas build:list` (xem link APK), `eas build -p android --profile preview --clear-cache` (nếu lỗi cache).
+- **"Hey Buddy" (hỏi Buddy) cần server LLM**: `EXPO_PUBLIC_BACKEND_URL` được nạp cứng lúc build — điện thoại phải cùng Wi-Fi với máy chạy server, và máy đó nên đặt **IP tĩnh** (IP động đổi là app không gọi được). Tour demo (bám line, video, PIR, gesture) **không cần** server.
+
+## 2. Chạy demo (kịch bản 4 phút — hoàn toàn tự động)
 
 | Bước | Người dẫn | Robot / App hiển thị |
 |---|---|---|
@@ -37,7 +51,7 @@ nên việc cắm tai nào vào cổng nào gần như không quan trọng nữa
 
 > Luật an toàn mặc định: robot chỉ dừng khi có **người cắt ngang** phía trước, không cản khán giả đứng bên cạnh.
 
-## 2. Nếu trục trặc (xử lý trong 30 giây)
+## 3. Nếu trục trặc (xử lý trong 30 giây)
 
 - **Robot không bám line** → cắm lại line tracer vào **Port A3** (cổng analog 3, 4 chân), vặn biến trở trên
   sensor cho tới khi led chỉ bật khi trên màu đen.
@@ -50,7 +64,7 @@ nên việc cắm tai nào vào cổng nào gần như không quan trọng nữa
   `PIR_MODE:HIGH` qua nRF Connect.
 - **Gesture không nhận** → kiểm tra cáp sensor, đưa tay ở khoảng 5–15 cm; không cần thiết cho demo chính.
 
-## 3. Sau demo
+## 4. Sau demo
 
 - Bấm **Reset tour** trên app (hoặc nhấn nút Reset robot, hoặc gửi lệnh `RESUME` nếu chỉ muốn đi tiếp).
 

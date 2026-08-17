@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- **Build APK standalone qua EAS (17/08)**: tạo `eas.json` (profile `preview` = APK internal distribution + `production` = AAB autoIncrement), thêm `android.versionCode: 1` vào `app.json`. App giờ xuất bản được thành file APK cài trực tiếp lên điện thoại — mở app là kết nối BLE + demo ngay, KHÔNG cần máy tính/Expo dev server. Cài `eas-cli` toàn cục, cập nhật DEMO-GUIDE (mục 0: `eas login` → `eas build -p android --profile preview`, link APK, lưu ý `EXPO_PUBLIC_BACKEND_URL` nạp cứng lúc build → máy server cần IP tĩnh cho tính năng "Hỏi Buddy"; tour demo không cần server). Lệnh còn lại do người dùng đăng nhập tài khoản Expo rồi build.
+
 ### Fixed
 - **"Banner PIR biến mất nhưng robot không đi tiếp" — banner app tự tắt sớm 10.5s (17/08)**: app tự xoá banner sau 10.5s BẤT KỂ robot có chạy hay không → khách thấy hết cảnh báo nhưng robot vẫn đứng (PIR kẹt HIGH). Sửa 2 phía: (1) app `robot-interaction-overlay.tsx`: `WARN_PERSON_DISMISS_MS` 10.5s → **60s** — banner CHỈ biến mất khi robot gửi `STATUS:auto_resumed` (tức robot đã thực sự chạy tiếp); 60s chỉ là phao cứu sinh khi mất kết nối hẳn. (2) Firmware `handleWaitClear()`: khi resume do HẾT HẠN 10s (PIR không bao giờ thấy trống — kẹt HIGH do mode ngược/dây hở), kéo dài bỏ qua PIR `STUCK_PIR_GRACE_MS=8s` → robot chạy liền 8s thay vì dừng-đi-dừng-đi mỗi vài giây. **Chẩn đoán gốc (quan trọng)**: nếu không có người mà `pir=HIGH` trên heartbeat → module báo ngược mức → gửi `PIR_MODE:LOW`/`HIGH` qua nRF Connect cho tới khi `pir=LOW` lúc trống. Build sạch PlatformIO (RAM 47.8%, Flash 49.0%); `tsc` 0 lỗi, lint 0 lỗi.
 
