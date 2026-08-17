@@ -46,6 +46,17 @@ void handleEnd();        // Xử lý trạng thái END (kết thúc tour)
 unsigned long beepUntil = 0; // Thời điểm tắt còi (cho phép còi kêu trong 2s)
 unsigned long motorTestUntil = 0; // Hết thời điểm này thì dừng MOTOR_TEST (0 = không test)
 
+// Dừng TOÀN BỘ 4 cổng motor (kể cả cặp đang test) — không cổng nào còn xung PWM
+// treo sau MOTOR_TEST (motors.stop() chỉ chạm M1/M2).
+void stopAllMotors()
+{
+    motors.stop();
+    MiniR4.M1.setPower(0);
+    MiniR4.M2.setPower(0);
+    MiniR4.M3.setSpeed(0);
+    MiniR4.M4.setSpeed(0);
+}
+
 // ─── MÀU LED THEO TRẠNG THÁI (16/08, theo yêu cầu team) ───
 //   - Robot DỪNG (IDLE / AT_NODE / WAIT_CLEAR / END / mất BLE) → xanh dương (0,0,255)
 //   - Robot DI CHUYỂN (FOLLOW_LINE) → xanh lá (0,255,0)
@@ -438,8 +449,10 @@ void checkBLECommands()
     }
     // ── LỆNH: MOTOR_TEST:<L>:<R> ─────────────
     // Kiểm tra bánh xe độc lập với tuyến: kê robot lên, gửi "MOTOR_TEST:40:40"
-    // → 2 bánh quay 2 giây rồi dừng. Dùng để xác định ngay nguyên nhân
-    // "bấm START nhưng không chạy" (wiring / nguồn / code).
+    // → bánh quay 2 giây rồi dừng. CHẠY CẢ 2 CẶP CỔNG cùng lúc (M1/M2 bằng
+    // setPower, M3/M4 bằng setSpeed theo quy ước team WRO 2026 B3) — cặp cổng
+    // nào có bánh quay chính là cặp robot đấu dây thật. Baáo ln trả BLE echo
+    // "STATUS:motor_test" + log pin để loại trừ nguồn yếu/cắt.
     else if (cmd.startsWith("MOTOR_TEST:"))
     {
         int sep = cmd.indexOf(':', 11);
@@ -447,16 +460,24 @@ void checkBLECommands()
         {
             int16_t l = (int16_t)cmd.substring(11, sep).toInt();
             int16_t r = (int16_t)cmd.substring(sep + 1).toInt();
-            motors.move(l, r);
+            MiniR4.M1.setPower(l);
+            MiniR4.M2.setPower(r);
+            MiniR4.M3.setSpeed(l);   // cặp M3/M4 (team B3): INVERT_LEFT=false, INVERT_RIGHT=true
+            MiniR4.M4.setSpeed(-r);
             motorTestUntil = millis() + 2000;
             state.setState(RobotState::IDLE);
             Serial.print("[MOTOR] TEST L=");
             Serial.print(l);
             Serial.print(" R=");
-            Serial.println(r);
+            Serial.print(r);
+            Serial.print(" batt=");
+            Serial.print(MiniR4.PWR.getBattVoltage(), 2);
+            Serial.println("V");
+            ble.sendMessage("STATUS:motor_test:ok");
         }
         else
         {
+            ble.sendMessage("STATUS:motor_test:bad_format");
             Serial.println("[MOTOR] TEST format: MOTOR_TEST:<L>:<R>");
         }
     }
@@ -726,7 +747,7 @@ void handleIdle()
     {
         if (millis() >= motorTestUntil)
         {
-            motors.stop();
+            stopAllMotors();
             motorTestUntil = 0;
             Serial.println("[MOTOR] TEST done - motors stopped");
         }
