@@ -294,6 +294,26 @@ export default function MuseumMapScreen() {
       >
         <Text className="text-white text-lg">↺</Text>
       </Pressable>
+
+      {/* Settings FAB */}
+      <Pressable
+        onPress={() => router.push("/settings")}
+        className="absolute left-4 w-12 h-12 rounded-full items-center justify-center"
+        style={{
+          bottom: 130,
+          backgroundColor: "#5C3A21",
+          zIndex: 50,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.2,
+          shadowRadius: 4,
+          elevation: 5,
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={t("settings.title")}
+      >
+        <Text className="text-white text-lg">⚙</Text>
+      </Pressable>
     </SafeAreaView>
   );
 }

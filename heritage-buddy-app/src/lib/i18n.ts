@@ -89,6 +89,8 @@ const vi = {
     "Có người hoặc vật cản phía trước. Robot đã dừng lại và sẽ tự động tiếp tục.",
   "warn.turnLeftToast": "Robot đang rẽ trái",
   "warn.turnRightToast": "Robot đang rẽ phải",
+  "warn.continue": "Đi tiếp",
+  "warn.continueA11y": "Nhấn để robot tiếp tục hành trình",
 
   // ── Status (robot-interaction-overlay.tsx) ─
   "status.resumed": "Robot đã tiếp tục hành trình.",
@@ -139,6 +141,19 @@ const vi = {
   "llm.networkErrorTemplate":
     "Không thể kết nối đến máy chủ ({msg}). Bạn kiểm tra mạng và thử lại nhé!",
   "llm.hearFailed": "Xin lỗi, mình không nghe rõ. Bạn thử lại nhé!",
+
+  // ── Settings ──────────────────────────
+  "settings.title": "Cài đặt",
+  "settings.backendLabel": "Địa chỉ server AI",
+  "settings.backendPlaceholder": "http://192.168.1.100:3000",
+  "settings.backendHint": "Nhập IP và cổng của máy chạy server. Đổi IP → sửa ở đây, không cần build lại APK.",
+  "settings.backendSaved": "Đã lưu",
+  "settings.backendTest": "Kiểm tra kết nối",
+  "settings.backendTesting": "Đang kiểm tra...",
+  "settings.backendOk": "Kết nối thành công!",
+  "settings.backendFail": "Không thể kết nối. Kiểm tra lại IP và server đang chạy.",
+  "settings.backendReset": "Khôi phục mặc định",
+  "settings.fontScale": "Cỡ chữ",
 } as const;
 
 type TranslationKey = keyof typeof vi;
@@ -230,6 +245,8 @@ const en: Record<TranslationKey, string> = {
     "There is a person or obstacle ahead. The robot has stopped and will continue automatically.",
   "warn.turnLeftToast": "Robot turning left",
   "warn.turnRightToast": "Robot turning right",
+  "warn.continue": "Continue",
+  "warn.continueA11y": "Tap to make the robot continue its journey",
 
   // ── Status (robot-interaction-overlay.tsx) ─
   "status.resumed": "The robot has resumed the tour.",
@@ -277,6 +294,19 @@ const en: Record<TranslationKey, string> = {
   "llm.networkErrorTemplate":
     "Cannot connect to the server ({msg}). Please check your connection and try again!",
   "llm.hearFailed": "Sorry, I couldn't hear you. Please try again!",
+
+  // ── Settings ──────────────────────────
+  "settings.title": "Settings",
+  "settings.backendLabel": "AI Server Address",
+  "settings.backendPlaceholder": "http://192.168.1.100:3000",
+  "settings.backendHint": "Enter the IP and port of the server machine. Change IP here — no need to rebuild APK.",
+  "settings.backendSaved": "Saved",
+  "settings.backendTest": "Test Connection",
+  "settings.backendTesting": "Testing...",
+  "settings.backendOk": "Connected successfully!",
+  "settings.backendFail": "Cannot connect. Check the IP and make sure the server is running.",
+  "settings.backendReset": "Reset to default",
+  "settings.fontScale": "Font size",
 };
 
 export const STRINGS: Record<Language, Record<TranslationKey, string>> = { vi, en };

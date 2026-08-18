@@ -1,31 +1,116 @@
 import Constants from "expo-constants";
+import { Platform } from "react-native";
 import type { ArtifactContext } from "./contextBuilder";
 import { getLanguage, t } from "@/lib/i18n";
 import type { Language } from "@/types/language";
+import { useServerStore } from "@/store/server";
 
-// Lấy IP máy chạy server tự động từ Expo dev server (hostUri) → không bao giờ bị IP cũ
-// dù DHCP có đổi. Thứ tự ưu tiên: hostUri (luôn đúng) → EXPO_PUBLIC_BACKEND_URL → localhost.
-function getBackendUrls(): string[] {
+// ─── Timeout constants ──────────────────────
+
+const LLM_TIMEOUT_MS = 15000;   // 15s cho LLM request (audio payload lớn)
+const HEALTH_TIMEOUT_MS = 5000;  // 5s cho health check
+const RETRY_COUNT = 1;           // Thử lại 1 lần trước khi chuyển URL
+
+// ─── URL resolution ─────────────────────────
+
+// Thứ tự ưu tiên URL server:
+// 1. URL tuỳ chỉnh từ Settings (nếu user đã set → CHỈ thử URL này, bỏ qua tất cả khác)
+// 2. hostUri từ Expo dev server (chỉ có trong Expo Go / dev build)
+// 3. EXPO_PUBLIC_BACKEND_URL từ .env (hardcoded khi build APK)
+// 4. localhost (chỉ thêm khi dev mode hoặc có adb reverse)
+function resolveBackendUrls(): string[] {
   const urls = new Set<string>();
 
+  // Ưu tiên cao nhất: URL tuỳ chỉnh từ Settings
+  const customUrl = useServerStore.getState().customBackendUrl;
+  if (customUrl) {
+    urls.add(customUrl.replace(/\/+$/, ""));
+    // Nếu user đã set URL tuỳ chỉnh → CHỈ dùng URL đó (không thử cái khác)
+    // Tránh lãng phí thời gian timeout vào các URL vô ích
+    return [...urls];
+  }
+
+  // Dev mode: Expo dev server hostUri
   const hostUri = Constants.expoConfig?.hostUri;
   const host = hostUri?.split(":")[0];
   if (host) {
     urls.add(`http://${host}:3000`);
   }
 
+  // APK standalone: URL cứng từ .env
   const envUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
   if (envUrl) {
     urls.add(envUrl);
   }
 
-  // USB debug: localhost chạy được nhờ "adb reverse tcp:3000 tcp:3000"
-  urls.add("http://localhost:3000");
+  // USB debug: localhost chỉ có nghĩa khi dev mode (adb reverse)
+  if (__DEV__ || Platform.OS === "web") {
+    urls.add("http://localhost:3000");
+  }
 
   return [...urls];
 }
 
-const BASE_URLS = getBackendUrls();
+// ─── Fetch with timeout + retry ─────────────
+
+function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...init, signal: controller.signal }).finally(() =>
+    clearTimeout(timer),
+  );
+}
+
+// Thử 1 URL với retry (tối đa 1+RETRY_COUNT lần)
+async function tryUrlWithRetry(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt <= RETRY_COUNT; attempt++) {
+    try {
+      return await fetchWithTimeout(url, init, timeoutMs);
+    } catch (err) {
+      lastError = err;
+      // Nếu là abort/timeout → worth retry, nếu là 4xx client error → skip
+      if (err instanceof Error && err.name === "AbortError" && attempt < RETRY_COUNT) {
+        continue;
+      }
+      // Network error hoặc server error → retry 1 lần
+      if (attempt < RETRY_COUNT) continue;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("Request failed");
+}
+
+// Thử lần lượt từng URL, mỗi URL retry 1 lần
+async function fetchWithFallback(
+  path: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const urls = resolveBackendUrls();
+  let lastError: unknown = null;
+
+  for (const baseUrl of urls) {
+    try {
+      return await tryUrlWithRetry(`${baseUrl}${path}`, init, timeoutMs);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(t("llm.connErr"));
+}
+
+// ─── Request types ──────────────────────────
 
 // language được hàm tự điền qua getLanguage() — caller không cần truyền.
 interface LLMRequest {
@@ -50,26 +135,7 @@ interface AudioLLMResponse extends LLMResponse {
   transcription?: string;
 }
 
-const FETCH_TIMEOUT = 20000;
-
-function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
-}
-
-// Thử lần lượt từng URL máy chủ (IP LAN → localhost qua adb reverse)
-async function fetchWithFallback(path: string, init: RequestInit, timeoutMs: number): Promise<Response> {
-  let lastError: unknown = null;
-  for (const baseUrl of BASE_URLS) {
-    try {
-      return await fetchWithTimeout(`${baseUrl}${path}`, init, timeoutMs);
-    } catch (err) {
-      lastError = err;
-    }
-  }
-  throw lastError instanceof Error ? lastError : new Error(t("llm.connErr"));
-}
+// ─── Public API ─────────────────────────────
 
 export async function askBuddy(req: LLMRequest): Promise<LLMResponse> {
   try {
@@ -80,7 +146,7 @@ export async function askBuddy(req: LLMRequest): Promise<LLMResponse> {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...req, language: getLanguage() }),
       },
-      FETCH_TIMEOUT,
+      LLM_TIMEOUT_MS,
     );
 
     if (!response.ok) {
@@ -100,7 +166,9 @@ export async function askBuddy(req: LLMRequest): Promise<LLMResponse> {
   }
 }
 
-export async function askBuddyWithAudio(req: AudioLLMRequest): Promise<AudioLLMResponse> {
+export async function askBuddyWithAudio(
+  req: AudioLLMRequest,
+): Promise<AudioLLMResponse> {
   try {
     const response = await fetchWithFallback(
       "/api/ask-buddy-audio",
@@ -109,7 +177,7 @@ export async function askBuddyWithAudio(req: AudioLLMRequest): Promise<AudioLLMR
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...req, language: getLanguage() }),
       },
-      FETCH_TIMEOUT,
+      LLM_TIMEOUT_MS,
     );
 
     if (!response.ok) {
@@ -131,14 +199,21 @@ export async function askBuddyWithAudio(req: AudioLLMRequest): Promise<AudioLLMR
   }
 }
 
-export async function checkServerHealth(): Promise<{ ok: boolean; detail?: string }> {
+export async function checkServerHealth(): Promise<{
+  ok: boolean;
+  detail?: string;
+}> {
   try {
-    const res = await fetchWithFallback("/api/health", {}, 5000);
+    const res = await fetchWithFallback("/api/health", {}, HEALTH_TIMEOUT_MS);
     if (!res.ok) return { ok: false, detail: `HTTP ${res.status}` };
     const data = await res.json();
-    if (!data.hasApiKey) return { ok: false, detail: "Server missing GEMINI_API_KEY" };
+    if (!data.hasApiKey)
+      return { ok: false, detail: "Server missing GEMINI_API_KEY" };
     return { ok: true };
   } catch {
-    return { ok: false, detail: `Cannot reach ${BASE_URLS.join(" / ")}` };
+    return {
+      ok: false,
+      detail: `Cannot reach ${resolveBackendUrls().join(" / ")}`,
+    };
   }
 }

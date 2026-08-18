@@ -182,6 +182,14 @@ export function RobotInteractionOverlay() {
     speak({ text: t("sos.resuming"), language: getLanguage() });
   }
 
+  async function resumeAfterWarn() {
+    await stopSpeaking();
+    clearWarn();
+    setRobotStatus("resumed");
+    await sendCommand("RESUME");
+    speak({ text: t("status.resumed"), language: getLanguage() });
+  }
+
   const showPersonBanner = activeWarn === "person" && !sosActive;
   const showTurnToast =
     (activeWarn === "turn_l" || activeWarn === "turn_r") && !sosActive;
@@ -302,6 +310,24 @@ export function RobotInteractionOverlay() {
                 </Text>
               </View>
             </View>
+            <Pressable
+              onPress={resumeAfterWarn}
+              className="w-full py-4 mt-4 rounded-2xl items-center"
+              style={{
+                backgroundColor: "#2E8B7E",
+                minHeight: 56,
+                justifyContent: "center",
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={t("warn.continueA11y")}
+            >
+              <Text
+                className="text-white text-lg text-center"
+                style={{ fontFamily: "Helvetica-Bold" }}
+              >
+                {t("warn.continue")}
+              </Text>
+            </Pressable>
           </View>
         </View>
       )}
