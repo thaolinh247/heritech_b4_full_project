@@ -93,6 +93,12 @@ export default function GestureRecognitionScreen() {
 
   const useSample = async () => {
     const asset = Asset.fromModule(images.gestureSampleA);
+    // Trong APK standalone, Asset.fromModule() đánh dấu ảnh đã "downloaded" với
+    // tên tài nguyên Android (vd assets_images_gesturesamplea) mà ImageManipulator
+    // không mở được dạng file (lỗi "Loading bitmap failed"). Buộc tải xuống cache
+    // thật để có URI file:/// hợp lệ rồi mới phân tích.
+    asset.localUri = null;
+    asset.downloaded = false;
     await asset.downloadAsync();
     await analyze(asset.localUri ?? asset.uri, "sample");
   };

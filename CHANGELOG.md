@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- **"Dùng ảnh mẫu chữ A" lỗi `Call to function 'Context.renderAsync' has been rejected - Loading bitmap failed` trên APK standalone (19/08)**: trong APK build qua EAS, `Asset.fromModule(images.gestureSampleA)` trả asset đã đánh dấu "downloaded" với `localUri`/`uri` là tên tài nguyên Android (`assets_images_gesturesamplea`) thay vì đường dẫn file. `ImageManipulator.manipulate()` không mở được chuỗi tên tài nguyên đó (`java.lang.Exception: Loading bitmap failed`). Sửa `heritage-buddy-app/src/app/gesture-recognition.tsx` `useSample()`: reset `asset.localUri = null` + `asset.downloaded = false` rồi gọi `downloadAsync()` để buộc tải asset về cache thật (file:/// hợp lệ) trước khi đưa vào `analyze()` — camera/chọn ảnh chạy được vì đã có URI file thật. Đã xác thực `tsc --noEmit` 0 lỗi.
+
 ### Added
 - **Vuốt lên = DỪNG ROBOT (19/08)**: cử chỉ vuốt lên (PAJ7620 gesture 3) giờ là lệnh **tạm dừng hành trình** — robot đang chạy giữa các node gặp cử chỉ vuốt lên sẽ dừng ngay tại chỗ (LED xanh dương + tiếng bíp + gửi `GESTURE:SWIPE_UP` cho app) và CHỈ tiếp tục khi nhận tín hiệu "đi tiếp" (vuốt trái/phải/vẫy tay trên cảm biến, nói "tiếp theo", hoặc nút "Tiếp tục" trên app). Sửa 2 phía:
   - **Firmware**: thêm trạng thái `PAUSED` (`state_machine.*`), hàm `pauseRobot()`/`resumeFromPause()` — lưu trạng thái trước khi dừng (`FOLLOW_LINE`/`FOLLOW_TO_JUNCTION`/`TURNING`) và phục hồi đúng chặng đang dở khi tiếp tục (xoay 90° dở được khởi động lại từ đầu qua `startTurnRight90()`); lệnh `VOICE_NEXT`/`NEXT_NODE`/`NODE_DONE`/`RESUME` cũng đều resume từ PAUSED; cử chỉ "đi tiếp" trong lúc PAUSED không gửi `GESTURE:SWIPE_RIGHT/LEFT` cho app (tránh app tưởng nhầm đang ở node để điều hướng) mà gửi `STATUS:resumed`.
