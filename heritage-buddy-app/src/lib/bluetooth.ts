@@ -222,8 +222,10 @@ async function doConnect(manager: any): Promise<boolean> {
         if (match) {
           console.log("[BLE] Found via connectedDevices, connecting...");
           try { await match.cancelConnection(); } catch {}
-          await new Promise((r) => setTimeout(r, 1000));
-          const device = await manager.connectToDevice(match.id);
+          await new Promise((r) => setTimeout(r, 1500));
+          const mgr2 = await getManager();
+          if (!mgr2) { resolve(false); return; }
+          const device = await mgr2.connectToDevice(match.id);
           const ok = await setupDevice(device);
           resolve(ok);
           return;
@@ -250,13 +252,38 @@ async function doConnect(manager: any): Promise<boolean> {
           manager.stopDeviceScan();
           console.log("[BLE] Found:", device.name);
 
+          // Retry connectToDevice up to 2 times — GATT timeout trên Android
+          // thường do stack BLE cache cũ hoặc robot chưa sẵn sàng
+          let connected: any = null;
+          const SCAN_CONNECT_RETRIES = 2;
+          for (let attempt = 1; attempt <= SCAN_CONNECT_RETRIES; attempt++) {
+            try {
+              connected = await manager.connectToDevice(device.id);
+              break;
+            } catch (connErr: any) {
+              console.warn(`[BLE] connectToDevice failed (attempt ${attempt}/${SCAN_CONNECT_RETRIES}):`, connErr?.message ?? connErr);
+              if (attempt < SCAN_CONNECT_RETRIES) {
+                // Clear Android BLE cache and wait before retry
+                try { await manager.destroy(); bleState.manager = null; } catch {}
+                const mgr = await getManager();
+                if (!mgr) { bleState.isScanning = false; resolve(false); return; }
+                await new Promise((r) => setTimeout(r, 1500));
+              }
+            }
+          }
+
+          if (!connected) {
+            bleState.isScanning = false;
+            resolve(false);
+            return;
+          }
+
           try {
-            const connected = await manager.connectToDevice(device.id);
             const ok = await setupDevice(connected);
             bleState.isScanning = false;
             resolve(ok);
           } catch (connectError: any) {
-            console.error("[BLE] Connection error:", connectError?.message ?? connectError);
+            console.error("[BLE] Setup error:", connectError?.message ?? connectError);
             bleState.isScanning = false;
             resolve(false);
           }
@@ -271,15 +298,25 @@ async function doConnect(manager: any): Promise<boolean> {
 
 /** Connect to device by cached ID (no scan needed) */
 async function connectToCachedDevice(manager: any, deviceId: string): Promise<boolean> {
-  try {
-    const device = await manager.connectToDevice(deviceId);
-    console.log("[BLE] Connected via cached ID:", deviceId);
-    const ok = await setupDevice(device);
-    return ok;
-  } catch (e) {
-    console.warn("[BLE] Cached device connection failed:", e);
-    return false;
+  const CONNECT_RETRIES = 2;
+  for (let attempt = 1; attempt <= CONNECT_RETRIES; attempt++) {
+    try {
+      const device = await manager.connectToDevice(deviceId);
+      console.log("[BLE] Connected via cached ID:", deviceId);
+      const ok = await setupDevice(device);
+      return ok;
+    } catch (e: any) {
+      console.warn(`[BLE] Cached device connection failed (attempt ${attempt}/${CONNECT_RETRIES}):`, e?.message ?? e);
+      if (attempt < CONNECT_RETRIES) {
+        // Clear stale Android GATT cache before retry
+        try { await manager.destroy(); bleState.manager = null; } catch {}
+        const mgr = await getManager();
+        if (!mgr) return false;
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
   }
+  return false;
 }
 
 /** Connect + discover UART + set up state (giống commit gốc) */
@@ -288,8 +325,17 @@ let disconnectHandlerSetup = false;
 async function setupDevice(connectedDevice: any): Promise<boolean> {
   console.log("[BLE] Connected!");
 
-  // Settle delay: cho stack BLE bên robot ổn định link trước khi discover lần đầu
-  await new Promise((r) => setTimeout(r, 500));
+  // Settle delay: ArduinoBLE cần thời gian dài hơn để ổn định link
+  // sau khi central kết nối — 500ms quá ngắn, GATT service chưa sẵn sàng
+  await new Promise((r) => setTimeout(r, 1500));
+
+  // Request MTU lớn hơn để tránh fragment BLE — Android mặc định chỉ 23 bytes
+  try {
+    await connectedDevice.requestMTU(512);
+    console.log("[BLE] MTU negotiated");
+  } catch {
+    // MTU request failed — tiếp tục với default MTU
+  }
 
   const ok = await findUART(connectedDevice);
   if (!ok) {

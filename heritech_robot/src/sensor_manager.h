@@ -11,36 +11,47 @@
 class SensorManager {
 public:
     void begin();
+
+    // Line tracer
     float readLineError();
     uint8_t readLineWidth();
-    uint8_t readJunctionType();
     bool readLineRaw(uint8_t out[10]);
-    int8_t readColorID();
-    bool isRedDetected();
-    int readGesture();
-    bool readPIR();
-    bool readSwitch();
-    bool isGestureReady();
-    bool reinitGesture();
     void calibrateBegin();
     void calibrateEnd();
+
+    // Color sensor
+    int8_t readColorID();
+    bool isRedDetected();
+
+    // PIR (motion)
+    bool readPIR();
     void setPIRMode(bool activeLow);
     bool isPIRActiveLow();
-    String scanI2CReport();
+
+    // Switch (physical button)
+    bool readSwitch();
+
+    // Gesture (PAJ7620)
+    int readGesture();
+    int readGestureNonBlocking();
+    bool isGestureReady();
+    bool reinitGesture();
+
+    // Junction detection
+    bool isLeftJunction();
+    bool isRightJunction();
 
 private:
     bool initGestureSensor();
-    bool tryGestureOnWire(TwoWire* wire, uint8_t ch); // ch=255: không qua MUX (A3/Wire)
+    bool tryGestureOnWire(TwoWire* wire, uint8_t ch);
     void locateColorSensor();
-    void selectMuxChannel(uint8_t ch);
 
-    // Line tracer cắm ở cổng I2C0 (Port A3) — Wire TRỰC TIẾP không qua MUX
-    // (giống code B3). Trỏ vào instance của chính thư viện MiniR4.
     MatrixLineTracer* _lineTracer;
     MatrixColorV3    _colorSensor;
     MatrixGesture    _gestureSensor;
     bool             _gestureOK = false;
-    bool             _pirActiveLow = false; // module PIR báo mức LOW khi có người
+    uint8_t          _gestureRetryCount = 0;
+    bool             _pirActiveLow = false;
 };
 
 #endif

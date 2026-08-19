@@ -2,85 +2,34 @@
 #include "config.h"
 
 void SensorManager::begin() {
-    Wire1.begin(); // bus I2C1-4 (qua MUX), dùng cho gesture/color
-    Wire.begin();  // bus I2C0 (Port A3) — line tracer cắm trực tiếp ở đây
+    Wire1.begin();
+    Wire.begin();
 
-    // Line tracer: I2C0 (Port A3) — Wire trực tiếp, KHÔNG qua MUX.
-    // Bằng chứng thực tế: đọc qua Wire1+MUX ch0 → getAllSensors() trả
-    // NO_RESPONSE và robot chạy thẳng không bám line.
     _lineTracer = &MiniR4.I2C0.MXLineTracer;
     _lineTracer->begin();
     _lineTracer->setThreshold(LINE_THRESHOLD);
 
-    // Màu sắc (0x29) và gesture (0x73): TỰ DÒ — thử A3/Wire trước, rồi MUX
-    // ch0..7 — robot chạy demo được ngay dù cắm cổng nào.
     locateColorSensor();
     initGestureSensor();
 
-    // INPUT_PULLDOWN: nếu dây tín hiệu PIR bị đứt/hở, chân sẽ đọc LOW thay vì
-    // nổi HIGH — tránh WARN:person giả liên tục khi không có người.
-    // (Module báo mức LOW khi có người? gửi lệnh PIR_MODE:LOW để đảo.)
     pinMode(PIN_PIR, _pirActiveLow ? INPUT_PULLUP : INPUT_PULLDOWN);
     pinMode(PIN_SWITCH, INPUT_PULLUP);
 
     Serial.println("[Sensor] All sensors initialised");
-    Serial.println(scanI2CReport());
 }
 
-void SensorManager::selectMuxChannel(uint8_t ch) {
-    // MUX PCA9548 trên bus Wire1 — chọn kênh 0..7 (byte = 1<<ch).
-    // Gọi an toàn kể cả khi MUX không tồn tại (write bị bỏ qua, không ACK).
-    Wire1.beginTransmission(ADDR_PCA954X);
-    Wire1.write(1 << ch);
-    Wire1.endTransmission();
-    delayMicroseconds(100);
-}
-
-// Thử xem thiết bị địa chỉ `addr` có nằm trên spot (wire, ch) không.
-// ch = 255 → không qua MUX (đường A3/Wire trực tiếp).
 static bool devicePresentOnSpot(TwoWire* wire, uint8_t ch, uint8_t addr) {
     if (ch != 255 && wire == &Wire1) {
         Wire1.beginTransmission(ADDR_PCA954X);
         Wire1.write(1 << ch);
         Wire1.endTransmission();
-        delayMicroseconds(100);
+        delayMicroseconds(300);
     }
     wire->beginTransmission(addr);
     return wire->endTransmission() == 0;
 }
 
-bool SensorManager::tryGestureOnWire(TwoWire* wire, uint8_t ch) {
-    if (ch == 255 && wire != &Wire) return false;     // A3 luôn là Wire
-    if (!devicePresentOnSpot(wire, ch, PAJ7620_IIC_ADDR)) return false;
-    _gestureSensor._ch = ch;
-    _gestureSensor._pWire = wire;
-    int result = _gestureSensor.begin();
-    if (result == 0) {
-        Serial.print("[Sensor] Gesture OK @ ");
-        Serial.print(wire == &Wire ? "A3/Wire" : "MUX ch");
-        if (wire != &Wire) Serial.print(ch);
-        Serial.println();
-        _gestureOK = true;
-        return true;
-    }
-    return false;
-}
-
-bool SensorManager::initGestureSensor() {
-    _gestureOK = false;
-    // Ưu tiên: cấu hình cũ (MUX ch1) → A3/Wire → quét toàn bộ kênh MUX.
-    if (tryGestureOnWire(&Wire1, I2C_CH_GESTURE)) return true;
-    if (tryGestureOnWire(&Wire, 255)) return true;
-    for (int ch = 0; ch < 8; ch++) {
-        if (ch == I2C_CH_GESTURE) continue;
-        if (tryGestureOnWire(&Wire1, (uint8_t)ch)) return true;
-    }
-    Serial.println("[Sensor] Gesture sensor NOT found");
-    return false;
-}
-
 void SensorManager::locateColorSensor() {
-    // Ưu tiên: A3/Wire → cấu hình cũ (MUX ch2) → quét toàn bộ kênh MUX.
     if (devicePresentOnSpot(&Wire, 255, TCS34725_ADDRESS)) {
         _colorSensor._ch = 255;
         _colorSensor._pWire = &Wire;
@@ -109,14 +58,116 @@ void SensorManager::locateColorSensor() {
     Serial.println("[Sensor] Color sensor NOT found");
 }
 
-bool SensorManager::isGestureReady() {
-    return _gestureOK;
+bool SensorManager::tryGestureOnWire(TwoWire* wire, uint8_t ch) {
+    if (ch == 255 && wire != &Wire) return false;
+    if (!devicePresentOnSpot(wire, ch, PAJ7620_IIC_ADDR)) return false;
+    _gestureSensor._ch = ch;
+    _gestureSensor._pWire = wire;
+    int result = _gestureSensor.begin();
+    if (result == 0) {
+        Serial.print("[Sensor] Gesture OK @ ");
+        Serial.print(wire == &Wire ? "A3/Wire" : "MUX ch");
+        if (wire != &Wire) Serial.print(ch);
+        Serial.print(" (ch=");
+        Serial.print(ch);
+        Serial.println(")");
+        _gestureOK = true;
+        return true;
+    }
+    Serial.print("[Sensor] Gesture found but init failed @ ch");
+    Serial.print(ch);
+    Serial.print(" err=");
+    Serial.println(result);
+    return false;
 }
+
+bool SensorManager::initGestureSensor() {
+    _gestureOK = false;
+    if (tryGestureOnWire(&Wire1, I2C_CH_GESTURE)) return true;
+    if (tryGestureOnWire(&Wire, 255)) return true;
+    for (int ch = 0; ch < 8; ch++) {
+        if (ch == I2C_CH_GESTURE) continue;
+        if (tryGestureOnWire(&Wire1, (uint8_t)ch)) return true;
+    }
+    Serial.println("[Sensor] Gesture sensor NOT found");
+    return false;
+}
+
+bool SensorManager::isGestureReady() { return _gestureOK; }
 
 bool SensorManager::reinitGesture() {
     if (_gestureOK) return true;
-    Serial.println("[Sensor] Retrying gesture sensor init...");
+    if (_gestureRetryCount >= GESTURE_MAX_RETRY) return false;
+    _gestureRetryCount++;
     return initGestureSensor();
+}
+
+int SensorManager::readGesture() {
+    if (!_gestureOK) return 0;
+    return _gestureSensor.getGesture();
+}
+
+int SensorManager::readGestureNonBlocking() {
+    if (!_gestureOK) return 0;
+
+    // Select MUX channel if needed
+    if (_gestureSensor._ch != 255) {
+        _gestureSensor._pWire->beginTransmission(ADDR_PCA954X);
+        _gestureSensor._pWire->write(1 << _gestureSensor._ch);
+        _gestureSensor._pWire->endTransmission();
+        delayMicroseconds(300);
+    }
+
+    TwoWire* wire = _gestureSensor._pWire;
+    uint8_t addr = PAJ7620_IIC_ADDR;
+
+    // Read flag_1 (0x44) first — same as library getGesture()
+    wire->beginTransmission(addr);
+    wire->write(PAJ7620_ADDR_GES_PS_DET_FLAG_1);
+    wire->endTransmission();
+    wire->requestFrom(addr, (uint8_t)1);
+    if (!wire->available()) return 0;
+    uint8_t flag1 = wire->read();
+
+    // Wave detected (bit 0 of flag_1) — skip to avoid 1s block
+    // Just return wave gesture code
+    if (flag1 & 0x01) return 9;
+
+    // Read flag_0 (0x43) — basic gestures
+    wire->beginTransmission(addr);
+    wire->write(PAJ7620_ADDR_GES_PS_DET_FLAG_0);
+    wire->endTransmission();
+    wire->requestFrom(addr, (uint8_t)1);
+    if (!wire->available()) return 0;
+    uint8_t flag0 = wire->read();
+
+    // Map register bits to gesture values (matches library)
+    if (flag0 & 0x01) return 1;   // Right
+    if (flag0 & 0x02) return 2;   // Left
+    if (flag0 & 0x04) return 3;   // Up
+    if (flag0 & 0x08) return 4;   // Down
+    if (flag0 & 0x10) return 5;   // Forward
+    if (flag0 & 0x20) return 6;   // Backward
+    if (flag0 & 0x40) return 7;   // Clockwise
+    if (flag0 & 0x80) return 8;   // Anti-Clockwise
+
+    return 0;
+}
+
+bool SensorManager::readPIR() {
+    bool raw = digitalRead(PIN_PIR) == HIGH;
+    return _pirActiveLow ? !raw : raw;
+}
+
+void SensorManager::setPIRMode(bool activeLow) {
+    _pirActiveLow = activeLow;
+    pinMode(PIN_PIR, activeLow ? INPUT_PULLUP : INPUT_PULLDOWN);
+}
+
+bool SensorManager::isPIRActiveLow() { return _pirActiveLow; }
+
+bool SensorManager::readSwitch() {
+    return digitalRead(PIN_SWITCH) == LOW;
 }
 
 float SensorManager::readLineError() {
@@ -131,83 +182,12 @@ uint8_t SensorManager::readLineWidth() {
     return _lineTracer->getLineWidth();
 }
 
-uint8_t SensorManager::readJunctionType() {
-    return _lineTracer->getJunctionType();
-}
-
 int8_t SensorManager::readColorID() {
     return _colorSensor.getColorID();
 }
 
 bool SensorManager::isRedDetected() {
     return readColorID() == COLOR_RED_ID;
-}
-
-int SensorManager::readGesture() {
-    return _gestureSensor.getGesture();
-}
-
-bool SensorManager::readPIR() {
-    bool raw = digitalRead(PIN_PIR) == HIGH;
-    return _pirActiveLow ? !raw : raw;
-}
-
-void SensorManager::setPIRMode(bool activeLow) {
-    _pirActiveLow = activeLow;
-    pinMode(PIN_PIR, activeLow ? INPUT_PULLUP : INPUT_PULLDOWN);
-    Serial.print("[Sensor] PIR mode: ");
-    Serial.println(activeLow ? "ACTIVE_LOW (người -> chân xuống LOW)"
-                             : "ACTIVE_HIGH (người -> chân lên HIGH)");
-}
-
-bool SensorManager::isPIRActiveLow() {
-    return _pirActiveLow;
-}
-
-// Quét toàn bộ bus I2C: (1) cổng I2C0 = Wire trực tiếp (line tracer/đỏ),
-// (2) Wire1: MUX 0x70 + từng kênh 0..7. Trả về chuỗi phân tách bằng '|'.
-String SensorManager::scanI2CReport() {
-    String report = "";
-    const uint8_t startA = 0x03, endA = 0x78;
-
-    // ── Bus I2C0 (Port A3, Wire trực tiếp) ──
-    report += "SCAN A3(I2C0/Wire):";
-    for (uint8_t addr = startA; addr <= endA; addr++) {
-        Wire.beginTransmission(addr);
-        if (Wire.endTransmission() == 0) {
-            report += " 0x" + String(addr, HEX);
-            delay(2);
-        }
-    }
-    if (report.endsWith(":")) report += " none";
-
-    // ── Bus Wire1: MUX + kênh 0..7 ──
-    report += "|MUX0x70:";
-    Wire1.beginTransmission(ADDR_PCA954X);
-    bool muxFound = (Wire1.endTransmission() == 0);
-    report += muxFound ? "yes" : "no";
-
-    if (muxFound) {
-        for (uint8_t ch = 0; ch < 8; ch++) {
-            Wire1.beginTransmission(ADDR_PCA954X);
-            Wire1.write(1 << ch);
-            Wire1.endTransmission();
-            delay(2);
-            String found = "";
-            for (uint8_t addr = startA; addr <= endA; addr++) {
-                Wire1.beginTransmission(addr);
-                if (Wire1.endTransmission() == 0) {
-                    found += " 0x" + String(addr, HEX);
-                    delay(2);
-                }
-            }
-            report += "|ch" + String(ch) + ":" + (found.length() ? found : "none");
-        }
-        Wire1.beginTransmission(ADDR_PCA954X);
-        Wire1.write(0);
-        Wire1.endTransmission();
-    }
-    return report;
 }
 
 void SensorManager::calibrateBegin() {
@@ -218,6 +198,30 @@ void SensorManager::calibrateEnd() {
     _lineTracer->endCalibration();
 }
 
-bool SensorManager::readSwitch() {
-    return digitalRead(PIN_SWITCH) == LOW;
+bool SensorManager::isLeftJunction() {
+    uint8_t sensors[10] = {0};
+    if (!_lineTracer->getAllSensors(sensors)) return false;
+
+    uint8_t width = readLineWidth();
+    if (width < JUNCTION_WIDTH_MIN) return false;
+
+    uint8_t leftActive = 0;
+    for (uint8_t i = 0; i < 4; i++) {
+        if (sensors[i] > (100 - LINE_THRESHOLD)) leftActive++;
+    }
+    return leftActive >= JUNCTION_LEFT_MIN;
+}
+
+bool SensorManager::isRightJunction() {
+    uint8_t sensors[10] = {0};
+    if (!_lineTracer->getAllSensors(sensors)) return false;
+
+    uint8_t width = readLineWidth();
+    if (width < JUNCTION_WIDTH_MIN) return false;
+
+    uint8_t rightActive = 0;
+    for (uint8_t i = 6; i < 10; i++) {
+        if (sensors[i] > (100 - LINE_THRESHOLD)) rightActive++;
+    }
+    return rightActive >= JUNCTION_LEFT_MIN;
 }

@@ -18,6 +18,10 @@ public:
 
     bool wasConnected();
 
+    // Returns true while a sendMessage() is still streaming chunks.
+    // Main loop MUST keep calling ble.update() during this time.
+    bool isSending() const { return _sendPos < _sendLen; }
+
 private:
     BLEService service{SERVICE_UUID};
     BLECharacteristic txChar{TX_CHAR_UUID, BLERead | BLENotify, 20};
@@ -28,6 +32,14 @@ private:
     bool _msgReady = false;
     bool _prevConnected = false;
     unsigned long _lastWriteMs = 0;
+
+    // Non-blocking chunked send state
+    String _sendBuf;
+    int _sendPos = 0;
+    int _sendLen = 0;
+    unsigned long _lastChunkMs = 0;
+
+    void updateSend();
 
     static void onRXWritten(BLEDevice central, BLECharacteristic characteristic);
 };

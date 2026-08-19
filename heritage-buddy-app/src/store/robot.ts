@@ -17,8 +17,15 @@ interface RobotStore {
   isMoving: boolean;
   pirDetected: boolean;
 
+  // Telemetry (from heartbeat)
+  batteryVoltage: number | null;
+  lineError: number | null;
+  pirState: "HIGH" | "LOW" | null;
+  robotState: string | null;
+
   // Gesture
   lastGesture: GestureType;
+  gesturePaused: boolean;
 
   // Warning / status / SOS (two-way interaction)
   activeWarn: WarnType | null;
@@ -36,7 +43,12 @@ interface RobotStore {
   setCurrentStop: (stop: number) => void;
   setIsMoving: (moving: boolean) => void;
   setPirDetected: (detected: boolean) => void;
+  setBatteryVoltage: (voltage: number | null) => void;
+  setLineError: (error: number | null) => void;
+  setPirState: (state: "HIGH" | "LOW" | null) => void;
+  setRobotState: (state: string | null) => void;
   setGesture: (gesture: GestureType) => void;
+  setGesturePaused: (paused: boolean) => void;
   setActiveWarn: (warn: WarnType | null) => void;
   setRobotStatus: (status: RobotStatusType | null) => void;
   setSosActive: (active: boolean) => void;
@@ -56,8 +68,15 @@ export const useRobotStore = create<RobotStore>((set) => ({
   isMoving: false,
   pirDetected: false,
 
+  // Telemetry
+  batteryVoltage: null,
+  lineError: null,
+  pirState: null,
+  robotState: null,
+
   // Gesture
   lastGesture: null,
+  gesturePaused: false,
 
   // Warning / status / SOS
   activeWarn: null,
@@ -75,7 +94,12 @@ export const useRobotStore = create<RobotStore>((set) => ({
   setCurrentStop: (currentStop) => set({ currentStop }),
   setIsMoving: (isMoving) => set({ isMoving }),
   setPirDetected: (pirDetected) => set({ pirDetected }),
+  setBatteryVoltage: (batteryVoltage) => set({ batteryVoltage }),
+  setLineError: (lineError) => set({ lineError }),
+  setPirState: (pirState) => set({ pirState }),
+  setRobotState: (robotState) => set({ robotState }),
   setGesture: (lastGesture) => set({ lastGesture }),
+  setGesturePaused: (gesturePaused) => set({ gesturePaused }),
   setActiveWarn: (activeWarn) => set({ activeWarn }),
   setRobotStatus: (robotStatus) => set({ robotStatus }),
   setSosActive: (sosActive) => set({ sosActive }),

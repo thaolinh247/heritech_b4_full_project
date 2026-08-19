@@ -8,7 +8,9 @@ enum class RobotState {
     FOLLOW_LINE,
     WAIT_CLEAR,
     AT_NODE,
-    END
+    TURNING,
+    FOLLOW_TO_JUNCTION,
+    PAUSED,
 };
 
 class StateMachine {

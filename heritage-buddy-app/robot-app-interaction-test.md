@@ -49,11 +49,11 @@
 
 | # | Test Case | Steps | Expected Result |
 |---|-----------|-------|-----------------|
-| 2.5.1 | Swipe Right gesture | Robot gửi `GESTURE:SWIPE_RIGHT` | `setGesture("swipe_right")` |
-| 2.5.2 | Swipe Left gesture | Robot gửi `GESTURE:SWIPE_LEFT` | `setGesture("swipe_left")` |
-| 2.5.3 | Swipe Up gesture | Robot gửi `GESTURE:SWIPE_UP` | `setGesture("swipe_up")` |
-| 2.5.4 | Swipe Down gesture | Robot gửi `GESTURE:SWIPE_DOWN` | `setGesture("swipe_down")` |
-| 2.5.5 | Unknown gesture format | Robot gửi `GESTURE:UNKNOWN` | `gestureMap["UNKNOWN"]` → `undefined` → không gọi `setGesture` |
+| 2.5.1 | Swipe Right gesture | Robot gửi `GESTURE:SWIPE_RIGHT` | `setGesture("swipe_right")` (khi app ở màn hình node) |
+| 2.5.2 | Swipe Left gesture | Robot gửi `GESTURE:SWIPE_LEFT` | `setGesture("swipe_left")` (khi app ở màn hình node) |
+| 2.5.3 | Swipe Up gesture (stop) | Robot gửi `GESTURE:SWIPE_UP` | `setGesturePaused(true)` bất kể màn hình (robot tự tạm dừng ở firmware) |
+| 2.5.4 | Gesture "đi tiếp" sau khi paused | Robot đang PAUSED, gửi `GESTURE:SWIPE_RIGHT/LEFT` | Firmware resume (`STATUS:resumed`), app xoá trạng thái dừng |
+| 2.5.5 | Unknown gesture format | Robot gửi `GESTURE:UNKNOWN` | `parseRobotMessage()` trả về null → bỏ qua, log warning |
 
 ### 2.6 Unknown / Malformed Commands
 
@@ -90,6 +90,9 @@
 | 4.6 | Gesture with no current node | 1. `currentNodeId` = null<br>2. Robot gửi gesture | Early return ở đầu `useEffect`, không xử lý |
 | 4.7 | Gesture on last node | 1. Ở node cuối (order=13)<br>2. Robot gửi gesture | `MUSEUM_NODES.find(n => n.order === 14)` → undefined, navigate không xảy ra |
 | 4.8 | Gesture khi chưa kết nối BLE | 1. Mất kết nối BLE<br>2. Robot gửi gesture | Navigation vẫn hoạt động, chỉ bỏ qua `sendCommand("VOICE_NEXT")` |
+| 4.9 | Swipe Up = STOP (màn hình node) | 1. Ở màn hình node<br>2. Robot gửi `GESTURE:SWIPE_UP` | `gesturePaused=true`, KHÔNG `completeNode`, KHÔNG navigate, KHÔNG gửi `VOICE_NEXT` |
+| 4.10 | Swipe Up = STOP (đang chạy, app ở map) | 1. App ở /museum-map, robot đang chạy<br>2. Robot gửi `GESTURE:SWIPE_UP` | `gesturePaused=true`, banner "Robot đã dừng" hiện toàn cục, robot dừng tại chỗ |
+| 4.11 | Tiếp tục sau khi dừng bằng cử chỉ | 1. Robot đang PAUSED<br>2. Gửi `VOICE_NEXT` / nói "tiếp theo" / vuốt trái-phải | Firmware resume chặng dở, app xoá banner dừng (`STATUS:resumed`) |
 
 ## 5. Screen Integration Flows
 

@@ -5,7 +5,7 @@ import { usePathname } from "expo-router";
 import { Pressable, Text, View } from "@/tw";
 import { Image } from "expo-image";
 import { images } from "@/constants/images";
-import { onMessage, sendCommand } from "@/lib/bluetooth";
+import { sendCommand } from "@/lib/bluetooth";
 import { speak, stopSpeaking } from "@/lib/tts";
 import { useRobotStore } from "@/store/robot";
 import { getLanguage, useT } from "@/lib/i18n";
@@ -32,9 +32,11 @@ export function RobotInteractionOverlay() {
   const activeWarn = useRobotStore((s) => s.activeWarn);
   const robotStatus = useRobotStore((s) => s.robotStatus);
   const sosActive = useRobotStore((s) => s.sosActive);
+  const gesturePaused = useRobotStore((s) => s.gesturePaused);
   const setActiveWarn = useRobotStore((s) => s.setActiveWarn);
   const setRobotStatus = useRobotStore((s) => s.setRobotStatus);
   const setSosActive = useRobotStore((s) => s.setSosActive);
+  const setGesturePaused = useRobotStore((s) => s.setGesturePaused);
 
   const sosHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const personDismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -69,17 +71,15 @@ export function RobotInteractionOverlay() {
     }
   }, [setActiveWarn]);
 
-  // ─── Xử lý tín hiệu robot ──────────────────
+  // ─── Side effects for WARN/STATUS changes ──
 
   const handleWarn = useCallback(
     (type: WarnType) => {
       clearWarn();
-      setActiveWarn(type);
 
       if (type === "person") {
         Vibration.vibrate();
         speak({ text: t("warn.person"), language: getLanguage() });
-        // Fallback: nếu robot mất kết nối giữa vòng chờ, tự tắt banner sau ~10s
         personDismissTimer.current = setTimeout(() => {
           setActiveWarn(null);
           personDismissTimer.current = null;
@@ -105,7 +105,7 @@ export function RobotInteractionOverlay() {
       if (s === "resumed" || s === "auto_resumed") {
         clearWarn();
         setSosActive(false);
-        setRobotStatus(s);
+        setGesturePaused(false);
         speak({
           text:
             s === "resumed"
@@ -115,11 +115,7 @@ export function RobotInteractionOverlay() {
         });
       } else if (s === "sos") {
         Vibration.vibrate();
-        setSosActive(true);
-        setRobotStatus("sos");
         speak({ text: t("sos.spoken"), language: getLanguage() });
-      } else {
-        setRobotStatus("unknown");
       }
 
       statusTimer.current = setTimeout(() => {
@@ -127,26 +123,49 @@ export function RobotInteractionOverlay() {
         statusTimer.current = null;
       }, STATUS_TOAST_MS);
     },
-    [clearWarn, setRobotStatus, setSosActive, t],
+    [clearWarn, setRobotStatus, setSosActive, setGesturePaused, t],
   );
 
-  // Lắng nghe tín hiệu WARN/STATUS từ robot (chạy trên mọi màn hình)
-  useEffect(() => {
-    const unsubscribe = onMessage((msg: string) => {
-      const trimmed = msg.trim();
-      if (trimmed.startsWith("WARN:")) {
-        handleWarn(trimmed.slice(5) as WarnType);
-      } else if (trimmed.startsWith("STATUS:")) {
-        handleStatus(trimmed.slice(7).toLowerCase());
-      }
-    });
+  // Watch store changes for WARN/STATUS (set by use-robot-connection.ts)
+  const prevActiveWarnRef = useRef(activeWarn);
+  const prevRobotStatusRef = useRef(robotStatus);
 
+  useEffect(() => {
+    // WARN changed
+    if (activeWarn !== prevActiveWarnRef.current) {
+      prevActiveWarnRef.current = activeWarn;
+      if (activeWarn) {
+        handleWarn(activeWarn);
+      }
+    }
+  }, [activeWarn, handleWarn]);
+
+  useEffect(() => {
+    // STATUS changed
+    if (robotStatus !== prevRobotStatusRef.current) {
+      prevRobotStatusRef.current = robotStatus;
+      if (robotStatus) {
+        handleStatus(robotStatus);
+      }
+    }
+  }, [robotStatus, handleStatus]);
+
+  // Robot tạm dừng do cử chỉ vuốt lên → thông báo bằng giọng nói + rung
+  // (2 kênh: âm thanh + hình ảnh) để khách biết cử chỉ đã được nhận.
+  useEffect(() => {
+    if (gesturePaused) {
+      Vibration.vibrate();
+      speak({ text: t("gesture.pausedSpoken"), language: getLanguage() });
+    }
+  }, [gesturePaused, t]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
     return () => {
-      unsubscribe();
       clearTimers();
       stopSpeaking();
     };
-  }, [handleWarn, handleStatus]);
+  }, []);
 
   // ─── Hành động người dùng ──────────────────
 
@@ -394,6 +413,48 @@ export function RobotInteractionOverlay() {
             >
               {statusToastText}
             </Text>
+          </View>
+        </View>
+      )}
+
+      {/* ── Banner tạm dừng do cử chỉ vuốt lên ── */}
+      {gesturePaused && !sosActive && !showPersonBanner && (
+        <View
+          style={{
+            position: "absolute",
+            top: insets.top + 16,
+            left: 24,
+            right: 24,
+            alignItems: "center",
+            zIndex: 25,
+          }}
+          pointerEvents="none"
+        >
+          <View
+            className="px-5 py-3 rounded-2xl flex-row items-center"
+            style={{
+              backgroundColor: "#5C3A21",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.25,
+              shadowRadius: 6,
+              elevation: 4,
+            }}
+          >
+            <Text style={{ fontSize: 26, marginRight: 10 }}>✋</Text>
+            <View className="flex-1">
+              <Text
+                className="text-lg"
+                style={{ fontFamily: "Helvetica-Bold", color: "#FFFFFF" }}
+              >
+                {t("gesture.pausedTitle")}
+              </Text>
+              <Text
+                style={{ fontFamily: "Helvetica-Regular", color: "#F0E2D2", fontSize: 14 }}
+              >
+                {t("gesture.pausedBody")}
+              </Text>
+            </View>
           </View>
         </View>
       )}

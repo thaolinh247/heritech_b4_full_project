@@ -44,6 +44,12 @@ const vi = {
   "map.alertResetBody": "Bạn có chắc muốn xoá toàn bộ tiến trình khám phá?",
   "map.alertResetConfirm": "Xác nhận",
   "map.sectionLabel": "Khu vực",
+  "map.stateMoving": "Đang chạy",
+  "map.stateWaiting": "Đang chờ",
+  "map.stateAtNode": "Đã tới",
+  "map.stateIdle": "Đang dừng",
+  "map.stateEnd": "Kết thúc",
+  "map.stop": "Điểm",
 
   // ── Node video (node/[id].tsx) ─────────
   "node.notFound": "Không tìm thấy nội dung",
@@ -91,6 +97,12 @@ const vi = {
   "warn.turnRightToast": "Robot đang rẽ phải",
   "warn.continue": "Đi tiếp",
   "warn.continueA11y": "Nhấn để robot tiếp tục hành trình",
+
+  // ── Gesture pause (robot-interaction-overlay.tsx) ─
+  "gesture.pausedSpoken":
+    "Bạn vừa ra hiệu dừng. Robot đã tạm dừng hành trình. Hãy ra hiệu đi tiếp hoặc nói tiếp theo để robot chạy tiếp.",
+  "gesture.pausedTitle": "Robot đã dừng",
+  "gesture.pausedBody": "Ra hiệu 'đi tiếp' để robot chạy tiếp",
 
   // ── Status (robot-interaction-overlay.tsx) ─
   "status.resumed": "Robot đã tiếp tục hành trình.",
@@ -200,6 +212,12 @@ const en: Record<TranslationKey, string> = {
   "map.alertResetBody": "Are you sure you want to clear all exploration progress?",
   "map.alertResetConfirm": "Confirm",
   "map.sectionLabel": "Section",
+  "map.stateMoving": "Moving",
+  "map.stateWaiting": "Waiting",
+  "map.stateAtNode": "Arrived",
+  "map.stateIdle": "Stopped",
+  "map.stateEnd": "Finished",
+  "map.stop": "Stop",
 
   // ── Node video (node/[id].tsx) ─────────
   "node.notFound": "Content not found",
@@ -247,6 +265,12 @@ const en: Record<TranslationKey, string> = {
   "warn.turnRightToast": "Robot turning right",
   "warn.continue": "Continue",
   "warn.continueA11y": "Tap to make the robot continue its journey",
+
+  // ── Gesture pause (robot-interaction-overlay.tsx) ─
+  "gesture.pausedSpoken":
+    "You signaled stop. The robot has paused the tour. Signal continue or say next to make the robot move again.",
+  "gesture.pausedTitle": "Robot paused",
+  "gesture.pausedBody": "Signal 'continue' to make the robot move again",
 
   // ── Status (robot-interaction-overlay.tsx) ─
   "status.resumed": "The robot has resumed the tour.",

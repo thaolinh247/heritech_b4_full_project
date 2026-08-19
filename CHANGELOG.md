@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+- **Vuốt lên = DỪNG ROBOT (19/08)**: cử chỉ vuốt lên (PAJ7620 gesture 3) giờ là lệnh **tạm dừng hành trình** — robot đang chạy giữa các node gặp cử chỉ vuốt lên sẽ dừng ngay tại chỗ (LED xanh dương + tiếng bíp + gửi `GESTURE:SWIPE_UP` cho app) và CHỈ tiếp tục khi nhận tín hiệu "đi tiếp" (vuốt trái/phải/vẫy tay trên cảm biến, nói "tiếp theo", hoặc nút "Tiếp tục" trên app). Sửa 2 phía:
+  - **Firmware**: thêm trạng thái `PAUSED` (`state_machine.*`), hàm `pauseRobot()`/`resumeFromPause()` — lưu trạng thái trước khi dừng (`FOLLOW_LINE`/`FOLLOW_TO_JUNCTION`/`TURNING`) và phục hồi đúng chặng đang dở khi tiếp tục (xoay 90° dở được khởi động lại từ đầu qua `startTurnRight90()`); lệnh `VOICE_NEXT`/`NEXT_NODE`/`NODE_DONE`/`RESUME` cũng đều resume từ PAUSED; cử chỉ "đi tiếp" trong lúc PAUSED không gửi `GESTURE:SWIPE_RIGHT/LEFT` cho app (tránh app tưởng nhầm đang ở node để điều hướng) mà gửi `STATUS:resumed`.
+  - **App**: `types/robot.ts` thêm `GESTURE:SWIPE_UP` + `swipe_up`; `use-robot-connection.ts` nhận `GESTURE:SWIPE_UP` → bật cờ `gesturePaused` toàn cục (bất kể màn hình) và tự xoá khi nhận `STATUS:resumed`/`auto_resumed`; `use-gesture-navigation.ts` — nếu nhận `swipe_up` ở màn hình node thì KHÔNG đánh dấu node xong, KHÔNG gửi `VOICE_NEXT`, KHÔNG điều hướng; overlay toàn cục hiện banner "Robot đã dừng" (icon ✋ + chữ + TTS giọng nói + rung — 2 kênh cảnh báo đúng quy chuẩn accessibility). `tsc` 0 lỗi, `expo lint` 0 lỗi (3 warning cũ).
+
 ### Docs
 - **Plan màn hình "Máy chủ AI" + hướng dẫn sử dụng (17/08)**: `PLAN-SERVER-SETTINGS.md` — phương án tối ưu cho vấn đề `EXPO_PUBLIC_BACKEND_URL` nạp cứng lúc build (DHCP đổi IP → "Hỏi Buddy" hỏng, phải build lại): thêm ô nhập URL + nút "Lưu & Kiểm tra" trong app (5 file + 2 file mới: `store/server.ts`, `app/settings.tsx`, sửa `lib/llm.ts` đọc URL động mỗi lần gọi + trả lỗi kèm URL đang thử, ⚙️ trên museum-map, key i18n, test store) → đổi IP trong 30 giây, không bao giờ build lại. Kèm bảng so sánh IP tĩnh vs ô nhập. `HUONG-DAN-SU-DUNG.md` — cẩm nang vận hành demo cho người dùng: cài APK (eas login/build/list), bật máy chủ AI (`server/`), quy tắc 30 giây kiểm tra máy chủ trong ⚙️, bảng thao tác demo, trục trặc thường gặp, checklist ngày demo.
 

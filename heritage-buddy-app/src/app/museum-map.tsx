@@ -8,6 +8,7 @@ import { MapNode } from "@/components/map/map-node";
 import { MapPath } from "@/components/map/map-path";
 import { useMapProgress } from "@/hooks/use-map-progress";
 import { useRobotConnection } from "@/hooks/use-robot-connection";
+import { useRobotStore } from "@/store/robot";
 import { getMaxNodeY } from "@/data/museum-map";
 import { images } from "@/constants/images";
 import { useT } from "@/lib/i18n";
@@ -16,6 +17,27 @@ import type { MapNode as MapNodeType } from "@/types/museum-map";
 const NODE_SIZE = 56;
 const EXTRA_PADDING = 80;
 const MAP_Y_SPACING = 10;
+
+// 2S LiPo: 8.4V full, 6.0V empty
+function batteryPercent(v: number | null): number | null {
+  if (v === null) return null;
+  return Math.round(Math.max(0, Math.min(100, ((v - 6.0) / (8.4 - 6.0)) * 100)));
+}
+
+function batteryColor(p: number | null): string {
+  if (p === null) return "#9E9E9E";
+  if (p > 50) return "#2E8B7E";
+  if (p > 20) return "#E8935E";
+  return "#E85D4E";
+}
+
+const STATE_LABELS: Record<string, string> = {
+  moving: "▶",
+  waiting: "⏸",
+  at_node: "📍",
+  idle: "⏹",
+  end: "🏁",
+};
 
 export default function MuseumMapScreen() {
   const router = useRouter();
@@ -34,6 +56,10 @@ export default function MuseumMapScreen() {
     connect,
     sendCommand,
   } = useRobotConnection();
+
+  const batteryVoltage = useRobotStore((s) => s.batteryVoltage);
+  const robotState = useRobotStore((s) => s.robotState);
+  const currentStop = useRobotStore((s) => s.currentStop);
 
   const [containerWidth, setContainerWidth] = useState(0);
   const t = useT();
@@ -239,6 +265,65 @@ export default function MuseumMapScreen() {
             <ActivityIndicator size="small" color="#E8935E" />
           )}
         </View>
+
+        {/* Telemetry Panel */}
+        {isConnected && (
+          <View
+            className="flex-row items-center justify-between mb-3 px-3 py-2 rounded-xl"
+            style={{ backgroundColor: "#FFF8F0", borderWidth: 1, borderColor: "#E2D2C1" }}
+          >
+            {/* Battery */}
+            <View className="flex-row items-center">
+              <Text
+                className="text-lg mr-1"
+                style={{ color: batteryColor(batteryPercent(batteryVoltage)) }}
+              >
+                🔋
+              </Text>
+              <Text
+                className="text-xs"
+                style={{ fontFamily: "Helvetica-Bold", color: "#5C3A21" }}
+              >
+                {batteryVoltage !== null
+                  ? `${batteryPercent(batteryVoltage)}%`
+                  : "--"}
+              </Text>
+            </View>
+
+            {/* Robot State */}
+            <View className="flex-row items-center">
+              <Text className="text-sm mr-1">
+                {STATE_LABELS[robotState ?? "idle"] ?? "⏹"}
+              </Text>
+              <Text
+                className="text-xs"
+                style={{ fontFamily: "Helvetica-Bold", color: "#5C3A21" }}
+              >
+                {robotState === "moving"
+                  ? t("map.stateMoving")
+                  : robotState === "waiting"
+                    ? t("map.stateWaiting")
+                    : robotState === "at_node"
+                      ? t("map.stateAtNode")
+                      : robotState === "end"
+                        ? t("map.stateEnd")
+                        : t("map.stateIdle")}
+              </Text>
+            </View>
+
+            {/* Current Stop */}
+            <View className="flex-row items-center">
+              <Text
+                className="text-xs"
+                style={{ fontFamily: "Helvetica-Bold", color: "#5C3A21" }}
+              >
+                {currentStop > 0
+                  ? `${t("map.stop")} ${currentStop}/5`
+                  : t("map.stateIdle")}
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Start Button */}
         <Pressable

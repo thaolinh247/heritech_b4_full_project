@@ -41,6 +41,9 @@ bool BLEHandler::wasConnected() {
 void BLEHandler::update() {
     BLE.poll();
 
+    // Non-blocking chunked TX — must run every loop() iteration
+    updateSend();
+
     if (!_central) {
         _central = BLE.central();
         if (_central) {
@@ -65,20 +68,27 @@ void BLEHandler::update() {
 
 void BLEHandler::sendMessage(const String& msg) {
     if (!isConnected()) return;
+    // If a previous message is still streaming, drop this one
+    // (main loop should check isSending() before calling).
+    if (_sendPos < _sendLen) return;
 
-    uint8_t buf[20];
-    int len = msg.length();
-    int pos = 0;
+    _sendBuf = msg;
+    _sendPos = 0;
+    _sendLen = msg.length();
+    _lastChunkMs = 0; // Force immediate first chunk
+}
 
-    while (pos < len) {
-        int chunk = min(20, len - pos);
-        for (int i = 0; i < chunk; i++) {
-            buf[i] = (uint8_t)msg[pos + i];
-        }
-        txChar.writeValue((const void*)buf, chunk, false);
-        pos += chunk;
-        delay(10);
-    }
+void BLEHandler::updateSend() {
+    if (_sendPos >= _sendLen) return;
+
+    // Throttle: 10ms between chunks — non-blocking, driven by millis()
+    unsigned long now = millis();
+    if (now - _lastChunkMs < 10) return;
+    _lastChunkMs = now;
+
+    int chunk = min(20, _sendLen - _sendPos);
+    txChar.writeValue((const void*)(_sendBuf.c_str() + _sendPos), chunk, false);
+    _sendPos += chunk;
 }
 
 bool BLEHandler::hasReceivedMessage() {

@@ -10,6 +10,7 @@ export type RobotToAppCommand =
   | "VOICE_STOP"
   | "GESTURE:SWIPE_RIGHT"
   | "GESTURE:SWIPE_LEFT"
+  | "GESTURE:SWIPE_UP"
   | "WARN:<type>"
   | "STATUS:<state>";
 
@@ -48,16 +49,20 @@ export type BLEConnectionStatus =
 export type GestureType =
   | "swipe_right"
   | "swipe_left"
+  | "swipe_up"
   | null;
 
 // ─── Robot Telemetry ─────────────────────────
 
 export interface RobotTelemetry {
   currentStop: number;
-  batteryLevel: number;
+  batteryVoltage: number | null;
   isMoving: boolean;
   gesture: GestureType;
   pirDetected: boolean;
+  lineError: number | null;
+  pirState: "HIGH" | "LOW" | null;
+  robotState: string | null;
 }
 
 // ─── Legacy Types (for backward compatibility) ──

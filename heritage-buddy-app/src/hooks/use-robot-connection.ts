@@ -31,8 +31,56 @@ function parseRobotMessage(msg: string): RobotToAppCommand | null {
   if (trimmed === "VOICE_STOP") return "VOICE_STOP";
   if (trimmed === "GESTURE:SWIPE_RIGHT") return "GESTURE:SWIPE_RIGHT";
   if (trimmed === "GESTURE:SWIPE_LEFT") return "GESTURE:SWIPE_LEFT";
+  if (trimmed === "GESTURE:SWIPE_UP") return "GESTURE:SWIPE_UP";
 
   return null;
+}
+
+// ─── Heartbeat Parser ─────────────────────
+
+interface HeartbeatData {
+  voltage: number | null;
+  lineError: number | null;
+  lineWidth: number | null;
+  pirState: "HIGH" | "LOW" | null;
+  pirMode: string | null;
+  colorId: number | null;
+  robotState: string | null;
+  currentStop: number | null;
+}
+
+function parseHeartbeat(msg: string): HeartbeatData {
+  const result: HeartbeatData = {
+    voltage: null,
+    lineError: null,
+    lineWidth: null,
+    pirState: null,
+    pirMode: null,
+    colorId: null,
+    robotState: null,
+    currentStop: null,
+  };
+
+  // Format: STATUS:heartbeat err=0.5 w=3 v=7.82 st=moving stop=2 pir=HIGH pm=hi color=0
+  const errMatch = msg.match(/err=([-\d.]+)/);
+  const wMatch = msg.match(/w=(\d+)/);
+  const vMatch = msg.match(/v=([-\d.]+)/);
+  const stMatch = msg.match(/st=(\w+)/);
+  const stopMatch = msg.match(/stop=(\d+)/);
+  const pirMatch = msg.match(/pir=(HIGH|LOW)/);
+  const pmMatch = msg.match(/pm=(lo|hi)/);
+  const colorMatch = msg.match(/color=(\d+)/);
+
+  if (errMatch) result.lineError = parseFloat(errMatch[1]);
+  if (wMatch) result.lineWidth = parseInt(wMatch[1], 10);
+  if (vMatch) result.voltage = parseFloat(vMatch[1]);
+  if (stMatch) result.robotState = stMatch[1];
+  if (stopMatch) result.currentStop = parseInt(stopMatch[1], 10);
+  if (pirMatch) result.pirState = pirMatch[1] as "HIGH" | "LOW";
+  if (pmMatch) result.pirMode = pmMatch[1];
+  if (colorMatch) result.colorId = parseInt(colorMatch[1], 10);
+
+  return result;
 }
 
 // ─── Hook ───────────────────────────────────
@@ -46,8 +94,17 @@ export function useRobotConnection() {
     setConnected,
     setCurrentDevice,
     setCurrentStop,
+    setIsMoving,
     setPirDetected,
+    setBatteryVoltage,
+    setLineError,
+    setPirState,
+    setRobotState,
     setGesture,
+    setGesturePaused,
+    setActiveWarn,
+    setRobotStatus,
+    setSosActive,
     addRobotMessage,
   } = useRobotStore();
 
@@ -157,8 +214,6 @@ export function useRobotConnection() {
           break;
 
         case "ALARM":
-          // Legacy PIR alarm — firmware hiện gửi WARN:person (overlay xử lý banner).
-          // Chỉ rung nhẹ, KHÔNG hiện hộp thoại — không bắt người dùng bấm gì.
           console.log("[useRobotConnection] PIR alarm (legacy)");
           setPirDetected(true);
           Vibration.vibrate();
@@ -166,7 +221,6 @@ export function useRobotConnection() {
           break;
 
         case "SWITCH_PRESS": {
-          // Chống nhiễu phím (bounce) — chỉ xử lý 1 lần trong 500ms
           const now = Date.now();
           if (now - lastSwitchPressRef.current < SWITCH_PRESS_DEBOUNCE_MS) {
             console.log("[useRobotConnection] Switch press debounced");
@@ -188,7 +242,43 @@ export function useRobotConnection() {
           break;
 
         default:
-          // NODE_START or NODE_COMPLETE - handled elsewhere
+          // ── Heartbeat (mỗi 2s) ──
+          if (command.startsWith("STATUS:heartbeat")) {
+            const hb = parseHeartbeat(msg);
+            if (hb.voltage !== null) setBatteryVoltage(hb.voltage);
+            if (hb.lineError !== null) setLineError(hb.lineError);
+            if (hb.pirState !== null) setPirState(hb.pirState);
+            if (hb.robotState !== null) {
+              setRobotState(hb.robotState);
+              setIsMoving(hb.robotState === "moving");
+            }
+            if (hb.currentStop !== null) setCurrentStop(hb.currentStop);
+            break;
+          }
+
+          // ── WARN (person, turn_l, turn_r) ──
+          if (command.startsWith("WARN:")) {
+            const warnType = command.slice(5);
+            if (warnType === "person" || warnType === "turn_l" || warnType === "turn_r") {
+              setActiveWarn(warnType);
+            }
+            break;
+          }
+
+          // ── STATUS (resumed, auto_resumed, sos, etc.) ──
+          if (command.startsWith("STATUS:")) {
+            const statusValue = command.slice(7).toLowerCase();
+            if (statusValue === "resumed" || statusValue === "auto_resumed") {
+              setRobotStatus(statusValue);
+              setGesturePaused(false);
+            } else if (statusValue === "sos") {
+              setSosActive(true);
+              setRobotStatus("sos");
+            }
+            break;
+          }
+
+          // ── NODE_COMPLETE ──
           if (command.startsWith("NODE_COMPLETE:")) {
             const nodeIndex = parseInt(command.split(":")[1], 10);
             if (!isNaN(nodeIndex) && MUSEUM_NODES[nodeIndex]) {
@@ -200,13 +290,12 @@ export function useRobotConnection() {
             }
           }
 
+          // ── NODE_START ──
           if (command.startsWith("NODE_START:")) {
             const nodeParam = command.split(":")[1];
             const nodeIndex = parseInt(nodeParam, 10);
             setCurrentStop(nodeIndex || 0);
 
-            // Robot đã tới điểm dừng → tự động mở màn hình nội dung (narration)
-            // Trừ khi app đang đứng sẵn trên đúng node đó.
             const arrivedNode =
               MUSEUM_NODES[nodeIndex] ??
               MUSEUM_NODES.find((n) => n.id === nodeParam);
@@ -214,11 +303,20 @@ export function useRobotConnection() {
               router.replace(`/node/${arrivedNode.id}`);
             }
           }
-          if (command === "GESTURE:SWIPE_RIGHT" || command === "GESTURE:SWIPE_LEFT") {
-            // Cử chỉ trái/phải = "đi tiếp" — chỉ có nghĩa khi đang xem nội dung node.
-            // Khi robot đang chạy (app ở bản đồ/chat) thì bỏ qua — tránh
-            // cử chỉ cũ bị màn hình node tiếp theo dùng nhầm.
-            if (pathname.startsWith("/node/")) {
+          if (
+            command === "GESTURE:SWIPE_RIGHT" ||
+            command === "GESTURE:SWIPE_LEFT" ||
+            command === "GESTURE:SWIPE_UP"
+          ) {
+            // Vuốt lên = DỪNG: robot đã tự tạm dừng ở firmware (PAUSED).
+            // App báo UI toàn cục; hành trình chỉ tiếp tục khi nhận tín hiệu
+            // "đi tiếp" (cử chỉ khác / giọng nói / nút trên app).
+            if (command === "GESTURE:SWIPE_UP") {
+              setGesturePaused(true);
+            } else if (pathname.startsWith("/node/")) {
+              // Cử chỉ trái/phải = "đi tiếp" — chỉ có nghĩa khi đang xem nội dung node.
+              // Khi robot đang chạy (app ở bản đồ/chat) thì bỏ qua — tránh
+              // cử chỉ cũ bị màn hình node tiếp theo dùng nhầm.
               setGesture(command === "GESTURE:SWIPE_RIGHT" ? "swipe_right" : "swipe_left");
             }
           }
@@ -229,7 +327,7 @@ export function useRobotConnection() {
     return () => {
       unsubscribe();
     };
-  }, [addRobotMessage, setPirDetected, setCurrentStop, setGesture, router, pathname]);
+  }, [addRobotMessage, setPirDetected, setCurrentStop, setIsMoving, setBatteryVoltage, setLineError, setPirState, setRobotState, setGesture, setGesturePaused, setActiveWarn, setRobotStatus, setSosActive, router, pathname]);
 
   // Auto-connect on mount (only if BLE not already connected at module level)
   // IMPORTANT: cleanup does NOT call bleDisconnect — BLE lifecycle is managed

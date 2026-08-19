@@ -8,7 +8,7 @@ import { stopListening } from "@/lib/speech";
 
 export function useGestureNavigation(currentNodeId: string | null) {
   const router = useRouter();
-  const { lastGesture, setGesture } = useRobotStore();
+  const { lastGesture, setGesture, setGesturePaused } = useRobotStore();
   const { completeNode } = useMapProgress();
   const handledGestureRef = useRef<string | null>(null);
 
@@ -22,8 +22,17 @@ export function useGestureNavigation(currentNodeId: string | null) {
     const current = MUSEUM_NODES.find((n) => n.id === currentNodeId);
     if (!current) return;
 
-    completeNode(current.id);
+    // Vuốt lên = DỪNG: robot đã tự tạm dừng ở firmware (PAUSED) và chờ tín
+    // hiệu đi tiếp. Ở đây app chỉ xác nhận trạng thái tạm dừng — KHÔNG đánh
+    // dấu node xong, KHÔNG gửi VOICE_NEXT, KHÔNG điều hướng.
+    if (lastGesture === "swipe_up") {
+      setGesturePaused(true);
+      stopListening();
+      return;
+    }
 
+    completeNode(current.id);
+    setGesturePaused(false);
     stopListening();
 
     // Send VOICE_NEXT to robot via BLE when navigating by gesture
@@ -33,5 +42,5 @@ export function useGestureNavigation(currentNodeId: string | null) {
 
     // Về bản đồ trước → robot di chuyển, app mở node khi nhận NODE_START
     router.replace("/museum-map");
-  }, [lastGesture, currentNodeId, completeNode, setGesture, router]);
+  }, [lastGesture, currentNodeId, completeNode, setGesture, setGesturePaused, router]);
 }
