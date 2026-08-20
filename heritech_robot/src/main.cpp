@@ -1,6 +1,13 @@
-// HeritageBuddy Robot — line follow -> red detect -> Node 1
-// + PIR motion detection + Gesture + Switch (SOS)
-// + Turn right 90° -> follow to left junction
+// HeritageBuddy Robot — Line Follower — FINAL
+// Hành trình: FOLLOW_LINE (bám line + nhận diện đỏ)
+//   -> AT_NODE (còi + NODE_START, chờ tín hiệu "đi tiếp")
+//   -> TURNING (quay phải 90°, encoder)
+//   -> FOLLOW_TO_JUNCTION (bám line tới junction trái)
+//   -> AT_NODE ... lặp cho tới TOTAL_NODES -> ROUTE_DONE -> IDLE
+// + PIR motion detection (active-low, tắt được qua PIR_MODE:OFF)
+// + Gesture PAJ7620: vuốt lên = PAUSED, cử chỉ khác = "đi tiếp"
+// + Switch: nhấn = SWITCH_PRESS, giữ 10s = SOS
+// + Line lost recovery: mất line -> đứng yên -> quay tìm -> bám lại
 
 #include <MatrixMiniR4.h>
 #include "config.h"
@@ -51,7 +58,6 @@ unsigned long lastPIRWarn = 0;
 unsigned long warnClearDeadline = 0;
 unsigned long pirGraceUntil = 0;
 unsigned long pirClearSince = 0;
-unsigned long pirHighSince = 0;
 static bool pirEnabled = true;   // tat PIR de test (cmd PIR_MODE:OFF/ON)
 
 // ─── Gesture pause state ──────────────────────
@@ -114,8 +120,6 @@ void setup() {
     MiniR4.M2.setPPR_RPM(545, 200);
     MiniR4.M1.setReverse(true);
     MiniR4.M2.setReverse(false);
-    MiniR4.DriveDC.begin(1, 2, true, false);
-    MiniR4.DriveDC.setMoveSyncPID(0.02, 0.00, 0.04);
 }
 
 // ─── Debug: in cảm biến mỗi 2s ───────────────
@@ -660,7 +664,7 @@ void handleTurning() {
         currentNodeId++;
         nodeNotified = false;
         motors.stop();
-        turnPauseUntil = millis() + 2000;
+        turnPauseUntil = millis() + TURN_PAUSE_AFTER_MS;
         setLedStopped();
         Serial.print("[TURN] complete, pausing 2s (node ");
         Serial.print(currentNodeId);

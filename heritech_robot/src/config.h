@@ -14,8 +14,7 @@
 #define PIN_SWITCH             5
 
 // ─── I2C / MUX ────────────────────────────────
-#define MUX_ADDRESS            0x70
-#define I2C_CH_LINE            0
+// Line tracer LUON o I2C0 (A3) — khong di qua MUX
 #define I2C_CH_COLOR           2
 #define I2C_CH_GESTURE         3   // MUX ch3 = I2C4 port (matches MatrixMiniR4 example)
 
@@ -36,7 +35,6 @@
 
 // ─── PIR (cảm biến chuyển động) ────────────────
 #define PIR_WARMUP_MS          10000   // PIR cần ~10s ổn định (60s quá lâu, robot chạy qua người)
-#define PIR_DEBOUNCE_MS        400     // Chỉ tin HIGH liên tục >= 400ms
 #define PIR_ALARM_COOLDOWN_MS  3000    // Chống báo liên tục
 #define PIR_CLEAR_CONFIRM_MS   2000    // Đường thoáng khi PIR im lặng 2s
 #define PIR_GRACE_AFTER_LEAVE_MS 2000  // Bỏ qua PIR 2s khi vừa rời node (turn + pause)
@@ -55,6 +53,7 @@
 #define TURN_SPEED             30      // toc do quay (0-100)
 #define TURN_90_DEGREES        418.0f  // encoder degrees cho 90° pivot turn
 #define TURN_TIMEOUT_MS        5000    // qua lau van coi nhu turn xong (chong ket)
+#define TURN_PAUSE_AFTER_MS    2000    // dung yen 2s sau turn truoc khi bam line tiep
 #define JUNCTION_LEFT_MIN      2       // so kenh (trong 3 kenh ngoai cung) toi thieu de coi la junction
 #define JUNCTION_RIGHT_MAX     1       // so kenh ngoai cung phai toi da con line (phai gan nhu sach)
 #define JUNCTION_CONFIRM_FRAMES 3      // so frame xac nhan junction lien tiep

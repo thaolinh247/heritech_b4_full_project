@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Changed
+- **Đóng gói bản hoàn chỉnh phần di chuyển (20/08)**: dọn code chết cho bản chốt: bỏ `MiniR4.DriveDC.begin()/setMoveSyncPID()` trong setup (DriveDC không bao giờ dùng — chỉ gây delay khởi động + nhầm lẫn), bỏ biến `pirHighSince` không dùng, bỏ define không dùng `PIR_DEBOUNCE_MS`/`MUX_ADDRESS`/`I2C_CH_LINE` (line tracer luôn ở A3/I2C0, không qua MUX — tránh nhầm như lúc chẩn đoán), thêm `TURN_PAUSE_AFTER_MS=2000` thay magic number, cập nhật comment header mô tả luồng hành trình cuối. Build: RAM 47.8%, Flash 47.4%.
+
+### Added
+- **Lệnh tắt/bật PIR khi đang chạy — test không bị dừng do PIR (20/08)**: thêm `PIR_MODE:OFF` / `PIR_MODE:ON` (gửi qua nRF Connect hoặc app): OFF → dừng robot, bỏ qua hoàn toàn PIR (`STATUS:pir_off`); ON → bật lại và resume (`STATUS:pir_on`). Giúp cô lập test line follow trong khi module PIR chưa sửa/kiểm tra dây.
+
+### Fixed
+- **PIR báo người liên tục dù không có ai — robot cứ dừng (20/08)**: module PIR của robot idle ra HIGH (pin=1), có người mới kéo xuống LOW nhưng firmware mặc định `_pirActiveLow=false` (active-high) → `readPIR()` luôn trả true → `[PIR] >>> STOP <<<` lặp vô hạn khi đang chạy. Sửa mặc định `SensorManager::_pirActiveLow = true` (như lệnh `PIR_MODE:LOW` từng hướng dẫn gửi qua nRF Connect), `pinMode` đổi sang `INPUT_PULLUP` (thả nổi/đứt dây đọc HIGH = "không người" — an toàn, không dừng vô cớ). In log khởi động `[Sensor] PIR mode=activeLOW...`. Note: `PIN_SWITCH` dùng `INPUT_PULLUP` và `readSwitch()` trả `LOW` khi nhấn — nếu `sw=PRESSED` mọi lúc trong log, nút kẹt/dây nối đất.
+
+### Fixed
+- **Canh chỉnh cú quay 90° sau node (20/08)**: `TURN_90_DEGREES` tinh chỉnh từng bước theo thực tế: 415 → 465 → 420 → 417 → **418**. Công thức chuẩn: `giá trị mới = giá trị cũ × (90° ÷ góc thực đo)`. Serial in `[TURN] done at <deg> / 418` để đối chiếu.
+
 ### Fixed
 - **Robot bám line yếu — đi thẳng thay vì theo line (20/08)**: nguyên nhân gốc = `getError()` của MXLineTracer 10CH trả về dải ±4.5 nhưng PID cộng thẳng vào power 0-100 → correction tối đa ~0.3 trên base 30 → 2 bánh chạy gần như bằng nhau. Sửa `motor_control.cpp followLine()`: chuẩn hoá error ±4.5 → ±1 (`LINE_ERROR_MAX`), correction giờ là tỷ lệ của `_baseSpeed` (lệch tối đa = 100% base), chỉnh PID gains (KP 0.8→0.9, KI 0.02→0.01, KD 0.5→0.4, integral clamp 50→20). Đã xác thực bằng log thật: `err` dao động 0.1-0.35 với w=10 (line rộng hơn dãy sensor) — ngoài PID còn cần nâng cảm biến cao lên để err đạt ±2+.
 - **Junction nhận nhầm khi line rộng — robot dừng ngay sau cú quay 90° (20/08)**: `isLeftJunction()` cũ chỉ cần 3/4 kênh trái trên line là báo junction → line thẳng đứng phủ cả dãy (w=10) luôn trigger → sau quay phải robot dừng ngay chưa tới junction thật. Sửa thành bất đối xứng: junction trái = 3 kênh ngoài cùng TRÁI có line (tối thiểu `JUNCTION_LEFT_MIN=2`) VÀ 3 kênh ngoài cùng PHẢI gần như sạch (`JUNCTION_RIGHT_MAX=1`); `isRightJunction()` đối xứng; bỏ điều kiện `JUNCTION_WIDTH_MIN`.
