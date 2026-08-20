@@ -52,6 +52,7 @@ unsigned long warnClearDeadline = 0;
 unsigned long pirGraceUntil = 0;
 unsigned long pirClearSince = 0;
 unsigned long pirHighSince = 0;
+static bool pirEnabled = true;   // tat PIR de test (cmd PIR_MODE:OFF/ON)
 
 // ─── Gesture pause state ──────────────────────
 // Vuốt lên = DỪNG: robot tạm dừng hành trình và CHỈ đi tiếp khi nhận tín
@@ -305,6 +306,20 @@ void checkBLECommands() {
         sensors.setPIRMode(false);
         ble.sendMessage("STATUS:pir_mode:high");
     }
+    else if (cmd == "PIR_MODE:OFF") {
+        pirEnabled = false;
+        motors.stop();
+        state.setState(RobotState::PAUSED);
+        setLedStopped();
+        ble.sendMessage("STATUS:pir_off");
+        Serial.println("[CMD] PIR disabled");
+    }
+    else if (cmd == "PIR_MODE:ON") {
+        pirEnabled = true;
+        if (state.getState() == RobotState::PAUSED) resumeFromPause();
+        ble.sendMessage("STATUS:pir_on");
+        Serial.println("[CMD] PIR enabled");
+    }
 }
 
 // ─── PIR (motion detection) ───────────────────
@@ -312,6 +327,7 @@ static unsigned long lastPirDebug = 0;
 RobotState stateBeforePir = RobotState::FOLLOW_LINE;
 
 void checkPIR() {
+    if (!pirEnabled) return;
     bool pirRaw = sensors.readPIR();
     int pinRaw = digitalRead(PIN_PIR);
 
