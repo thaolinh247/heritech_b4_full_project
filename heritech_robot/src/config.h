@@ -68,6 +68,11 @@
 // Robot chi tiep tuc khi nhan tin hieu "di tiep" (BLE NODE_DONE / NEXT_NODE / VOICE_NEXT / gesture)
 #define TOTAL_NODES            2
 
+// ─── Sau khi quay 90° ───────────────────────────
+// Quay xong -> bam line cham POST_TURN_SPEED trong POST_TURN_FOLLOW_MS -> dung han
+#define POST_TURN_FOLLOW_MS     5000    // thoi gian bam line sau turn
+#define POST_TURN_SPEED         20      // toc do cham sau turn (0-100)
+
 // ─── Thời gian ─────────────────────────────────
 #define LOOP_DELAY_MS          20
 

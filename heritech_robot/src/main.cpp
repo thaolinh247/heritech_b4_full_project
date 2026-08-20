@@ -2,12 +2,11 @@
 // Hành trình: FOLLOW_LINE (bám line + nhận diện đỏ)
 //   -> AT_NODE (còi + NODE_START, chờ tín hiệu "đi tiếp")
 //   -> TURNING (quay phải 90°, encoder)
-//   -> FOLLOW_TO_JUNCTION (bám line tới junction trái)
-//   -> AT_NODE ... lặp cho tới TOTAL_NODES -> ROUTE_DONE -> IDLE
-// + PIR motion detection (active-low, tắt được qua PIR_MODE:OFF)
+//   -> FOLLOW_TO_JUNCTION (bám line chậm POST_TURN_FOLLOW_MS rồi dừng hẳn)
+// + PIR motion detection (mặc định TẮT, bật bằng PIR_MODE:ON)
 // + Gesture PAJ7620: vuốt lên = PAUSED, cử chỉ khác = "đi tiếp"
 // + Switch: nhấn = SWITCH_PRESS, giữ 10s = SOS
-// + Line lost recovery: mất line -> đứng yên -> quay tìm -> bám lại
+// + Line lost recovery (chỉ ở FOLLOW_LINE): mất line -> đứng yên -> quay tìm
 
 #include <MatrixMiniR4.h>
 #include "config.h"
@@ -29,6 +28,7 @@ static unsigned long lineLostSince = 0;
 static int8_t searchDir = 1;
 static unsigned long searchFlipAt = 0;
 unsigned long turnStartedAt = 0;
+unsigned long f2jStartedAt = 0;
 
 // ─── Forward declarations ─────────────────────
 void checkButton();
@@ -649,10 +649,11 @@ void handleTurning() {
     if (turnPauseUntil > 0) {
         if (millis() >= turnPauseUntil) {
             turnPauseUntil = 0;
+            f2jStartedAt = millis();
             state.setState(RobotState::FOLLOW_TO_JUNCTION);
-            motors.setSpeed(BASE_SPEED);
+            motors.setSpeed(POST_TURN_SPEED);
             setLedMoving();
-            Serial.println("[TURN] pause done -> FOLLOW_TO_JUNCTION");
+            Serial.println("[TURN] pause done -> FOLLOW_TO_JUNCTION (slow 5s)");
         }
         return;
     }
@@ -674,38 +675,17 @@ void handleTurning() {
     }
 }
 
-// ─── FOLLOW_TO_JUNCTION (đi theo line đến junction trái) ──
+// ─── FOLLOW_TO_JUNCTION (bám line chậm 5s rồi dừng hẳn) ──
 void handleFollowToJunction() {
-    static uint8_t junctionFrames = 0;
-    static unsigned long lastDebug = 0;
-
-    if (handleLineRecovery()) return;   // dang mat line -> da xu ly motor
-
     float error = sensors.readLineError();
-    uint8_t w = sensors.readLineWidth();
     motors.followLine(error);
 
-    if (millis() - lastDebug >= 500) {
-        lastDebug = millis();
-        Serial.print("[F2J] err=");
-        Serial.print(error, 2);
-        Serial.print(" w=");
-        Serial.println(w);
-    }
-
-    if (sensors.isLeftJunction()) {
-        junctionFrames++;
-        if (junctionFrames >= JUNCTION_CONFIRM_FRAMES) {
-            junctionFrames = 0;
-            motors.stop();
-            state.setState(RobotState::AT_NODE);
-            ble.sendMessage("JUNCTION_LEFT:" + String(currentNodeId));
-            MiniR4.Buzzer.Tone(880, NODE_ARRIVAL_BEEP_MS);
-            Serial.print("[JUNCTION] Left detected -> AT_NODE (node ");
-            Serial.print(currentNodeId);
-            Serial.println(")");
-        }
-    } else {
-        junctionFrames = 0;
+    if (millis() - f2jStartedAt >= POST_TURN_FOLLOW_MS) {
+        motors.stop();
+        state.setState(RobotState::IDLE);
+        setLedStopped();
+        MiniR4.Buzzer.Tone(880, 300);
+        ble.sendMessage("ROUTE_DONE:" + String(currentNodeId));
+        Serial.println("[F2J] follow 5s done -> IDLE (route done)");
     }
 }
