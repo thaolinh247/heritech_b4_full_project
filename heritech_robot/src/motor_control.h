@@ -22,5 +22,4 @@ private:
     bool _turning;
     float _turnTargetDegrees;
 };
-
 #endif

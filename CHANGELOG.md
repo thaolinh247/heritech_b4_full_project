@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Robot rung/xoay lệch lung tung khi bám line (20/08)**: PID lái quá gắt + không có dải chết — error lệch nhỏ (±0.2) cũng kích lái gần hết công suất, kèm hệ số D (KD=0.4) khuếch đại nhiễu đọc mỗi 20ms → robot quá đà vòng vèo quanh line. Sửa `motor_control.cpp followLine()`: (1) thêm **deadband** `LINE_DEADBAND=0.06` — error dưới 6% (đã chuẩn hóa ±1) xem như đang thẳng, giữ nguyên 2 bánh; (2) **bỏ hẳn hệ số D** (KD, `_lastError`) — đọc nhiễu tần số cao làm rung; (3) giới hạn chênh lệch 2 bánh tối đa `MAX_CORRECTION=0.8` (80% base) thay vì 100% — lái mạnh nhưng không quất gốc. Giữ P=0.9, I=0.01 (I vẫn reset trong deadband). Build sạch (RAM 47.8%, Flash 47.3%). **Nếu vẫn vòng vèo sau fix:** kiểm tra phần cứng theo thứ tự: (a) chạy 2 motor cùng công suất xem robot có đi thẳng không (không thẳng → đảo 1 trong 2 cờ `setReverse` trong setup hoặc đổi dây motor); (b) sensor line có nằm chính giữa thân robot không (lệch tâm → robot "bò cua" theo line).
+
+### Changed
+- **Sau quay 90°: bám line chậm 5s rồi dừng hẳn (20/08)**: bỏ hẳn logic tìm junction trái (`isLeftJunction` không còn dùng trong hành trình). Luồng mới: quay xong → nghỉ 2s → `FOLLOW_TO_JUNCTION` bám line ở tốc độ chậm `POST_TURN_SPEED=20` trong `POST_TURN_FOLLOW_MS=5000` → `motors.stop()` → IDLE + beep 880Hz + gửi `ROUTE_DONE:<id>`. Thêm 2 config mới vào `config.h`. Bỏ line-recovery trong trạng thái này (đơn giản hóa theo yêu cầu).
+
+### Fixed
+- **PIR giả báo tiếp tục dù đã active-low — robot không đi tiếp khi bấm (20/08)**: log cũ cho thấy chuỗi "bấm đi tiếp → robot rời node → quay xong → PIR báo → dừng" thực ra là PIR đọc sai liên tục (module/dây chưa xác minh) chứ không phải lỗi nhận lệnh. Quyết định cứng: **PIR mặc định TẮT** (`pirEnabled = false`) — robot chạy liền mạch cho tới khi người dùng gửi `PIR_MODE:ON` sau khi kiểm tra xong phần cứng. Cách kiểm tra pin trước khi bật: (1) nạp bản này, xem `[SENSOR] pir=` ở trạng thái đứng yên — tắt dây tín hiệu PIR, pin phải về HIGH (không báo); (2) vẫy tay trước PIR, pin phải đảo trạng thái rõ ràng; (3) chỉ gửi `PIR_MODE:ON` khi thấy pin đảo đúng (có người = khác trạng thái không người).
+
 ### Changed
 - **Đóng gói bản hoàn chỉnh phần di chuyển (20/08)**: dọn code chết cho bản chốt: bỏ `MiniR4.DriveDC.begin()/setMoveSyncPID()` trong setup (DriveDC không bao giờ dùng — chỉ gây delay khởi động + nhầm lẫn), bỏ biến `pirHighSince` không dùng, bỏ define không dùng `PIR_DEBOUNCE_MS`/`MUX_ADDRESS`/`I2C_CH_LINE` (line tracer luôn ở A3/I2C0, không qua MUX — tránh nhầm như lúc chẩn đoán), thêm `TURN_PAUSE_AFTER_MS=2000` thay magic number, cập nhật comment header mô tả luồng hành trình cuối. Build: RAM 47.8%, Flash 47.4%.
 

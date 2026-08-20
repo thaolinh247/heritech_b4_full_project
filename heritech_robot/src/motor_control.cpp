@@ -13,14 +13,18 @@ void MotorControl::followLine(float error) {
     // Chuan hoa error +/-4.5 -> +/-1 de dau ra PID dung ty le voi toc do co so
     float normError = error / LINE_ERROR_MAX;
 
-    _integral += normError;
-    _integral = constrain(_integral, -20, 20);
+    // Deadband: gan tam line thi xem nhu dang thang -> khong lai, het rung quanh tam
+    if (fabsf(normError) < LINE_DEADBAND) {
+        normError = 0;
+        _integral = 0;
+        _lastError = 0;
+    } else {
+        _integral += normError;
+        _integral = constrain(_integral, -20, 20);
+    }
 
-    float derivative = normError - _lastError;
-    _lastError = normError;
-
-    float correction = normError * PID_KP + _integral * PID_KI + derivative * PID_KD;
-    correction = constrain(correction, -1.0f, 1.0f);
+    float correction = normError * PID_KP + _integral * PID_KI;
+    correction = constrain(correction, -MAX_CORRECTION, MAX_CORRECTION);
 
     int16_t leftPower  = _baseSpeed + (int16_t)(correction * _baseSpeed);
     int16_t rightPower = _baseSpeed - (int16_t)(correction * _baseSpeed);

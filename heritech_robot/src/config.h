@@ -25,9 +25,10 @@
 #define MIN_SPEED              10
 // getError() tra ve day +/-4.5 (weighted average cua 10 kenh)
 #define LINE_ERROR_MAX         4.5f
-#define PID_KP                 0.9
+#define LINE_DEADBAND          0.06f   // |error| nho hon 6% (chuan +/-1) -> giu thang, het rung
+#define PID_KP                 0.9     // he so ti le (bo he so D: doc nhieu moi 20ms lam rung robot)
 #define PID_KI                 0.01
-#define PID_KD                 0.4
+#define MAX_CORRECTION         0.8f    // chenh lech toi da giua 2 banh = 80% base (tranh quat goc)
 
 // ─── Màu sắc ───────────────────────────────────
 #define COLOR_RED_ID           9
