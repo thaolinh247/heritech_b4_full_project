@@ -15,6 +15,8 @@ void SensorManager::begin() {
     pinMode(PIN_PIR, _pirActiveLow ? INPUT_PULLUP : INPUT_PULLDOWN);
     pinMode(PIN_SWITCH, INPUT_PULLUP);
 
+    Serial.print("[Sensor] PIR mode=");
+    Serial.println(_pirActiveLow ? "activeLOW (idle HIGH -> no person)" : "activeHIGH");
     Serial.println("[Sensor] All sensors initialised");
 }
 
