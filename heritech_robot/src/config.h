@@ -59,7 +59,7 @@
 
 // ─── Turn & Junction ────────────────────────────
 #define TURN_SPEED             30      // toc do quay (0-100)
-#define TURN_90_DEGREES        400.0f  // encoder degrees cho 90° pivot turn (quay thieu trai 418 -> giam xuong 400)
+#define TURN_90_DEGREES        415.0f  // encoder degrees cho 90° pivot turn
 #define TURN_TIMEOUT_MS        5000    // qua lau van coi nhu turn xong (chong ket)
 #define TURN_PAUSE_AFTER_MS    2000    // dung yen 2s sau turn truoc khi bam line tiep
 #define JUNCTION_LEFT_MIN      2       // so kenh (trong 3 kenh ngoai cung) toi thieu de coi la junction

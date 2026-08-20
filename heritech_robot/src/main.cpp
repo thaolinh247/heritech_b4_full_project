@@ -28,7 +28,6 @@ static unsigned long lineLostSince = 0;
 static int8_t searchDir = 1;
 static unsigned long searchFlipAt = 0;
 unsigned long turnStartedAt = 0;
-unsigned long f2jStartedAt = 0;
 
 // ─── Forward declarations ─────────────────────
 void checkButton();
@@ -649,11 +648,10 @@ void handleTurning() {
     if (turnPauseUntil > 0) {
         if (millis() >= turnPauseUntil) {
             turnPauseUntil = 0;
-            f2jStartedAt = millis();
             state.setState(RobotState::FOLLOW_TO_JUNCTION);
             motors.setSpeed(POST_TURN_SPEED);
             setLedMoving();
-            Serial.println("[TURN] pause done -> FOLLOW_TO_JUNCTION (slow 5s)");
+            Serial.println("[TURN] pause done -> FOLLOW_TO_JUNCTION (dò line 3s)");
         }
         return;
     }
@@ -675,17 +673,36 @@ void handleTurning() {
     }
 }
 
-// ─── FOLLOW_TO_JUNCTION (bám line chậm 5s rồi dừng hẳn) ──
+// ─── FOLLOW_TO_JUNCTION (dò line, bám 3s rồi dừng hẳn) ──
+unsigned long f2jLockedAt = 0;
+
 void handleFollowToJunction() {
+    static unsigned long lastDebug = 0;
+
+    // Mat line: dung yen roi quay tim cho toi khi bam duoc line (dò line)
+    if (handleLineRecovery()) {
+        f2jLockedAt = 0;   // tinh lai 3s tu luc co line lai
+        return;
+    }
+
     float error = sensors.readLineError();
     motors.followLine(error);
 
-    if (millis() - f2jStartedAt >= POST_TURN_FOLLOW_MS) {
+    if (millis() - lastDebug >= 500) {
+        lastDebug = millis();
+        Serial.print("[F2J] err=");
+        Serial.print(error, 2);
+        Serial.println();
+    }
+
+    // 3 giay chi tinh khi that su dang bam line
+    if (f2jLockedAt == 0) f2jLockedAt = millis();
+    if (millis() - f2jLockedAt >= POST_TURN_FOLLOW_MS) {
         motors.stop();
         state.setState(RobotState::IDLE);
         setLedStopped();
         MiniR4.Buzzer.Tone(880, 300);
         ble.sendMessage("ROUTE_DONE:" + String(currentNodeId));
-        Serial.println("[F2J] follow 5s done -> IDLE (route done)");
+        Serial.println("[F2J] follow 3s done -> IDLE (route done)");
     }
 }
