@@ -135,8 +135,10 @@ void printSensorDebug() {
     Serial.print(sensors.readColorID());
     Serial.print(" red=");
     Serial.print(sensors.isRedDetected() ? "YES" : "no");
-    Serial.print(" pir=");
-    Serial.print(sensors.readPIR() ? "HIGH" : "LOW");
+    Serial.print(" pirPin=");
+    Serial.print(digitalRead(PIN_PIR) ? "H" : "L");   // chan PIR that su: H = cao, L = thap
+    Serial.print(" pirEn=");
+    Serial.print(pirEnabled ? "ON" : "OFF");          // PIR co dang hoat dong khong
     Serial.print(" gest=");
     Serial.print(sensors.isGestureReady() ? "OK" : "OFF");
     Serial.print("(");
