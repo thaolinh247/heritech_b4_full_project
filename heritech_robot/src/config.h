@@ -24,9 +24,11 @@
 #define BASE_SPEED             30
 #define MAX_SPEED              45
 #define MIN_SPEED              10
-#define PID_KP                 0.8
-#define PID_KI                 0.02
-#define PID_KD                 0.5
+// getError() tra ve day +/-4.5 (weighted average cua 10 kenh)
+#define LINE_ERROR_MAX         4.5f
+#define PID_KP                 0.9
+#define PID_KI                 0.01
+#define PID_KD                 0.4
 
 // ─── Màu sắc ───────────────────────────────────
 #define COLOR_RED_ID           9
@@ -52,9 +54,20 @@
 // ─── Turn & Junction ────────────────────────────
 #define TURN_SPEED             30      // toc do quay (0-100)
 #define TURN_90_DEGREES        415.0f  // encoder degrees cho 90° pivot turn (calibrate if needed)
-#define JUNCTION_WIDTH_MIN     6       // line width toi thieu de xac nhan junction
-#define JUNCTION_LEFT_MIN      3       // so kenh trai toi thieu de xac nhan junction trai
+#define TURN_TIMEOUT_MS        5000    // qua lau van coi nhu turn xong (chong ket)
+#define JUNCTION_LEFT_MIN      2       // so kenh (trong 3 kenh ngoai cung) toi thieu de coi la junction
+#define JUNCTION_RIGHT_MAX     1       // so kenh ngoai cung phai toi da con line (phai gan nhu sach)
 #define JUNCTION_CONFIRM_FRAMES 3      // so frame xac nhan junction lien tiep
+
+// ─── Line lost / recovery ───────────────────────
+#define LINE_LOST_STOP_MS      300     // mat line du 300ms moi bat dau quay tim
+#define LINE_LOST_FLIP_MS      600     // doi chieu quay tim moi 600ms
+#define SEARCH_SPEED           22      // toc do quay tim line (0-100)
+
+// ─── Hành trình ──────────────────────────────────
+// Node 1 = vach do dau tien, Node 2 = junction trai dau tien, ...
+// Robot chi tiep tuc khi nhan tin hieu "di tiep" (BLE NODE_DONE / NEXT_NODE / VOICE_NEXT / gesture)
+#define TOTAL_NODES            2
 
 // ─── Thời gian ─────────────────────────────────
 #define LOOP_DELAY_MS          20

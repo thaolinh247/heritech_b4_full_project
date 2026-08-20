@@ -10,17 +10,20 @@ void MotorControl::begin() {
 }
 
 void MotorControl::followLine(float error) {
-    _integral += error;
-    _integral = constrain(_integral, -50, 50);
+    // Chuan hoa error +/-4.5 -> +/-1 de dau ra PID dung ty le voi toc do co so
+    float normError = error / LINE_ERROR_MAX;
 
-    float derivative = error - _lastError;
-    _lastError = error;
+    _integral += normError;
+    _integral = constrain(_integral, -20, 20);
 
-    float correction = error * PID_KP + _integral * PID_KI + derivative * PID_KD;
-    correction = constrain(correction, -_baseSpeed, _baseSpeed);
+    float derivative = normError - _lastError;
+    _lastError = normError;
 
-    int16_t leftPower  = _baseSpeed + correction;
-    int16_t rightPower = _baseSpeed - correction;
+    float correction = normError * PID_KP + _integral * PID_KI + derivative * PID_KD;
+    correction = constrain(correction, -1.0f, 1.0f);
+
+    int16_t leftPower  = _baseSpeed + (int16_t)(correction * _baseSpeed);
+    int16_t rightPower = _baseSpeed - (int16_t)(correction * _baseSpeed);
 
     leftPower  = constrain(leftPower,  -MAX_SPEED, MAX_SPEED);
     rightPower = constrain(rightPower, -MAX_SPEED, MAX_SPEED);

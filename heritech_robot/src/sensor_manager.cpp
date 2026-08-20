@@ -202,26 +202,37 @@ bool SensorManager::isLeftJunction() {
     uint8_t sensors[10] = {0};
     if (!_lineTracer->getAllSensors(sensors)) return false;
 
-    uint8_t width = readLineWidth();
-    if (width < JUNCTION_WIDTH_MIN) return false;
-
+    // Line nam o 3 kenh ngoai cung TRAI (0,1,2)
     uint8_t leftActive = 0;
-    for (uint8_t i = 0; i < 4; i++) {
+    for (uint8_t i = 0; i < 3; i++) {
         if (sensors[i] > (100 - LINE_THRESHOLD)) leftActive++;
     }
-    return leftActive >= JUNCTION_LEFT_MIN;
+    if (leftActive < JUNCTION_LEFT_MIN) return false;
+
+    // ... nhung 3 kenh ngoai cung PHAI (7,8,9) gan nhu sach
+    // => line dang re sang trai, KHONG phai line thang dung rong
+    uint8_t rightActive = 0;
+    for (uint8_t i = 7; i < 10; i++) {
+        if (sensors[i] > (100 - LINE_THRESHOLD)) rightActive++;
+    }
+    return rightActive <= JUNCTION_RIGHT_MAX;
 }
 
 bool SensorManager::isRightJunction() {
     uint8_t sensors[10] = {0};
     if (!_lineTracer->getAllSensors(sensors)) return false;
 
-    uint8_t width = readLineWidth();
-    if (width < JUNCTION_WIDTH_MIN) return false;
-
+    // Line nam o 3 kenh ngoai cung PHAI (7,8,9)
     uint8_t rightActive = 0;
-    for (uint8_t i = 6; i < 10; i++) {
+    for (uint8_t i = 7; i < 10; i++) {
         if (sensors[i] > (100 - LINE_THRESHOLD)) rightActive++;
     }
-    return rightActive >= JUNCTION_LEFT_MIN;
+    if (rightActive < JUNCTION_LEFT_MIN) return false;
+
+    // ... nhung 3 kenh ngoai cung TRAI (0,1,2) gan nhu sach
+    uint8_t leftActive = 0;
+    for (uint8_t i = 0; i < 3; i++) {
+        if (sensors[i] > (100 - LINE_THRESHOLD)) leftActive++;
+    }
+    return leftActive <= JUNCTION_RIGHT_MAX;
 }

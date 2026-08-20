@@ -3,6 +3,21 @@
 ## [Unreleased]
 
 ### Fixed
+- **Robot bám line yếu — đi thẳng thay vì theo line (20/08)**: nguyên nhân gốc = `getError()` của MXLineTracer 10CH trả về dải ±4.5 nhưng PID cộng thẳng vào power 0-100 → correction tối đa ~0.3 trên base 30 → 2 bánh chạy gần như bằng nhau. Sửa `motor_control.cpp followLine()`: chuẩn hoá error ±4.5 → ±1 (`LINE_ERROR_MAX`), correction giờ là tỷ lệ của `_baseSpeed` (lệch tối đa = 100% base), chỉnh PID gains (KP 0.8→0.9, KI 0.02→0.01, KD 0.5→0.4, integral clamp 50→20). Đã xác thực bằng log thật: `err` dao động 0.1-0.35 với w=10 (line rộng hơn dãy sensor) — ngoài PID còn cần nâng cảm biến cao lên để err đạt ±2+.
+- **Junction nhận nhầm khi line rộng — robot dừng ngay sau cú quay 90° (20/08)**: `isLeftJunction()` cũ chỉ cần 3/4 kênh trái trên line là báo junction → line thẳng đứng phủ cả dãy (w=10) luôn trigger → sau quay phải robot dừng ngay chưa tới junction thật. Sửa thành bất đối xứng: junction trái = 3 kênh ngoài cùng TRÁI có line (tối thiểu `JUNCTION_LEFT_MIN=2`) VÀ 3 kênh ngoài cùng PHẢI gần như sạch (`JUNCTION_RIGHT_MAX=1`); `isRightJunction()` đối xứng; bỏ điều kiện `JUNCTION_WIDTH_MIN`.
+- **Mất line thì đi thẳng mãi (20/08)**: khi robot lệch hẳn khỏi line, `getError()` trả 0 (totalWeight=0) → PID không lái. Thêm `handleLineRecovery()` gọi đầu mỗi handler bám line: mất line ≥ `LINE_LOST_STOP_MS=300ms` → đứng yên, sau đó quay tại chỗ tìm line (`SEARCH_SPEED=22`, đảo chiều mỗi `LINE_LOST_FLIP_MS=600ms`), có line lại bám tiếp.
+- **TURNING có thể kẹt vĩnh viễn (20/08)**: `isTurnComplete()` phụ thuộc encoder — nếu encoder hỏng/đọc sai, robot quay mãi. Thêm phao `TURN_TIMEOUT_MS=5000` → quá hạn vẫn coi như rẽ xong và đi tiếp.
+- **Không có điểm kết thúc hành trình (20/08)**: thêm `TOTAL_NODES` (mặc định 2: node 1 = vạch đỏ, node 2 = junction trái đầu tiên) — hết node cuối → `ROUTE_DONE:<id>` + beep + về IDLE, không rẽ tiếp.
+- **Robot tự đi tiếp dù chưa có tín hiệu (20/08)**: bỏ hẹn giờ tự động `NODE_AUTO_CONTINUE_MS` hoàn toàn — robot giờ chỉ rời node khi nhận tín hiệu "đi tiếp" (`NODE_DONE`/`NEXT_NODE`/`VOICE_NEXT` qua BLE, hoặc gesture vuốt trái/phải/vẫy tay, hoặc nút "Tiếp tục" trên app). Đúng luồng demo: đỏ → còi → app mở node → khách ra hiệu → robot quay 90° và chạy chặng kế.
+- **PlatformIO upload nhầm cổng COM (20/08)**: thêm `upload_port`/`monitor_port = COM8` vào `platformio.ini` — trước đây tự dò cổng thành COM4 (thiết bị khác) gây `OSError(121) semaphore timeout`.
+
+### Changed
+- **Cấu trúc config bám line (20/08)**: `config.h` thêm khối `Line lost / recovery` (`LINE_LOST_STOP_MS`, `LINE_LOST_FLIP_MS`, `SEARCH_SPEED`) và khối `Hành trình` (`TOTAL_NODES`); `Turn & Junction` thêm `TURN_TIMEOUT_MS`, `JUNCTION_RIGHT_MAX`, đổi `JUNCTION_LEFT_MIN` 3→2.
+
+### Docs
+- **Chẩn đoán bám line qua Serial (20/08)**: log `[SENSOR] err= w=` là chìa khóa — `w=10` liên tục nghĩa là line rộng hơn dãy 10 kênh (error luôn ~0, không định vị được mép), cần nâng cao cảm biến hoặc dùng line nhỏ hơn; `err` luôn 0.00 + `w=0` nghĩa là không đọc được sensor (kiểm tra cổng A3/I2C0). `color=10` là `COLOR_WHITE` (đọc sàn trắng — bình thường), `COLOR_RED=9` đúng. Đổ firmware test không cần BLE: comment block `if (!ble.isConnected())` trong `loop()`.
+
+### Fixed
 - **"Dùng ảnh mẫu chữ A" lỗi `Call to function 'Context.renderAsync' has been rejected - Loading bitmap failed` trên APK standalone (19/08)**: trong APK build qua EAS, `Asset.fromModule(images.gestureSampleA)` trả asset đã đánh dấu "downloaded" với `localUri`/`uri` là tên tài nguyên Android (`assets_images_gesturesamplea`) thay vì đường dẫn file. `ImageManipulator.manipulate()` không mở được chuỗi tên tài nguyên đó (`java.lang.Exception: Loading bitmap failed`). Sửa `heritage-buddy-app/src/app/gesture-recognition.tsx` `useSample()`: reset `asset.localUri = null` + `asset.downloaded = false` rồi gọi `downloadAsync()` để buộc tải asset về cache thật (file:/// hợp lệ) trước khi đưa vào `analyze()` — camera/chọn ảnh chạy được vì đã có URI file thật. Đã xác thực `tsc --noEmit` 0 lỗi.
 
 ### Added

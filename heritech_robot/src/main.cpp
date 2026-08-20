@@ -17,6 +17,12 @@ StateMachine state;
 bool nodeNotified = false;
 uint8_t currentNodeId = NODE_ID_FIRST;
 
+// ─── Line lost / recovery state ────────────────
+static unsigned long lineLostSince = 0;
+static int8_t searchDir = 1;
+static unsigned long searchFlipAt = 0;
+unsigned long turnStartedAt = 0;
+
 // ─── Forward declarations ─────────────────────
 void checkButton();
 void checkBLECommands();
@@ -33,6 +39,7 @@ void handlePaused();
 void processNextSignal();
 void pauseRobot();
 void resumeFromPause();
+bool handleLineRecovery();
 
 // ─── LED ──────────────────────────────────────
 void setLedStopped() { MiniR4.LED.setColor(1, 0, 0, 255); }
@@ -475,6 +482,7 @@ void resumeFromPause() {
     state.setState(resumeTo);
     if (resumeTo == RobotState::TURNING) {
         motors.startTurnRight90(); // tiếp tục cú rẽ dang dở từ đầu
+        turnStartedAt = millis();
     } else {
         motors.setSpeed(BASE_SPEED);
     }
@@ -486,9 +494,23 @@ void resumeFromPause() {
 // ─── Node signal processing ───────────────────
 void processNextSignal() {
     if (state.getState() != RobotState::AT_NODE) return;
+
+    // Het hanh trinh: dung lai o node cuoi, khong re tiep
+    if (currentNodeId >= TOTAL_NODES) {
+        motors.stop();
+        state.setState(RobotState::IDLE);
+        setLedStopped();
+        MiniR4.Buzzer.Tone(880, 300);
+        ble.sendMessage("ROUTE_DONE:" + String(currentNodeId));
+        Serial.print("[ROUTE] DONE at node ");
+        Serial.println(currentNodeId);
+        return;
+    }
+
     ble.sendMessage("NODE_COMPLETE:" + String(currentNodeId));
     state.setState(RobotState::TURNING);
     motors.startTurnRight90();
+    turnStartedAt = millis();
     setLedMoving();
     pirGraceUntil = millis() + PIR_GRACE_AFTER_LEAVE_MS;
     Serial.print("[NODE] TURNING right 90° from node ");
@@ -498,6 +520,8 @@ void processNextSignal() {
 // ─── FOLLOW_LINE ──────────────────────────────
 void handleFollowLine() {
     static uint8_t redCount = 0;
+
+    if (handleLineRecovery()) return;   // dang mat line -> da xu ly motor
 
     float error = sensors.readLineError();
     motors.followLine(error);
@@ -513,6 +537,36 @@ void handleFollowLine() {
     } else {
         redCount = 0;
     }
+}
+
+// ─── Line lost / recovery ─────────────────────
+// Tra ve TRUE neu robot dang mat line (da xu ly motor), FALSE neu line on dinh.
+// Goi dau moi handler bam line: mat line -> dung 1 lat roi quay tim, co line lai -> cham tuc.
+bool handleLineRecovery() {
+    uint8_t w = sensors.readLineWidth();
+
+    if (w > 0) {
+        lineLostSince = 0;
+        searchDir = 1;
+        return false;
+    }
+
+    if (lineLostSince == 0) lineLostSince = millis();
+
+    if (millis() - lineLostSince < LINE_LOST_STOP_MS) {
+        // Vua mat line 1-2 frame (co the do gap junction/lac nhe) -> dung yen cho
+        motors.stop();
+        return true;
+    }
+
+    // Mat line lau: quay tai cho tim lai line, doi chieu moi 600ms
+    if (millis() >= searchFlipAt) {
+        searchDir = -searchDir;
+        searchFlipAt = millis() + LINE_LOST_FLIP_MS;
+    }
+    MiniR4.M1.setPower(SEARCH_SPEED * searchDir);
+    MiniR4.M2.setPower(-SEARCH_SPEED * searchDir);
+    return true;
 }
 
 // ─── WAIT_CLEAR ───────────────────────────────
@@ -581,7 +635,12 @@ void handleTurning() {
         return;
     }
 
-    if (motors.isTurnComplete()) {
+    bool timedOut = millis() - turnStartedAt >= TURN_TIMEOUT_MS;
+    if (motors.isTurnComplete() || timedOut) {
+        if (timedOut) {
+            motors.cancelTurn();
+            Serial.println("[TURN] timeout, continue anyway");
+        }
         currentNodeId++;
         nodeNotified = false;
         motors.stop();
@@ -597,6 +656,8 @@ void handleTurning() {
 void handleFollowToJunction() {
     static uint8_t junctionFrames = 0;
     static unsigned long lastDebug = 0;
+
+    if (handleLineRecovery()) return;   // dang mat line -> da xu ly motor
 
     float error = sensors.readLineError();
     uint8_t w = sensors.readLineWidth();
