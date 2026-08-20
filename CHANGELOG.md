@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Fixed
+- **Sau quay 90° không thực sự "dò" line (20/08)**: trạng thái `FOLLOW_TO_JUNCTION` từng bị bỏ line-recovery → nếu sensor không nằm ngay trên line sau cú quay, robot chỉ đi thẳng (error=0) hết thời gian rồi dừng — không hề tìm line. Khôi phục `handleLineRecovery()` (đứng yên 300ms → quay quét tới khi bắt được line), và **3 giây chỉ bắt đầu tính từ lúc thực sự bám được line** (biến `f2jLockedAt`, reset khi mất line) — dò bao lâu cũng được, bám đủ 3s mới dừng. Kèm debug `[F2J] err=` mỗi 500ms. Quay 90° đặt lại `TURN_90_DEGREES=415`.
+
+### Added
+- **`CORRECTION_SIGN` + `STRAIGHT_TRIM` — núm tinh chỉnh độ chệch (20/08)**: robot chệch đều về phải khi bám line → 2 khả năng (chiều hiệu chỉnh bị đảo / 2 motor không đều). Thêm 2 hằng số vào `config.h`: `CORRECTION_SIGN` (`1` hoặc `-1`) đổi chiều PID nếu robot re ngược với line; `STRAIGHT_TRIM` (âm = hơi re trái) bù độ dạt do motor yếu hơn — thử từng nấc 0.05. Áp dụng trong `motor_control.cpp followLine()`.
+
+### Fixed
 - **Robot rung/xoay lệch lung tung khi bám line (20/08)**: PID lái quá gắt + không có dải chết — error lệch nhỏ (±0.2) cũng kích lái gần hết công suất, kèm hệ số D (KD=0.4) khuếch đại nhiễu đọc mỗi 20ms → robot quá đà vòng vèo quanh line. Sửa `motor_control.cpp followLine()`: (1) thêm **deadband** `LINE_DEADBAND=0.06` — error dưới 6% (đã chuẩn hóa ±1) xem như đang thẳng, giữ nguyên 2 bánh; (2) **bỏ hẳn hệ số D** (KD, `_lastError`) — đọc nhiễu tần số cao làm rung; (3) giới hạn chênh lệch 2 bánh tối đa `MAX_CORRECTION=0.8` (80% base) thay vì 100% — lái mạnh nhưng không quất gốc. Giữ P=0.9, I=0.01 (I vẫn reset trong deadband). Build sạch (RAM 47.8%, Flash 47.3%). **Nếu vẫn vòng vèo sau fix:** kiểm tra phần cứng theo thứ tự: (a) chạy 2 motor cùng công suất xem robot có đi thẳng không (không thẳng → đảo 1 trong 2 cờ `setReverse` trong setup hoặc đổi dây motor); (b) sensor line có nằm chính giữa thân robot không (lệch tâm → robot "bò cua" theo line).
 
 ### Changed
