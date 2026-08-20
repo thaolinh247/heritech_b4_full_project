@@ -23,7 +23,7 @@ void MotorControl::followLine(float error) {
         _integral = constrain(_integral, -20, 20);
     }
 
-    float correction = normError * PID_KP + _integral * PID_KI;
+    float correction = normError * PID_KP * CORRECTION_SIGN + _integral * PID_KI + STRAIGHT_TRIM;
     correction = constrain(correction, -MAX_CORRECTION, MAX_CORRECTION);
 
     int16_t leftPower  = _baseSpeed + (int16_t)(correction * _baseSpeed);

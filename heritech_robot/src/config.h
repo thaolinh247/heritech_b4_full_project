@@ -29,6 +29,13 @@
 #define PID_KP                 0.9     // he so ti le (bo he so D: doc nhieu moi 20ms lam rung robot)
 #define PID_KI                 0.01
 #define MAX_CORRECTION         0.8f    // chenh lech toi da giua 2 banh = 80% base (tranh quat goc)
+// Huong hieu chinh: +1 = motor xu ly dung (mac dinh). Neu robot quay NGUOC voi huong line
+// (line ben phai ma robot lai re TRAI xa line) -> doi thanh -1.
+#define CORRECTION_SIGN        1
+// So chinh thang: bu do lech co khi giua 2 banh (motor ben nao chay manh hon).
+// Am (-) -> re TRAI 1 chut (chong lech sang PHAI); Duong (+) -> re PHAI (chong lech TRAI).
+// Thu tu 0.05, 0.10, 0.15 ... cho toi khi robot di thang.
+#define STRAIGHT_TRIM          0.0f
 
 // ─── Màu sắc ───────────────────────────────────
 #define COLOR_RED_ID           9
