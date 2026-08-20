@@ -53,7 +53,7 @@
 
 // ─── Turn & Junction ────────────────────────────
 #define TURN_SPEED             30      // toc do quay (0-100)
-#define TURN_90_DEGREES        420.0f  // encoder degrees cho 90° pivot turn
+#define TURN_90_DEGREES        417.0f  // encoder degrees cho 90° pivot turn
 #define TURN_TIMEOUT_MS        5000    // qua lau van coi nhu turn xong (chong ket)
 #define JUNCTION_LEFT_MIN      2       // so kenh (trong 3 kenh ngoai cung) toi thieu de coi la junction
 #define JUNCTION_RIGHT_MAX     1       // so kenh ngoai cung phai toi da con line (phai gan nhu sach)
