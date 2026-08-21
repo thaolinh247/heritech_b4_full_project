@@ -19,38 +19,146 @@ void MotorControl::stop() {
 }
 
 // ─── Quay phải 90° tại chỗ (đều 2 bánh) ──────
-// Dây lắp thực tế: M2 = bánh TRÁI, M1 = bánh PHẢI (cú quay cũ chỉ chạy M2 tới
-// mà robot re PHAI đã chứng minh điều này).
+// Dây lắp thực tế: M2 = bánh TRÁI, M1 = bánh PHẢI.
 // Quay phải = bánh trái tới + bánh phải lùi  =>  M2(+), M1(-)
+//
+// Kỹ thuật chống lố góc (tham khảo turnToAngle/turnByAngle):
+//   1. Còn ≤ TURN_DECEL_ZONE_DEG thì giảm từ full xuống slow speed
+//   2. Đủ target (encoder) → cắt motor, chờ TURN_SETTLE_MS cho quán tính ổn định
+//   3. Đo lại góc bằng IMU: thiếu → bò tới, lố → bò lui (speed 7,
+//      tối đa 4 lượt × 500ms) tới khi sai số ≤ TURN_TOLERANCE_DEG
+// IMU chỉ dùng để HIỆU CHỈNH — nếu IMU không phản hồi (_imuSeenMove == false)
+// thì bỏ qua hiệu chỉnh, kết quả theo encoder thuần (an toàn).
 void MotorControl::startTurnRight90() {
     _turning = true;
     _turnTargetDegrees = TURN_90_DEGREES;
+    _turnPhase = TP_SPIN;
+    _correctRound = 0;
+    _imuSeenMove = false;
+    _lastTurnDebug = 0;
     MiniR4.M1.resetCounter();
     MiniR4.M2.resetCounter();
-    MiniR4.M1.setPower(-TURN_SPEED);
-    MiniR4.M2.setPower(TURN_SPEED);
+    MiniR4.Motion.resetIMUValues();   // góc quay bắt đầu từ 0
+    spinRight(TURN_FULL_SPEED);
     Serial.print("[TURN] start target=");
     Serial.println(_turnTargetDegrees);
 }
 
 bool MotorControl::isTurnComplete() {
     if (!_turning) return true;
-    // Trung bình góc tuyệt đối của 2 bánh (quay tại chỗ thì 2 bánh ngược dấu)
-    float deg = (fabsf((float)MiniR4.M1.getDegrees()) +
-                 fabsf((float)MiniR4.M2.getDegrees())) / 2.0f;
-    if (deg >= _turnTargetDegrees) {
-        Serial.print("[TURN] done at ");
-        Serial.println(deg);
-        stop();
-        _turning = false;
-        return true;
+    float yaw = fabsf(readTurnAngle());
+
+    switch (_turnPhase) {
+        case TP_SPIN: {
+            if (yaw > 1.0f) _imuSeenMove = true;
+
+            float encDeg = readEncoderDegrees();
+
+            unsigned long now = millis();
+            if (now - _lastTurnDebug >= 300) {
+                _lastTurnDebug = now;
+                Serial.print("[TURN] enc=");
+                Serial.print(encDeg);
+                Serial.print(" ax r/p/y=");
+                Serial.print(MiniR4.Motion.getEuler(MiniR4Motion::AxisType::Roll), 1);
+                Serial.print("/");
+                Serial.print(MiniR4.Motion.getEuler(MiniR4Motion::AxisType::Pitch), 1);
+                Serial.print("/");
+                Serial.println(MiniR4.Motion.getEuler(MiniR4Motion::AxisType::Yaw), 1);
+            }
+
+            // Gần đích → giảm tốc chống lố do quán tính
+            if (_turnTargetDegrees - encDeg <= TURN_DECEL_ZONE_DEG) {
+                spinRight(TURN_SLOW_SPEED);
+            }
+            if (encDeg >= _turnTargetDegrees) {
+                stop();
+                _phaseAt = millis();
+                _turnPhase = TP_SETTLE;
+                Serial.print("[TURN] spin done enc=");
+                Serial.print(encDeg);
+                Serial.print(" imu=");
+                Serial.println(yaw);
+            }
+            break;
+        }
+
+        case TP_SETTLE:
+            // Chờ quán tính ổn định rồi mới đo lại để hiệu chỉnh
+            if (millis() - _phaseAt >= TURN_SETTLE_MS) {
+                _turnPhase = TP_CREEP_START;
+            }
+            break;
+
+        case TP_CREEP_START: {
+            float err = _turnTargetDegrees - yaw;   // >0 thiếu, <0 lố
+            if (!_imuSeenMove || fabsf(err) <= TURN_TOLERANCE_DEG ||
+                _correctRound >= TURN_CORRECT_MAX_ROUNDS) {
+                stop();
+                _turning = false;
+                Serial.print("[TURN] final imu=");
+                Serial.print(yaw);
+                Serial.print(" rounds=");
+                Serial.println(_correctRound);
+                return true;
+            }
+            spinRight(err > 0 ? TURN_CREEP_SPEED : -TURN_CREEP_SPEED);
+            _phaseAt = millis();
+            _turnPhase = TP_CREEP_RUN;
+            break;
+        }
+
+        case TP_CREEP_RUN: {
+            float err = _turnTargetDegrees - yaw;
+            if (fabsf(err) <= TURN_TOLERANCE_DEG) {
+                stop();
+                _turning = false;
+                Serial.print("[TURN] final imu=");
+                Serial.print(yaw);
+                Serial.print(" rounds=");
+                Serial.println(_correctRound + 1);
+                return true;
+            }
+            if (millis() - _phaseAt >= TURN_CREEP_MS) {
+                stop();
+                _phaseAt = millis();
+                _turnPhase = TP_REST;
+            }
+            break;
+        }
+
+        case TP_REST:
+            if (millis() - _phaseAt >= TURN_CREEP_SETTLE_MS) {
+                _correctRound++;
+                _turnPhase = TP_CREEP_START;
+            }
+            break;
     }
+
     return false;
 }
 
 void MotorControl::cancelTurn() {
     stop();
     _turning = false;
+}
+
+void MotorControl::spinRight(int16_t power) {
+    MiniR4.M1.setPower(-power);   // bánh phải
+    MiniR4.M2.setPower(power);    // bánh trái
+}
+
+float MotorControl::readTurnAngle() {
+    switch (TURN_IMU_AXIS) {
+        case 3:  return (float)MiniR4.Motion.getEuler(MiniR4Motion::AxisType::Roll);
+        case 4:  return (float)MiniR4.Motion.getEuler(MiniR4Motion::AxisType::Pitch);
+        default: return (float)MiniR4.Motion.getEuler(MiniR4Motion::AxisType::Yaw);
+    }
+}
+
+float MotorControl::readEncoderDegrees() {
+    return (fabsf((float)MiniR4.M1.getDegrees()) +
+            fabsf((float)MiniR4.M2.getDegrees())) / 2.0f;
 }
 
 // ─── Đi thẳng theo quãng đường (encoder) ──────

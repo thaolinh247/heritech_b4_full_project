@@ -57,11 +57,22 @@
 #define GESTURE_MAX_RETRY      20
 
 // ─── Turn (quay phải 90° tại chỗ, đều 2 bánh) ──
-#define TURN_SPEED             30      // toc do quay (0-100)
-// Pivot turn: moi banh chi di NUA cung tron so voi turn 1-banh cu (415).
-// Test 21/08: de 415 thi robot quay ~180° -> chinh xac can mot nua = ~208
+// 3 giai đoạn: quay nhanh → còn ≤30° giảm tốc → dừng, chờ quán tính,
+// rồi bò hiệu chỉnh theo IMU (thiếu thì bò tới, lố thì bò lui, tối đa 4 lượt)
+#define TURN_FULL_SPEED        28      // toc do quay nhanh ban dau (0-100)
+#define TURN_SLOW_SPEED        12      // toc do cham khi gan dich
 #define TURN_90_DEGREES        208.0f  // encoder degrees (moi banh) cho 90° pivot turn
-#define TURN_TIMEOUT_MS        5000    // qua lau van coi nhu turn xong (chong ket)
+#define TURN_DECEL_ZONE_DEG    30.0f   // con <=30° (theo encoder) thi giam xuong slow speed
+#define TURN_TOLERANCE_DEG     3.5f    // sai so chap nhan (theo IMU)
+#define TURN_SETTLE_MS         250     // dung xe -> cho quan tinh on dinh roi moi do lai
+#define TURN_CREEP_SPEED       7       // toc do bo hieu chinh
+#define TURN_CREEP_MS          500     // moi luat bo toi da 500ms
+#define TURN_CREEP_SETTLE_MS   200     // nghi giua cac luat bo
+#define TURN_CORRECT_MAX_ROUNDS 4      // toi da 4 luat hieu chinh
+#define TURN_TIMEOUT_MS        12000   // phong ket (gom ca thoi gian hieu chinh)
+// Tru doc IMU de do goc quay: 3=Roll, 4=Pitch, 5=Yaw (board nam thang -> Yaw).
+// Xem debug [TURN] ax=... : tru nao tang dan khi quay thi dung tru nay.
+#define TURN_IMU_AXIS          5
 
 // ─── Di thang truoc khi quay ────────────────────
 // Nhan tin hieu "di tiep" -> di thang them 5cm ROI moi quay phai 90°
