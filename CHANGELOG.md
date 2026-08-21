@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 ### Fixed
+- **Đảo PIR về ACTIVE-LOW (21/08)**: user báo ngược kiểu "không người thì báo, có người thì im" — khớp chính xác hành vi module idle HIGH / có người kéo LOW với logic cạnh-len hiện tại (aHigh: chỉ 1 cạnh lên lúc idle, person kéo L không bao giờ tạo cạnh). `_pirActiveLow` về mặc định `true`. Nếu thực tế lại ngược, đổi ngay không cần nạp lại: lệnh BLE `PIR_MODE:HIGH` / `PIR_MODE:LOW`.
+
+### Fixed
 - **PIR báo ma khi kẹt HIGH (21/08)**: module có lúc bị kéo HIGH lâu dù không người → `checkPIR` giờ **chỉ nhận cạnh lên (L→H)**, không nhận mức. Kẹt HIGH vĩnh viễn chỉ dừng tối đa 1 lần; phải về LOW rồi lên lại H mới tính người mới — đúng nghĩa "người đi qua".
 
 ### Fixed
