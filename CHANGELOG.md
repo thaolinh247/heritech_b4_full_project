@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 ### Changed
+- **Tinh chỉnh theo test (21/08)**: `PRE_TURN_DRIVE_CM` 5 → **8cm**; `TURN_90_DEGREES` 208 → **210** (đang quay hơi thiếu).
+
+### Changed
 - **Nâng cấp cú quay 90° chống lố theo IMU (21/08)**: vẫn hơi lố góc sau chỉnh 208 → áp dụng kỹ thuật từ code tham khảo (turnToAngle/turnByAngle): (1) **giảm tốc gần đích** — còn ≤`TURN_DECEL_ZONE_DEG=30°` (encoder) thì hạ từ `TURN_FULL_SPEED=28` xuống `TURN_SLOW_SPEED=12`; (2) đủ target → cắt motor, chờ `TURN_SETTLE_MS=250ms` cho quán tính ổn định; (3) **vòng hiệu chỉnh IMU** — đo góc qua `MiniR4.Motion.getEuler()` (board có IMU PU6050 sẵn), thiếu → bò tới / lố → bò lui ở `TURN_CREEP_SPEED=7`, tối đa 4 lượt × 500ms, chấp nhận sai số `TURN_TOLERANCE_DEG=3.5°`. Trục IMU chọn bằng `TURN_IMU_AXIS` (3=Roll/4=Pitch/5=Yaw, mặc định Yaw); debug `[TURN] ax r/p/y=` in cả 3 trục để đổi trục nếu board gắn khác. Nếu IMU không phản hồi → tự bỏ hiệu chỉnh, kết quả theo encoder thuần. `TURN_TIMEOUT_MS` tăng 5000→12000 do thêm thời gian hiệu chỉnh.
 - **Thêm 5cm trước khi quay + sửa góc pivot (21/08)**: (1) nhận tín hiệu "đi tiếp" giờ robot đi thẳng thêm `PRE_TURN_DRIVE_CM=5cm` (state mới `PRE_TURN_DRIVE`, dùng chung cơ chế encoder với `DRIVE_CM`) rồi mới quay phải 90°. (2) `TURN_90_DEGREES` giảm 415 → **208**: 415 là số của turn 1-bánh cũ, pivot tại chỗ mỗi bánh chỉ đi nửa cung — thực tế để 415 robot quay ~180° (đúng 2×), khớp lý thuyết nửa cung.
 
