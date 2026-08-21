@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- **PIR không nhận tay + thời gian chờ lâu (21/08)**: 2 nguyên nhân — (1) `pirEnabled` đang **false mặc định** (quyết định tắt từ buổi trước do module đọc nhiễu) → PIR không bao giờ đọc nếu không gửi `PIR_MODE:ON`; chuyển sang **true mặc định**. (2) `PIR_WARMUP_MS` 10s → **3s** (10s đầu bỏ qua mọi chuyển động = "chờ lâu"). Lưu ý hành vi đúng: PIR chỉ dừng robot khi ĐANG DI CHUYỂN (CRUISE/PRE_TURN_DRIVE/DRIVE_CM); đứng ở node/IDLE thì cố tình bỏ qua. Nếu để tay mà `[SENSOR] pirPin` đổi H↔L nhưng robot vẫn không dừng khi đang chạy → gửi `PIR_MODE:HIGH` để đảo cực (module báo ngược).
+
 ### Changed
 - **Tinh chỉnh theo test (21/08 #2)**: `PRE_TURN_DRIVE_CM` 8 → **6cm**; `TURN_90_DEGREES` 212 → **214** (vẫn chưa đủ 90°); thêm công tắc `TURN_IMU_CORRECT` (mặc định **0**) — tắt pha chờ quán tính + hiệu chỉnh IMU sau quay để quay xong chạy luôn sang chặng 30cm, không dừng nghỉ (mã hiệu chỉnh vẫn giữ, bật lại bằng cách đặt =1).
 

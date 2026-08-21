@@ -59,7 +59,7 @@ unsigned long lastPIRWarn = 0;
 unsigned long warnClearDeadline = 0;
 unsigned long pirGraceUntil = 0;
 unsigned long pirClearSince = 0;
-static bool pirEnabled = false;  // PIR mac dinh TAT (module chua xac minh) - bat bang cmd PIR_MODE:ON
+static bool pirEnabled = true;   // PIR bat mac dinh - tat bang cmd PIR_MODE:OFF neu module loi
 
 // ─── Gesture pause state ──────────────────────
 // Vuốt lên = DỪNG: robot tạm dừng hành trình và CHỈ đi tiếp khi nhận tín
