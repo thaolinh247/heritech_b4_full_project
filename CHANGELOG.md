@@ -3,7 +3,9 @@
 ## [Unreleased]
 
 ### Changed
-- **PIR cảnh báo cả khi robot đứng yên (21/08)**: trước đây PIR chỉ tác dụng khi đang di chuyển → vuốt tay lúc robot đứng (IDLE/chờ node) không có phản hồi gì. Giờ phát hiện người ở **mọi trạng thái** đều còi + gửi `WARN:person` cho app; nếu đang di chuyển thì thêm dừng 5s như cũ, nếu đứng yên thì chỉ cảnh báo. Vẫn giữ cooldown 3s để không spam khi vẫy tay liên tục.
+- **Lọc PIR chống báo loạn (21/08)**: thay cooldown 3s bằng 2 lớp lọc — (1) phải thấy "có người" **du truyền liên tục ≥ `PIR_CONFIRM_MS=250ms`** mới tin (nhiễu EMI nháy 1-2 mẫu là bị loại); (2) mỗi lần xuất hiện chỉ báo **một lần**, tay phải rút ra rồi đưa vào lại mới tính lượt mới. Áp dụng cho cả trạng thái đứng yên lẫn di chuyển.
+- **Chậm lại tốc độ đi thẳng (21/08)**: `CRUISE_SPEED` và `POST_TURN_DRIVE_SPEED` 20 → **15**.
+- **PIR cảnh báo cả khi robot đứng yên (21/08)**: trước đây PIR chỉ tác dụng khi đang di chuyển → vuốt tay lúc robot đứng (IDLE/chờ node) không có phản hồi gì. Giờ phát hiện người ở **mọi trạng thái** đều còi + gửi `WARN:person` cho app; nếu đang di chuyển thì thêm dừng 5s như cũ, nếu đứng yên thì chỉ cảnh báo.
 
 ### Fixed
 - **Đảo PIR về ACTIVE-LOW (21/08)**: user báo ngược kiểu "không người thì báo, có người thì im" — khớp chính xác hành vi module idle HIGH / có người kéo LOW với logic cạnh-len hiện tại (aHigh: chỉ 1 cạnh lên lúc idle, person kéo L không bao giờ tạo cạnh). `_pirActiveLow` về mặc định `true`. Nếu thực tế lại ngược, đổi ngay không cần nạp lại: lệnh BLE `PIR_MODE:HIGH` / `PIR_MODE:LOW`.

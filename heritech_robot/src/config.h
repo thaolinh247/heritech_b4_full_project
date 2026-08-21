@@ -42,7 +42,8 @@
 
 // ─── PIR (cảm biến chuyển động) ────────────────
 #define PIR_WARMUP_MS          3000    // PIR can ~3s on dinh sau khi khoi dong
-#define PIR_ALARM_COOLDOWN_MS  3000    // Chong bao lien tuc
+// Chong bao loan: phai thay "co nguoi" DU TRUYEN LIEN TUC bao nhieu ms moi tinh
+#define PIR_CONFIRM_MS         250
 // Phat hien nguoi -> bao app (WARN:person) + dung CO DINH 5s roi tu di tiep
 #define PIR_PAUSE_MS           5000
 #define PIR_GRACE_AFTER_LEAVE_MS 2000  // Bo qua PIR 2s khi vua roi node/turn
@@ -101,8 +102,8 @@
  */
 
 // ─── Luồng di chuyển mới: đi thẳng → đỏ → quay 90° → đi 30cm ──
-#define CRUISE_SPEED           20      // toc do di thang cham khi tim vach do (0-100)
-#define POST_TURN_DRIVE_SPEED  20      // toc do di thang cham sau khi quay 90°
+#define CRUISE_SPEED           15      // toc do di thang cham khi tim vach do (0-100)
+#define POST_TURN_DRIVE_SPEED  15      // toc do di thang cham sau khi quay 90°
 #define DRIVE_DISTANCE_CM      30.0f   // quang duong di thang sau khi quay xong
 #define ENCODER_DEGREES_PER_CM 17.6f   // 360 / chu vi banh(cm). Banh ~65mm -> ~17.6. Calib neu di le
 #define DRIVE_TIMEOUT_MS       8000    // qua lau chua du quang duong -> dung (phong ket)

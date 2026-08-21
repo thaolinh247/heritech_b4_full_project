@@ -55,7 +55,6 @@ void setLedMoving()  { MiniR4.LED.setColor(1, 0, 255, 0); }
 void setLedSos()     { MiniR4.LED.setColor(1, 255, 0, 0); }
 
 // ─── PIR state ────────────────────────────────
-unsigned long lastPIRWarn = 0;
 unsigned long warnClearDeadline = 0;
 unsigned long pirGraceUntil = 0;
 static bool pirEnabled = true;   // PIR bat mac dinh - tat bang cmd PIR_MODE:OFF neu module loi
@@ -376,22 +375,33 @@ void checkPIR() {
         Serial.println(millis());
     }
 
-    if (millis() < PIR_WARMUP_MS) return;
-    if (millis() < pirGraceUntil) return;
-    if (state.getState() == RobotState::WAIT_CLEAR) return;
-
-    // CHI nhan canh LEN (L -> H): neu module bi keo HIGH qua lau (delay pot cao /
-    // nhieu) thi moi "keo" chi tinh 1 luot, phai ve LOW roi len lai moi la nguoi moi
+    // ── Lọc tín hiệu PIR (chống báo loạn) ──
+    // 1. Phải thấy "có người" DU TRUYEN lien tuc >= PIR_CONFIRM_MS mới tin
+    //    (nhiễu EMI thường chỉ nháy 1-2 mẫu ~20ms là bị loại)
+    // 2. Mỗi lần xuất hiện chỉ báo MỘT lần; tay phải rút ra (raw về 0)
+    //    rồi đưa vào lại mới tính lượt tiếp theo
     static bool lastPirRaw = false;
+    static bool consumedEvent = false;
+    static unsigned long confirmSince = 0;
+
     bool risingEdge = pirRaw && !lastPirRaw;
     lastPirRaw = pirRaw;
 
-    if (!risingEdge) return;
+    if (!pirRaw) {
+        confirmSince = 0;
+        consumedEvent = false;
+        return;
+    }
+    if (consumedEvent) return;
+    if (risingEdge || confirmSince == 0) confirmSince = millis();
+    if (millis() - confirmSince < PIR_CONFIRM_MS) return;   // chua du dai de tin
+
+    consumedEvent = true;   // da bao cho lan giu "co nguoi" nay
+
+    if (millis() < PIR_WARMUP_MS) return;
+    if (millis() < pirGraceUntil) return;
 
     unsigned long now = millis();
-    if (now - lastPIRWarn < PIR_ALARM_COOLDOWN_MS) return;
-    lastPIRWarn = now;
-
     RobotState cur = state.getState();
     if (cur == RobotState::CRUISE_TO_RED ||
         cur == RobotState::DRIVE_CM ||
