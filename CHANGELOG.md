@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed
+- **Tinh chỉnh theo test (21/08 #2)**: `PRE_TURN_DRIVE_CM` 8 → **6cm**; `TURN_90_DEGREES` 212 → **214** (vẫn chưa đủ 90°); thêm công tắc `TURN_IMU_CORRECT` (mặc định **0**) — tắt pha chờ quán tính + hiệu chỉnh IMU sau quay để quay xong chạy luôn sang chặng 30cm, không dừng nghỉ (mã hiệu chỉnh vẫn giữ, bật lại bằng cách đặt =1).
+
 ### Fixed
 - **Khôi phục chờ tín hiệu "đi tiếp" ở node (21/08)**: lần trước hiểu nhầm yêu cầu "bỏ lệnh chờ đi" → robot tự đi tiếp sau 1.5s dù chưa có lệnh. Giờ trở lại đúng luồng: thấy đỏ → mở node (`NODE_START`) → **dừng chờ vô thời hạn** tới khi nhận `NODE_DONE`/`NEXT_NODE`/`VOICE_NEXT` mới chạy tiếp (8cm → quay 90° → 30cm). Bỏ `AT_NODE_AUTO_MS` và `nodeArrivedAt`.
 

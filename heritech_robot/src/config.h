@@ -61,7 +61,7 @@
 // rồi bò hiệu chỉnh theo IMU (thiếu thì bò tới, lố thì bò lui, tối đa 4 lượt)
 #define TURN_FULL_SPEED        28      // toc do quay nhanh ban dau (0-100)
 #define TURN_SLOW_SPEED        12      // toc do cham khi gan dich
-#define TURN_90_DEGREES        212.0f  // encoder degrees (moi banh) cho 90° pivot turn
+#define TURN_90_DEGREES        214.0f  // encoder degrees (moi banh) cho 90° pivot turn
 #define TURN_DECEL_ZONE_DEG    30.0f   // con <=30° (theo encoder) thi giam xuong slow speed
 #define TURN_TOLERANCE_DEG     3.5f    // sai so chap nhan (theo IMU)
 #define TURN_SETTLE_MS         250     // dung xe -> cho quan tinh on dinh roi moi do lai
@@ -70,13 +70,16 @@
 #define TURN_CREEP_SETTLE_MS   200     // nghi giua cac luat bo
 #define TURN_CORRECT_MAX_ROUNDS 4      // toi da 4 luat hieu chinh
 #define TURN_TIMEOUT_MS        12000   // phong ket (gom ca thoi gian hieu chinh)
+// Hieu chinh IMU sau khi quay (cho quan tinh + bo bu goc): 1 = bat, 0 = tat.
+// Tat -> quay du target encoder la tien luon sang chặng 30cm, khong dung nghi.
+#define TURN_IMU_CORRECT       0
 // Tru doc IMU de do goc quay: 3=Roll, 4=Pitch, 5=Yaw (board nam thang -> Yaw).
 // Xem debug [TURN] ax=... : tru nao tang dan khi quay thi dung tru nay.
 #define TURN_IMU_AXIS          5
 
 // ─── Di thang truoc khi quay ────────────────────
 // Thay vach do -> mo node -> DUNG CHO tin hieu "di tiep" -> di thang 8cm -> quay
-#define PRE_TURN_DRIVE_CM      8.0f
+#define PRE_TURN_DRIVE_CM      6.0f
 
 // ─── Di thang thang hang ────────────────────────
 // Dung setSpeed (PID cua lower MCU) de 2 banh deu toc do tuyet doi -> khong lac.

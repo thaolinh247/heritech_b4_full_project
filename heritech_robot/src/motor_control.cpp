@@ -75,12 +75,20 @@ bool MotorControl::isTurnComplete() {
             }
             if (encDeg >= _turnTargetDegrees) {
                 stop();
+#if TURN_IMU_CORRECT
                 _phaseAt = millis();
                 _turnPhase = TP_SETTLE;
                 Serial.print("[TURN] spin done enc=");
                 Serial.print(encDeg);
                 Serial.print(" imu=");
                 Serial.println(yaw);
+#else
+                // Tat hieu chinh: du target -> xong ngay, chặng sau chay lien
+                _turning = false;
+                Serial.print("[TURN] done enc=");
+                Serial.println(encDeg);
+                return true;
+#endif
             }
             break;
         }
