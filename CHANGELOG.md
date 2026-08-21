@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Changed
+- **Chốt cực PIR = ACTIVE-HIGH (21/08)**: mặc định aLow làm robot **im lặng hoàn toàn** — chân thực tế nằm ở LOW nên raw=1 vĩnh viễn, bị tính là một sự kiện ngay khi khởi động rồi kẹt "đã tiêu thụ" mãi. Đảo về `_pirActiveLow=false` (idle L, người H, khớp log test có các đợt H theo tay). Kết hợp bộ lọc 250ms của commit trước: đưa tay ≥250ms → báo đúng 1 lần; rút ra rồi vào lại → báo lần mới.
 - **Lọc PIR chống báo loạn (21/08)**: thay cooldown 3s bằng 2 lớp lọc — (1) phải thấy "có người" **du truyền liên tục ≥ `PIR_CONFIRM_MS=250ms`** mới tin (nhiễu EMI nháy 1-2 mẫu là bị loại); (2) mỗi lần xuất hiện chỉ báo **một lần**, tay phải rút ra rồi đưa vào lại mới tính lượt mới. Áp dụng cho cả trạng thái đứng yên lẫn di chuyển.
 - **Chậm lại tốc độ đi thẳng (21/08)**: `CRUISE_SPEED` và `POST_TURN_DRIVE_SPEED` 20 → **15**.
 - **PIR cảnh báo cả khi robot đứng yên (21/08)**: trước đây PIR chỉ tác dụng khi đang di chuyển → vuốt tay lúc robot đứng (IDLE/chờ node) không có phản hồi gì. Giờ phát hiện người ở **mọi trạng thái** đều còi + gửi `WARN:person` cho app; nếu đang di chuyển thì thêm dừng 5s như cũ, nếu đứng yên thì chỉ cảnh báo.

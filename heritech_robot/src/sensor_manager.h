@@ -51,10 +51,10 @@ private:
     MatrixGesture    _gestureSensor;
     bool             _gestureOK = false;
     uint8_t          _gestureRetryCount = 0;
-    // Module PIR: idle = HIGH, co nguoi keo xuong LOW -> ACTIVE-LOW
-    // (21/08 user quan sat: khong nguoi thi bao, co nguoi thi im = dung hanh vi
-    //  active-low voi logic canh-len; neu dao lai thi gui lenh PIR_MODE:HIGH)
-    bool             _pirActiveLow = true;
+    // Module PIR: idle = LOW, co nguoi = HIGH -> ACTIVE-HIGH
+    // (chot boi 2 lan test 21/08: aLow lam robot im lap hoan toan vi raw keo=1
+    //  vinh vien; aHigh thi cac dot H vai giay khop chinh xac theo tay)
+    bool             _pirActiveLow = false;
 };
 
 #endif
