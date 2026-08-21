@@ -380,7 +380,13 @@ void checkPIR() {
     if (millis() < pirGraceUntil) return;
     if (state.getState() == RobotState::WAIT_CLEAR) return;
 
-    if (!pirRaw) return;
+    // CHI nhan canh LEN (L -> H): neu module bi keo HIGH qua lau (delay pot cao /
+    // nhieu) thi moi "keo" chi tinh 1 luot, phai ve LOW roi len lai moi la nguoi moi
+    static bool lastPirRaw = false;
+    bool risingEdge = pirRaw && !lastPirRaw;
+    lastPirRaw = pirRaw;
+
+    if (!risingEdge) return;
 
     unsigned long now = millis();
     if (now - lastPIRWarn < PIR_ALARM_COOLDOWN_MS) return;

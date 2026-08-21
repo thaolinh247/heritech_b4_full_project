@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 ### Fixed
+- **PIR báo ma khi kẹt HIGH (21/08)**: module có lúc bị kéo HIGH lâu dù không người → `checkPIR` giờ **chỉ nhận cạnh lên (L→H)**, không nhận mức. Kẹt HIGH vĩnh viễn chỉ dừng tối đa 1 lần; phải về LOW rồi lên lại H mới tính người mới — đúng nghĩa "người đi qua".
+
+### Fixed
 - **Đổi mặc định PIR sang ACTIVE-HIGH (21/08)**: serial log xác nhận module thực tế idle = LOW, có người = HIGH (các đợt pin H vài giây khớp chính xác khi vuốt tay; `PIR_MODE:HIGH` cho `raw=1` đúng theo tay). `_pirActiveLow` mặc định `true` → `false` (pinMode INPUT_PULLDOWN), không cần gửi `PIR_MODE:HIGH` mỗi lần khởi động nữa.
 
 ### Changed
