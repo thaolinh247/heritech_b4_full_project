@@ -18,14 +18,17 @@ void MotorControl::stop() {
     MiniR4.M2.setPower(0);
 }
 
-// ─── Quay phải 90° tại chỗ (đều 2 bánh: trái tới, phải lùi) ──
+// ─── Quay phải 90° tại chỗ (đều 2 bánh) ──────
+// Dây lắp thực tế: M2 = bánh TRÁI, M1 = bánh PHẢI (cú quay cũ chỉ chạy M2 tới
+// mà robot re PHAI đã chứng minh điều này).
+// Quay phải = bánh trái tới + bánh phải lùi  =>  M2(+), M1(-)
 void MotorControl::startTurnRight90() {
     _turning = true;
     _turnTargetDegrees = TURN_90_DEGREES;
     MiniR4.M1.resetCounter();
     MiniR4.M2.resetCounter();
-    MiniR4.M1.setPower(TURN_SPEED);
-    MiniR4.M2.setPower(-TURN_SPEED);
+    MiniR4.M1.setPower(-TURN_SPEED);
+    MiniR4.M2.setPower(TURN_SPEED);
     Serial.print("[TURN] start target=");
     Serial.println(_turnTargetDegrees);
 }

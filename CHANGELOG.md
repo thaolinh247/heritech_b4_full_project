@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Quay sai chiều sau khi thấy đỏ (21/08)**: pivot turn mới bị xoay TRAI thay vì phải — nguyên nhân: M1/M2 ngược giả định (M2 mới là bánh trái, chứng minh bởi cú quay cũ chỉ chạy M2 tới mà robot re phải). Đảo dấu trong `startTurnRight90()`: `M1.setPower(-TURN_SPEED)` (bánh phải lùi), `M2.setPower(+TURN_SPEED)` (bánh trái tới). Lưu ý: `TURN_90_DEGREES=415` được hiệu chỉnh cho cơ chế quay cũ (1 bánh) — quay tại chỗ có thể cần tinh chỉnh lại (quay thiếu → tăng, quay thừa → giảm).
+
 ### Changed
 - **Thay toàn bộ luồng di chuyển: bỏ bám line (21/08)**: comment toàn bộ logic bám line cũ (`#if 0` trong `main.cpp`, `motor_control.cpp`, `config.h`) và thay bằng luồng mới: **CRUISE_TO_RED** (đi thẳng chậm `CRUISE_SPEED=20`, KHÔNG bám line, tới khi thấy vạch đỏ ổn định 3 frame) → **AT_NODE** (còi + `NODE_START`, chờ tín hiệu "đi tiếp") → **TURNING** (quay phải 90° **tại chỗ đều 2 bánh** — trái tới/phải lùi, hoàn thành theo trung bình encoder 2 bánh) → **DRIVE_CM** (đi thẳng chậm đủ `DRIVE_DISTANCE_CM=30cm` theo encoder `ENCODER_DEGREES_PER_CM=17.6`, timeout 8s) → dừng hẳn + beep + `ROUTE_DONE`. Bỏ pause 2s sau turn; PIR/gesture/pause hoạt động như cũ trên các state mới.
 
