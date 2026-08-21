@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Đổi mặc định PIR sang ACTIVE-HIGH (21/08)**: serial log xác nhận module thực tế idle = LOW, có người = HIGH (các đợt pin H vài giây khớp chính xác khi vuốt tay; `PIR_MODE:HIGH` cho `raw=1` đúng theo tay). `_pirActiveLow` mặc định `true` → `false` (pinMode INPUT_PULLDOWN), không cần gửi `PIR_MODE:HIGH` mỗi lần khởi động nữa.
+
 ### Changed
 - **Xóa triệt để trễ IMU khỏi cú quay + Serial 115200 (21/08)**: dù `TURN_IMU_CORRECT=0`, luồng quay vẫn gọi IMU mỗi vòng (`readTurnAngle()`, in 3 trục Euler, `resetIMUValues()` block tới 1s đầu quay) → "xoay xong chờ lâu". Bọc **mọi** lời gọi `Motion.*` trong `#if TURN_IMU_CORRECT` — khi tắt, cú quay thuần encoder, không block UART. `TURN_90_DEGREES` 214 → **216**. `Serial.begin` + `monitor_speed` 9600 → **115200** (in debug @9600 block ~80ms/dòng làm trễ vòng lặp).
 - **PIR: log theo sự kiện thay đổi chân**: `[PIR-PIN] -> H/L` in NGAY khi chân PIR đổi trạng thái (trước chỉ in chu kỳ 2s nên dễ bỏ sót xung ngắn khi vuốt tay) — dùng đó kết luận module có phản ứng hay không.

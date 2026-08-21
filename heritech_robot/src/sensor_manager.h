@@ -51,8 +51,9 @@ private:
     MatrixGesture    _gestureSensor;
     bool             _gestureOK = false;
     uint8_t          _gestureRetryCount = 0;
-    // Module PIR idle = HIGH, co nguoi = LOW -> active-low (dung cho modul nay)
-    bool             _pirActiveLow = true;
+    // Module PIR thực tế: idle = LOW, co nguoi = HIGH -> ACTIVE-HIGH
+    // (xac nhan bang serial 21/08: pin chi dao H khi vuot tay, raw khop theo aHigh)
+    bool             _pirActiveLow = false;
 };
 
 #endif
