@@ -1,0 +1,11 @@
+npm notice run heritage-buddy-server@1.0.0 dev
+npm notice run tsx watch src/index.ts
+
+  Heritage Buddy backend running
+
+  Local:   http://localhost:3000
+  Network: http://172.20.10.2:3000
+
+  GEMINI_API_KEY: loaded (AQ.Ab8...)
+  Set EXPO_PUBLIC_BACKEND_URL=http://<IP>:3000 in .env
+

@@ -1,7 +1,7 @@
-// HeritageBuddy Robot — LUỒNG MỚI (không bám line, không chờ lệnh)
+// HeritageBuddy Robot — LUỒNG MỚI (không bám line)
 // Hành trình: CRUISE_TO_RED (đi thẳng chậm ~20, KHÔNG bám line, tới khi thấy đỏ)
-//   -> AT_NODE (dừng ngắn 1.5s: còi + NODE_START, rồi TỰ đi tiếp)
-//   -> PRE_TURN_DRIVE (đi thẳng thêm 8cm)
+//   -> AT_NODE (còi + NODE_START, DỪNG CHỜ tín hiệu "đi tiếp")
+//   -> PRE_TURN_DRIVE (nhận lệnh → đi thẳng thêm 8cm)
 //   -> TURNING (quay phải 90° TẠI CHỎ, đều 2 bánh, encoder + IMU hiệu chỉnh)
 //   -> DRIVE_CM (đi thẳng chậm đủ 30cm rồi dừng hẳn + ROUTE_DONE)
 // + PIR motion detection (mặc định TẮT, bật bằng PIR_MODE:ON)
@@ -27,7 +27,6 @@ uint8_t currentNodeId = NODE_ID_FIRST;
 // ─── Turn / drive state ────────────────────────
 unsigned long turnStartedAt = 0;
 unsigned long driveStartedAt = 0;
-unsigned long nodeArrivedAt = 0;
 
 // ─── Forward declarations ─────────────────────
 void checkButton();
@@ -528,9 +527,8 @@ void resumeFromPause() {
 }
 
 // ─── Node signal processing ───────────────────
-// Thay đổi: KHÔNG chờ tín hiệu "đi tiếp" nữa — tới vạch đỏ, dừng thông báo
-// AT_NODE_AUTO_MS rồi tự đi tiếp. processNextSignal chỉ để đi NGAY khi app
-// gửi lệnh trong khoảng dừng ngắn đó.
+// Tới vạch đỏ: mở node (NODE_START) rồi DỪNG CHỜ tín hiệu "đi tiếp"
+// (BLE NODE_DONE/NEXT_NODE/VOICE_NEXT). Không tự di chuyển.
 void startPreTurnDrive() {
     ble.sendMessage("NODE_COMPLETE:" + String(currentNodeId));
     state.setState(RobotState::PRE_TURN_DRIVE);
@@ -538,7 +536,7 @@ void startPreTurnDrive() {
     driveStartedAt = millis();
     setLedMoving();
     pirGraceUntil = millis() + PIR_GRACE_AFTER_LEAVE_MS;
-    Serial.println("[NODE] -> PRE_TURN_DRIVE (8cm)");
+    Serial.println("[NODE] go signal -> PRE_TURN_DRIVE (8cm)");
 }
 
 void processNextSignal() {
@@ -620,9 +618,8 @@ void handleCruiseToRed() {
         if (redCount >= COLOR_STABLE_COUNT) {
             redCount = 0;
             motors.stop();
-            nodeArrivedAt = millis();
             state.setState(RobotState::AT_NODE);
-            Serial.println("[RED] Red detected -> AT_NODE (auto continue)");
+            Serial.println("[RED] Red detected -> AT_NODE (waiting go signal)");
         }
     } else {
         redCount = 0;
@@ -794,7 +791,7 @@ void handlePaused() {
     // việc tiếp tục do checkGesture()/checkBLECommands() quyết định.
 }
 
-// ─── AT_NODE: dừng ngắn thông báo rồi TỰ đi tiếp (không chờ lệnh) ──
+// ─── AT_NODE: mở node xong DỪNG CHỜ tín hiệu "đi tiếp" ──
 void handleAtNode() {
     motors.stop();
 
@@ -807,8 +804,6 @@ void handleAtNode() {
         Serial.println(currentNodeId);
     }
 
-    // Hết thời gian dừng ngắn → tự đi tiếp, không cần tín hiệu ngoài
-    if (millis() - nodeArrivedAt >= AT_NODE_AUTO_MS) {
-        startPreTurnDrive();
-    }
+    // Đứng yên tại đây — chỉ startPreTurnDrive() (qua processNextSignal)
+    // khi nhận tín hiệu "đi tiếp" từ app/giọng nói.
 }

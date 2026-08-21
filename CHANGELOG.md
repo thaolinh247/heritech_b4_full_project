@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Khôi phục chờ tín hiệu "đi tiếp" ở node (21/08)**: lần trước hiểu nhầm yêu cầu "bỏ lệnh chờ đi" → robot tự đi tiếp sau 1.5s dù chưa có lệnh. Giờ trở lại đúng luồng: thấy đỏ → mở node (`NODE_START`) → **dừng chờ vô thời hạn** tới khi nhận `NODE_DONE`/`NEXT_NODE`/`VOICE_NEXT` mới chạy tiếp (8cm → quay 90° → 30cm). Bỏ `AT_NODE_AUTO_MS` và `nodeArrivedAt`.
+
 ### Changed
 - **Bỏ chờ lệnh "đi tiếp" + đi thẳng bằng PID tốc độ (21/08)**: (1) tới vạch đỏ robot chỉ dừng ngắn `AT_NODE_AUTO_MS=1500ms` (còi + `NODE_START` cho app) rồi **tự đi tiếp** — không còn chờ tín hiệu ngoài; lệnh "đi tiếp" từ app vẫn được nhận để đi sớm hơn nếu gửi trong khoảng dừng. (2) `driveStraight()` đổi từ `setPower` sang **`setSpeed` (PID của lower MCU)** — 2 bánh giữ tốc độ đồng đều tuyệt đối, đi thẳng hơn hẳn; thêm núm `DRIVE_TRIM` (lech phải → +, lech trái → −). (3) `TURN_90_DEGREES` 210 → **212** (vẫn hơi thiếu).
 

@@ -75,9 +75,8 @@
 #define TURN_IMU_AXIS          5
 
 // ─── Di thang truoc khi quay ────────────────────
-// Thay doi: KHONG cho cho tin hieu "di tiep" nua — thay vach do la tu di tiep
+// Thay vach do -> mo node -> DUNG CHO tin hieu "di tiep" -> di thang 8cm -> quay
 #define PRE_TURN_DRIVE_CM      8.0f
-#define AT_NODE_AUTO_MS        1500    // dung o vach do bao lau truoc khi tu di tiep (0 = di ngay)
 
 // ─── Di thang thang hang ────────────────────────
 // Dung setSpeed (PID cua lower MCU) de 2 banh deu toc do tuyet doi -> khong lac.
