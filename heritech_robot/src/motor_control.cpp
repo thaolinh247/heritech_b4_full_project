@@ -40,7 +40,9 @@ void MotorControl::startTurnRight90() {
     _lastTurnDebug = 0;
     MiniR4.M1.resetCounter();
     MiniR4.M2.resetCounter();
-    MiniR4.Motion.resetIMUValues();   // góc quay bắt đầu từ 0
+#if TURN_IMU_CORRECT
+    MiniR4.Motion.resetIMUValues();   // goc quay bat dau tu 0 (co the block UART ~1s)
+#endif
     spinRight(TURN_FULL_SPEED);
     Serial.print("[TURN] start target=");
     Serial.println(_turnTargetDegrees);
@@ -48,12 +50,15 @@ void MotorControl::startTurnRight90() {
 
 bool MotorControl::isTurnComplete() {
     if (!_turning) return true;
+#if TURN_IMU_CORRECT
     float yaw = fabsf(readTurnAngle());
+#endif
 
     switch (_turnPhase) {
         case TP_SPIN: {
+#if TURN_IMU_CORRECT
             if (yaw > 1.0f) _imuSeenMove = true;
-
+#endif
             float encDeg = readEncoderDegrees();
 
             unsigned long now = millis();
@@ -61,12 +66,15 @@ bool MotorControl::isTurnComplete() {
                 _lastTurnDebug = now;
                 Serial.print("[TURN] enc=");
                 Serial.print(encDeg);
+#if TURN_IMU_CORRECT
                 Serial.print(" ax r/p/y=");
                 Serial.print(MiniR4.Motion.getEuler(MiniR4Motion::AxisType::Roll), 1);
                 Serial.print("/");
                 Serial.print(MiniR4.Motion.getEuler(MiniR4Motion::AxisType::Pitch), 1);
                 Serial.print("/");
-                Serial.println(MiniR4.Motion.getEuler(MiniR4Motion::AxisType::Yaw), 1);
+                Serial.print(MiniR4.Motion.getEuler(MiniR4Motion::AxisType::Yaw), 1);
+#endif
+                Serial.println();
             }
 
             // Gần đích → giảm tốc chống lố do quán tính
@@ -100,6 +108,7 @@ bool MotorControl::isTurnComplete() {
             }
             break;
 
+#if TURN_IMU_CORRECT
         case TP_CREEP_START: {
             float err = _turnTargetDegrees - yaw;   // >0 thiếu, <0 lố
             if (!_imuSeenMove || fabsf(err) <= TURN_TOLERANCE_DEG ||
@@ -143,6 +152,15 @@ bool MotorControl::isTurnComplete() {
                 _turnPhase = TP_CREEP_START;
             }
             break;
+#else
+        case TP_CREEP_START:
+        case TP_CREEP_RUN:
+        case TP_REST:
+            // Hieu chinh IMI tat: khong bao gio den day
+            stop();
+            _turning = false;
+            return true;
+#endif
     }
 
     return false;

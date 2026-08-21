@@ -106,7 +106,7 @@ void updateSound() {
 
 // ─── Setup ────────────────────────────────────
 void setup() {
-    Serial.begin(9600);
+    Serial.begin(115200);
     MiniR4.begin();
     setLedStopped();
     sensors.begin();
@@ -125,6 +125,16 @@ void setup() {
 // ─── Debug: in cảm biến mỗi 2s ───────────────
 static unsigned long lastSensorDebug = 0;
 void printSensorDebug() {
+    // In NGAY khi chan PIR doi trang thai (khong cho chu ky 2s)
+    // -> mot lan vuot tay la biet ngay module co phan ung hay khong
+    static int8_t lastPirPin = -1;
+    int8_t pirPin = digitalRead(PIN_PIR) ? 1 : 0;
+    if (pirPin != lastPirPin) {
+        lastPirPin = pirPin;
+        Serial.print("[PIR-PIN] -> ");
+        Serial.println(pirPin ? "H" : "L");
+    }
+
     if (millis() - lastSensorDebug < 2000) return;
     lastSensorDebug = millis();
     Serial.print("[SENSOR] err=");

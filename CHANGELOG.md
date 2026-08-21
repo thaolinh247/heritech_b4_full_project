@@ -3,6 +3,10 @@
 ## [Unreleased]
 
 ### Changed
+- **Xóa triệt để trễ IMU khỏi cú quay + Serial 115200 (21/08)**: dù `TURN_IMU_CORRECT=0`, luồng quay vẫn gọi IMU mỗi vòng (`readTurnAngle()`, in 3 trục Euler, `resetIMUValues()` block tới 1s đầu quay) → "xoay xong chờ lâu". Bọc **mọi** lời gọi `Motion.*` trong `#if TURN_IMU_CORRECT` — khi tắt, cú quay thuần encoder, không block UART. `TURN_90_DEGREES` 214 → **216**. `Serial.begin` + `monitor_speed` 9600 → **115200** (in debug @9600 block ~80ms/dòng làm trễ vòng lặp).
+- **PIR: log theo sự kiện thay đổi chân**: `[PIR-PIN] -> H/L` in NGAY khi chân PIR đổi trạng thái (trước chỉ in chu kỳ 2s nên dễ bỏ sót xung ngắn khi vuốt tay) — dùng đó kết luận module có phản ứng hay không.
+
+### Changed
 - **PIR: dừng cố định 5s rồi đi tiếp (21/08)**: bỏ logic chờ đường thoáng (`PIR_CLEAR_CONFIRM_MS` + timeout 10s + `pirClearSince`). Khi PIR phát hiện người khi đang di chuyển: còi + gửi `WARN:person` cho app → dừng **cố định `PIR_PAUSE_MS=5000ms`** → tự quay lại trạng thái đang dở và chạy tiếp. Nếu người vẫn đứng đó, sau cooldown 3s sẽ dừng thêm lượt nữa (phù hợp demo "có người đi qua").
 
 ### Fixed

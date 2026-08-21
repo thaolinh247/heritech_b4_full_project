@@ -9,3 +9,4 @@ npm notice run tsx watch src/index.ts
   GEMINI_API_KEY: loaded (AQ.Ab8...)
   Set EXPO_PUBLIC_BACKEND_URL=http://<IP>:3000 in .env
 
+^C

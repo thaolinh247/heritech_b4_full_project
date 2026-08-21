@@ -61,7 +61,7 @@
 // rồi bò hiệu chỉnh theo IMU (thiếu thì bò tới, lố thì bò lui, tối đa 4 lượt)
 #define TURN_FULL_SPEED        28      // toc do quay nhanh ban dau (0-100)
 #define TURN_SLOW_SPEED        12      // toc do cham khi gan dich
-#define TURN_90_DEGREES        214.0f  // encoder degrees (moi banh) cho 90° pivot turn
+#define TURN_90_DEGREES        216.0f  // encoder degrees (moi banh) cho 90° pivot turn
 #define TURN_DECEL_ZONE_DEG    30.0f   // con <=30° (theo encoder) thi giam xuong slow speed
 #define TURN_TOLERANCE_DEG     3.5f    // sai so chap nhan (theo IMU)
 #define TURN_SETTLE_MS         250     // dung xe -> cho quan tinh on dinh roi moi do lai
