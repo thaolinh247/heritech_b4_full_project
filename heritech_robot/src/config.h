@@ -41,11 +41,11 @@
 #define COLOR_STABLE_COUNT     3
 
 // ─── PIR (cảm biến chuyển động) ────────────────
-#define PIR_WARMUP_MS          3000    // PIR can ~3s on dinh sau khi khoi dong (10s truoc do = cho lau qua)
-#define PIR_ALARM_COOLDOWN_MS  3000    // Chống báo liên tục
-#define PIR_CLEAR_CONFIRM_MS   2000    // Đường thoáng khi PIR im lặng 2s
-#define PIR_GRACE_AFTER_LEAVE_MS 2000  // Bỏ qua PIR 2s khi vừa rời node (turn + pause)
-#define WARN_CLEAR_TIMEOUT_MS  10000   // Tối đa chờ đường thoáng
+#define PIR_WARMUP_MS          3000    // PIR can ~3s on dinh sau khi khoi dong
+#define PIR_ALARM_COOLDOWN_MS  3000    // Chong bao lien tuc
+// Phat hien nguoi -> bao app (WARN:person) + dung CO DINH 5s roi tu di tiep
+#define PIR_PAUSE_MS           5000
+#define PIR_GRACE_AFTER_LEAVE_MS 2000  // Bo qua PIR 2s khi vua roi node/turn
 #define BUZZER_ALARM_MS        200
 
 // ─── Switch (công tắc vật lý) ──────────────────

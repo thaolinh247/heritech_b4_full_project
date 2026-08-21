@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed
+- **PIR: dừng cố định 5s rồi đi tiếp (21/08)**: bỏ logic chờ đường thoáng (`PIR_CLEAR_CONFIRM_MS` + timeout 10s + `pirClearSince`). Khi PIR phát hiện người khi đang di chuyển: còi + gửi `WARN:person` cho app → dừng **cố định `PIR_PAUSE_MS=5000ms`** → tự quay lại trạng thái đang dở và chạy tiếp. Nếu người vẫn đứng đó, sau cooldown 3s sẽ dừng thêm lượt nữa (phù hợp demo "có người đi qua").
+
 ### Fixed
 - **PIR không nhận tay + thời gian chờ lâu (21/08)**: 2 nguyên nhân — (1) `pirEnabled` đang **false mặc định** (quyết định tắt từ buổi trước do module đọc nhiễu) → PIR không bao giờ đọc nếu không gửi `PIR_MODE:ON`; chuyển sang **true mặc định**. (2) `PIR_WARMUP_MS` 10s → **3s** (10s đầu bỏ qua mọi chuyển động = "chờ lâu"). Lưu ý hành vi đúng: PIR chỉ dừng robot khi ĐANG DI CHUYỂN (CRUISE/PRE_TURN_DRIVE/DRIVE_CM); đứng ở node/IDLE thì cố tình bỏ qua. Nếu để tay mà `[SENSOR] pirPin` đổi H↔L nhưng robot vẫn không dừng khi đang chạy → gửi `PIR_MODE:HIGH` để đảo cực (module báo ngược).
 

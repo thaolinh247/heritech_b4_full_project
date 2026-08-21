@@ -58,7 +58,6 @@ void setLedSos()     { MiniR4.LED.setColor(1, 255, 0, 0); }
 unsigned long lastPIRWarn = 0;
 unsigned long warnClearDeadline = 0;
 unsigned long pirGraceUntil = 0;
-unsigned long pirClearSince = 0;
 static bool pirEnabled = true;   // PIR bat mac dinh - tat bang cmd PIR_MODE:OFF neu module loi
 
 // ─── Gesture pause state ──────────────────────
@@ -384,12 +383,11 @@ void checkPIR() {
         stateBeforePir = cur;
         motors.stop();
         state.setState(RobotState::WAIT_CLEAR);
-        warnClearDeadline = now + WARN_CLEAR_TIMEOUT_MS;
-        pirClearSince = 0;
+        warnClearDeadline = now + PIR_PAUSE_MS;   // dung co dinh 5s roi di tiep
         setLedStopped();
         MiniR4.Buzzer.Tone(800, BUZZER_ALARM_MS);
         ble.sendMessage("WARN:person");
-        Serial.println("[PIR] >>> STOP <<<");
+        Serial.println("[PIR] >>> PAUSE 5s <<<");
     }
 }
 
@@ -746,28 +744,10 @@ void handleCruiseToRed() {
  * }
  */
 
-// ─── WAIT_CLEAR ───────────────────────────────
+// ─── WAIT_CLEAR: tạm dừng do PIR phát hiện người ──
+// Dừng cố định PIR_PAUSE_MS (5s) rồi tự quay lại trạng thái đang dở.
 void handleWaitClear() {
     motors.stop();
-
-    if (!sensors.readPIR()) {
-        if (pirClearSince == 0) pirClearSince = millis();
-        if (millis() - pirClearSince >= PIR_CLEAR_CONFIRM_MS) {
-            state.setState(stateBeforePir);
-            if (stateBeforePir == RobotState::DRIVE_CM ||
-                stateBeforePir == RobotState::PRE_TURN_DRIVE) {
-                motors.driveStraight(POST_TURN_DRIVE_SPEED);
-            } else {
-                motors.driveStraight(CRUISE_SPEED);
-            }
-            setLedMoving();
-            ble.sendMessage("STATUS:auto_resumed");
-            pirClearSince = 0;
-            Serial.println("[PIR] Path clear -> resume");
-        }
-    } else {
-        pirClearSince = 0;
-    }
 
     if (millis() >= warnClearDeadline) {
         state.setState(stateBeforePir);
@@ -779,8 +759,7 @@ void handleWaitClear() {
         }
         setLedMoving();
         ble.sendMessage("STATUS:auto_resumed");
-        pirClearSince = 0;
-        Serial.println("[PIR] Timeout -> resume");
+        Serial.println("[PIR] pause 5s done -> resume");
     }
 }
 
