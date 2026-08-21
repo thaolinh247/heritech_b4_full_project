@@ -18,24 +18,23 @@
 #define I2C_CH_COLOR           2
 #define I2C_CH_GESTURE         3   // MUX ch3 = I2C4 port (matches MatrixMiniR4 example)
 
-// ─── Motor & PID ───────────────────────────────
+// ─── Motor ─────────────────────────────────────
 #define LINE_THRESHOLD         50
 #define BASE_SPEED             30
 #define MAX_SPEED              45
 #define MIN_SPEED              10
-// getError() tra ve day +/-4.5 (weighted average cua 10 kenh)
-#define LINE_ERROR_MAX         4.5f
-#define LINE_DEADBAND          0.06f   // |error| nho hon 6% (chuan +/-1) -> giu thang, het rung
-#define PID_KP                 0.9     // he so ti le (bo he so D: doc nhieu moi 20ms lam rung robot)
-#define PID_KI                 0.01
-#define MAX_CORRECTION         0.8f    // chenh lech toi da giua 2 banh = 80% base (tranh quat goc)
-// Huong hieu chinh: +1 = motor xu ly dung (mac dinh). Neu robot quay NGUOC voi huong line
-// (line ben phai ma robot lai re TRAI xa line) -> doi thanh -1.
-#define CORRECTION_SIGN        1
-// So chinh thang: bu do lech co khi giua 2 banh (motor ben nao chay manh hon).
-// Am (-) -> re TRAI 1 chut (chong lech sang PHAI); Duong (+) -> re PHAI (chong lech TRAI).
-// Thu tu 0.05, 0.10, 0.15 ... cho toi khi robot di thang.
-#define STRAIGHT_TRIM          0.0f
+
+/*
+ * PID bám line (ĐÃ COMMENT — luồng mới KHÔNG bám line nữa)
+ *
+ * #define LINE_ERROR_MAX         4.5f
+ * #define LINE_DEADBAND          0.06f
+ * #define PID_KP                 0.9
+ * #define PID_KI                 0.01
+ * #define MAX_CORRECTION         0.8f
+ * #define CORRECTION_SIGN        1
+ * #define STRAIGHT_TRIM          0.0f
+ */
 
 // ─── Màu sắc ───────────────────────────────────
 #define COLOR_RED_ID           9
@@ -57,29 +56,38 @@
 #define GESTURE_REINIT_INTERVAL_MS 2000
 #define GESTURE_MAX_RETRY      20
 
-// ─── Turn & Junction ────────────────────────────
+// ─── Turn (quay phải 90° tại chỗ, đều 2 bánh) ──
 #define TURN_SPEED             30      // toc do quay (0-100)
 #define TURN_90_DEGREES        415.0f  // encoder degrees cho 90° pivot turn
 #define TURN_TIMEOUT_MS        5000    // qua lau van coi nhu turn xong (chong ket)
-#define TURN_PAUSE_AFTER_MS    2000    // dung yen 2s sau turn truoc khi bam line tiep
-#define JUNCTION_LEFT_MIN      2       // so kenh (trong 3 kenh ngoai cung) toi thieu de coi la junction
-#define JUNCTION_RIGHT_MAX     1       // so kenh ngoai cung phai toi da con line (phai gan nhu sach)
-#define JUNCTION_CONFIRM_FRAMES 3      // so frame xac nhan junction lien tiep
 
-// ─── Line lost / recovery ───────────────────────
-#define LINE_LOST_STOP_MS      300     // mat line du 300ms moi bat dau quay tim
-#define LINE_LOST_FLIP_MS      600     // doi chieu quay tim moi 600ms
-#define SEARCH_SPEED           22      // toc do quay tim line (0-100)
+// Junction (van dung boi sensor_manager.cpp — khong goi trong luong moi)
+#define JUNCTION_LEFT_MIN      2
+#define JUNCTION_RIGHT_MAX     1
+#define JUNCTION_CONFIRM_FRAMES 3
 
-// ─── Hành trình ──────────────────────────────────
-// Node 1 = vach do dau tien, Node 2 = junction trai dau tien, ...
-// Robot chi tiep tuc khi nhan tin hieu "di tiep" (BLE NODE_DONE / NEXT_NODE / VOICE_NEXT / gesture)
-#define TOTAL_NODES            2
+/*
+ * Line-lost recovery (ĐÃ COMMENT — không còn bám line)
+ *
+ * #define LINE_LOST_STOP_MS      300
+ * #define LINE_LOST_FLIP_MS      600
+ * #define SEARCH_SPEED           22
+ */
 
-// ─── Sau khi quay 90° ───────────────────────────
-// Quay xong -> bam line cham POST_TURN_SPEED trong POST_TURN_FOLLOW_MS -> dung han
-#define POST_TURN_FOLLOW_MS     3000    // thoi gian bam line sau turn
-#define POST_TURN_SPEED         20      // toc do cham sau turn (0-100)
+// ─── Luồng di chuyển mới: đi thẳng → đỏ → quay 90° → đi 30cm ──
+#define CRUISE_SPEED           20      // toc do di thang cham khi tim vach do (0-100)
+#define POST_TURN_DRIVE_SPEED  20      // toc do di thang cham sau khi quay 90°
+#define DRIVE_DISTANCE_CM      30.0f   // quang duong di thang sau khi quay xong
+#define ENCODER_DEGREES_PER_CM 17.6f   // 360 / chu vi banh(cm). Banh ~65mm -> ~17.6. Calib neu di le
+#define DRIVE_TIMEOUT_MS       8000    // qua lau chua du quang duong -> dung (phong ket)
+
+/*
+ * Hành trình nhiều node + bám line sau turn (ĐÃ COMMENT — luồng mới chỉ có 1 chặng)
+ *
+ * #define TOTAL_NODES            2
+ * #define POST_TURN_FOLLOW_MS    3000
+ * #define POST_TURN_SPEED        20
+ */
 
 // ─── Thời gian ─────────────────────────────────
 #define LOOP_DELAY_MS          20

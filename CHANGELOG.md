@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed
+- **Thay toàn bộ luồng di chuyển: bỏ bám line (21/08)**: comment toàn bộ logic bám line cũ (`#if 0` trong `main.cpp`, `motor_control.cpp`, `config.h`) và thay bằng luồng mới: **CRUISE_TO_RED** (đi thẳng chậm `CRUISE_SPEED=20`, KHÔNG bám line, tới khi thấy vạch đỏ ổn định 3 frame) → **AT_NODE** (còi + `NODE_START`, chờ tín hiệu "đi tiếp") → **TURNING** (quay phải 90° **tại chỗ đều 2 bánh** — trái tới/phải lùi, hoàn thành theo trung bình encoder 2 bánh) → **DRIVE_CM** (đi thẳng chậm đủ `DRIVE_DISTANCE_CM=30cm` theo encoder `ENCODER_DEGREES_PER_CM=17.6`, timeout 8s) → dừng hẳn + beep + `ROUTE_DONE`. Bỏ pause 2s sau turn; PIR/gesture/pause hoạt động như cũ trên các state mới.
+
 ### Fixed
 - **Sau quay 90° không thực sự "dò" line (20/08)**: trạng thái `FOLLOW_TO_JUNCTION` từng bị bỏ line-recovery → nếu sensor không nằm ngay trên line sau cú quay, robot chỉ đi thẳng (error=0) hết thời gian rồi dừng — không hề tìm line. Khôi phục `handleLineRecovery()` (đứng yên 300ms → quay quét tới khi bắt được line), và **3 giây chỉ bắt đầu tính từ lúc thực sự bám được line** (biến `f2jLockedAt`, reset khi mất line) — dò bao lâu cũng được, bám đủ 3s mới dừng. Kèm debug `[F2J] err=` mỗi 500ms. Quay 90° đặt lại `TURN_90_DEGREES=415`.
 

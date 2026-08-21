@@ -6,20 +6,25 @@
 class MotorControl {
 public:
     void begin();
-    void followLine(float error);
-    void stop();
-    void setSpeed(int16_t speed);
 
-    // Non-blocking turn
+    // Đi thẳng đều 2 bánh (KHÔNG bám line)
+    void driveStraight(int16_t power);
+    void stop();
+
+    // Quay phải 90° tại chỗ — đều 2 bánh (trái tới, phải lùi), non-blocking
     void startTurnRight90();
     bool isTurnComplete();
     void cancelTurn();
 
+    // Đi thẳng theo quãng đường (encoder), non-blocking
+    void startDriveCM(float cm);
+    bool isDriveComplete();
+    void cancelDrive();
+
 private:
-    int16_t _baseSpeed;
-    float _lastError;
-    float _integral;
     bool _turning;
     float _turnTargetDegrees;
+    bool _driving;
+    float _driveTargetDegrees;
 };
 #endif

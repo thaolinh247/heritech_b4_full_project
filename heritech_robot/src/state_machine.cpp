@@ -19,11 +19,11 @@ void StateMachine::setState(RobotState newState) {
 const char* StateMachine::getStateName() {
     switch (_currentState) {
         case RobotState::IDLE:               return "IDLE";
-        case RobotState::FOLLOW_LINE:        return "FOLLOW_LINE";
+        case RobotState::CRUISE_TO_RED:      return "CRUISE_TO_RED";
         case RobotState::WAIT_CLEAR:         return "WAIT_CLEAR";
         case RobotState::AT_NODE:            return "AT_NODE";
         case RobotState::TURNING:            return "TURNING";
-        case RobotState::FOLLOW_TO_JUNCTION: return "FOLLOW_TO_JUNCTION";
+        case RobotState::DRIVE_CM:           return "DRIVE_CM";
         case RobotState::PAUSED:             return "PAUSED";
         default:                             return "UNKNOWN";
     }

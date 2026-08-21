@@ -1,12 +1,12 @@
-// HeritageBuddy Robot — Line Follower — FINAL
-// Hành trình: FOLLOW_LINE (bám line + nhận diện đỏ)
+// HeritageBuddy Robot — LUỒNG MỚI (không bám line)
+// Hành trình: CRUISE_TO_RED (đi thẳng chậm ~20, KHÔNG bám line, tới khi thấy đỏ)
 //   -> AT_NODE (còi + NODE_START, chờ tín hiệu "đi tiếp")
-//   -> TURNING (quay phải 90°, encoder)
-//   -> FOLLOW_TO_JUNCTION (bám line chậm POST_TURN_FOLLOW_MS rồi dừng hẳn)
+//   -> TURNING (quay phải 90° TẠI CHỎ, đều 2 bánh, encoder)
+//   -> DRIVE_CM (đi thẳng chậm đủ 30cm rồi dừng hẳn + ROUTE_DONE)
 // + PIR motion detection (mặc định TẮT, bật bằng PIR_MODE:ON)
 // + Gesture PAJ7620: vuốt lên = PAUSED, cử chỉ khác = "đi tiếp"
 // + Switch: nhấn = SWITCH_PRESS, giữ 10s = SOS
-// + Line lost recovery (chỉ ở FOLLOW_LINE): mất line -> đứng yên -> quay tìm
+// Logic bám line cũ đã được COMMENT (#if 0) ở cuối file và trong motor_control.cpp/config.h
 
 #include <MatrixMiniR4.h>
 #include "config.h"
@@ -23,11 +23,9 @@ StateMachine state;
 bool nodeNotified = false;
 uint8_t currentNodeId = NODE_ID_FIRST;
 
-// ─── Line lost / recovery state ────────────────
-static unsigned long lineLostSince = 0;
-static int8_t searchDir = 1;
-static unsigned long searchFlipAt = 0;
+// ─── Turn / drive state ────────────────────────
 unsigned long turnStartedAt = 0;
+unsigned long driveStartedAt = 0;
 
 // ─── Forward declarations ─────────────────────
 void checkButton();
@@ -36,16 +34,16 @@ void checkPIR();
 void checkSwitch();
 void checkGesture();
 void retryGestureInit();
-void handleFollowLine();
+void handleCruiseToRed();
 void handleAtNode();
 void handleWaitClear();
 void handleTurning();
-void handleFollowToJunction();
+void handleDriveCM();
+void finishRoute();
 void handlePaused();
 void processNextSignal();
 void pauseRobot();
 void resumeFromPause();
-bool handleLineRecovery();
 
 // ─── LED ──────────────────────────────────────
 void setLedStopped() { MiniR4.LED.setColor(1, 0, 0, 255); }
@@ -62,7 +60,7 @@ static bool pirEnabled = false;  // PIR mac dinh TAT (module chua xac minh) - ba
 // ─── Gesture pause state ──────────────────────
 // Vuốt lên = DỪNG: robot tạm dừng hành trình và CHỈ đi tiếp khi nhận tín
 // hiệu "đi tiếp" (cử chỉ vẫy/gạt tay, giọng nói, hoặc nút trên app).
-RobotState stateBeforePause = RobotState::FOLLOW_LINE;
+RobotState stateBeforePause = RobotState::CRUISE_TO_RED;
 
 // ─── Sound ────────────────────────────────────
 static unsigned long beepUntil = 0;
@@ -194,8 +192,8 @@ void loop() {
         case RobotState::IDLE:
             motors.stop();
             break;
-        case RobotState::FOLLOW_LINE:
-            handleFollowLine();
+        case RobotState::CRUISE_TO_RED:
+            handleCruiseToRed();
             break;
         case RobotState::WAIT_CLEAR:
             handleWaitClear();
@@ -206,8 +204,8 @@ void loop() {
         case RobotState::TURNING:
             handleTurning();
             break;
-        case RobotState::FOLLOW_TO_JUNCTION:
-            handleFollowToJunction();
+        case RobotState::DRIVE_CM:
+            handleDriveCM();
             break;
         case RobotState::PAUSED:
             handlePaused();
@@ -227,8 +225,8 @@ void checkButton() {
         if (state.getState() == RobotState::IDLE) {
             nodeNotified = false;
             currentNodeId = NODE_ID_FIRST;
-            state.setState(RobotState::FOLLOW_LINE);
-            motors.setSpeed(BASE_SPEED);
+            state.setState(RobotState::CRUISE_TO_RED);
+            motors.driveStraight(CRUISE_SPEED);
             setLedMoving();
             MiniR4.Buzzer.Tone(400, 100);
             Serial.println("[BTN] DOWN -> START");
@@ -259,10 +257,10 @@ void checkBLECommands() {
     if (cmd == "START") {
         nodeNotified = false;
         currentNodeId = NODE_ID_FIRST;
-        state.setState(RobotState::FOLLOW_LINE);
-        motors.setSpeed(BASE_SPEED);
+        state.setState(RobotState::CRUISE_TO_RED);
+        motors.driveStraight(CRUISE_SPEED);
         setLedMoving();
-        Serial.println("[CMD] START -> FOLLOW_LINE");
+        Serial.println("[CMD] START -> CRUISE_TO_RED");
     }
     else if (cmd == "STOP") {
         motors.stop();
@@ -274,11 +272,11 @@ void checkBLECommands() {
         if (state.getState() == RobotState::PAUSED) {
             resumeFromPause();
         } else if (state.getState() == RobotState::IDLE) {
-            state.setState(RobotState::FOLLOW_LINE);
-            motors.setSpeed(BASE_SPEED);
+            state.setState(RobotState::CRUISE_TO_RED);
+            motors.driveStraight(CRUISE_SPEED);
             setLedMoving();
             ble.sendMessage("STATUS:resumed");
-            Serial.println("[CMD] RESUME -> FOLLOW_LINE");
+            Serial.println("[CMD] RESUME -> CRUISE_TO_RED");
         }
     }
     else if (cmd == "SOS") {
@@ -329,7 +327,7 @@ void checkBLECommands() {
 
 // ─── PIR (motion detection) ───────────────────
 static unsigned long lastPirDebug = 0;
-RobotState stateBeforePir = RobotState::FOLLOW_LINE;
+RobotState stateBeforePir = RobotState::CRUISE_TO_RED;
 
 void checkPIR() {
     if (!pirEnabled) return;
@@ -351,8 +349,8 @@ void checkPIR() {
         Serial.print(millis() < PIR_WARMUP_MS ? "YES" : "no");
         Serial.print(" st=");
         RobotState cur = state.getState();
-        if (cur == RobotState::FOLLOW_LINE) Serial.print("FOLLOW");
-        else if (cur == RobotState::FOLLOW_TO_JUNCTION) Serial.print("F2J");
+        if (cur == RobotState::CRUISE_TO_RED) Serial.print("CRUISE");
+        else if (cur == RobotState::DRIVE_CM) Serial.print("DRIVE");
         else if (cur == RobotState::WAIT_CLEAR) Serial.print("WAIT");
         else if (cur == RobotState::TURNING) Serial.print("TURN");
         else if (cur == RobotState::AT_NODE) Serial.print("NODE");
@@ -372,7 +370,7 @@ void checkPIR() {
     lastPIRWarn = now;
 
     RobotState cur = state.getState();
-    if (cur == RobotState::FOLLOW_LINE || cur == RobotState::FOLLOW_TO_JUNCTION) {
+    if (cur == RobotState::CRUISE_TO_RED || cur == RobotState::DRIVE_CM) {
         stateBeforePir = cur;
         motors.stop();
         state.setState(RobotState::WAIT_CLEAR);
@@ -479,15 +477,16 @@ void checkGesture() {
 // ─── Gesture pause (vuốt lên = dừng) ──────────
 void pauseRobot() {
     RobotState cur = state.getState();
-    if (cur != RobotState::FOLLOW_LINE &&
-        cur != RobotState::FOLLOW_TO_JUNCTION &&
+    if (cur != RobotState::CRUISE_TO_RED &&
+        cur != RobotState::DRIVE_CM &&
         cur != RobotState::TURNING) {
         // Không đang di chuyển → không cần dừng (đã đứng yên ở node/IDLE)
         return;
     }
 
     stateBeforePause = cur;
-    motors.cancelTurn();     // hủy cú rẽ dở (nếu đang TURNING) để tránh quay tiếp
+    motors.cancelTurn();     // hủy cú rẽ dở (nếu đang TURNING)
+    motors.cancelDrive();    // hủy chặng 30cm dở (nếu đang DRIVE_CM)
     motors.stop();
     state.setState(RobotState::PAUSED);
     setLedStopped();
@@ -504,8 +503,11 @@ void resumeFromPause() {
     if (resumeTo == RobotState::TURNING) {
         motors.startTurnRight90(); // tiếp tục cú rẽ dang dở từ đầu
         turnStartedAt = millis();
+    } else if (resumeTo == RobotState::DRIVE_CM) {
+        // Encoder vẫn giữ số đếm → chỉ chạy tiếp phần quãng đường còn lại
+        motors.driveStraight(POST_TURN_DRIVE_SPEED);
     } else {
-        motors.setSpeed(BASE_SPEED);
+        motors.driveStraight(CRUISE_SPEED);
     }
     setLedMoving();
     ble.sendMessage("STATUS:resumed");
@@ -516,18 +518,8 @@ void resumeFromPause() {
 void processNextSignal() {
     if (state.getState() != RobotState::AT_NODE) return;
 
-    // Het hanh trinh: dung lai o node cuoi, khong re tiep
-    if (currentNodeId >= TOTAL_NODES) {
-        motors.stop();
-        state.setState(RobotState::IDLE);
-        setLedStopped();
-        MiniR4.Buzzer.Tone(880, 300);
-        ble.sendMessage("ROUTE_DONE:" + String(currentNodeId));
-        Serial.print("[ROUTE] DONE at node ");
-        Serial.println(currentNodeId);
-        return;
-    }
-
+    // Luồng mới: tín hiệu "đi tiếp" → quay phải 90° (đều 2 bánh).
+    // Hành trình kết thúc sau chặng DRIVE_CM 30cm (không còn nhiều node).
     ble.sendMessage("NODE_COMPLETE:" + String(currentNodeId));
     state.setState(RobotState::TURNING);
     motors.startTurnRight90();
@@ -538,14 +530,53 @@ void processNextSignal() {
     Serial.println(currentNodeId);
 }
 
-// ─── FOLLOW_LINE ──────────────────────────────
-void handleFollowLine() {
+// ─── TURNING (quay phải 90° tại chỗ, đều 2 bánh) ──
+void handleTurning() {
+    bool timedOut = millis() - turnStartedAt >= TURN_TIMEOUT_MS;
+    if (motors.isTurnComplete() || timedOut) {
+        if (timedOut) {
+            motors.cancelTurn();
+            Serial.println("[TURN] timeout, continue anyway");
+        }
+        currentNodeId++;
+        nodeNotified = false;
+        // Quay xong → đi thẳng chậm đủ 30cm rồi dừng hẳn
+        state.setState(RobotState::DRIVE_CM);
+        motors.startDriveCM(DRIVE_DISTANCE_CM);
+        driveStartedAt = millis();
+        setLedMoving();
+        pirGraceUntil = millis() + PIR_GRACE_AFTER_LEAVE_MS;
+        Serial.println("[TURN] complete -> DRIVE_CM (30cm)");
+    }
+}
+
+// ─── DRIVE_CM: đi thẳng chậm đủ 30cm rồi dừng hẳn ──
+void finishRoute() {
+    motors.stop();
+    state.setState(RobotState::IDLE);
+    setLedStopped();
+    MiniR4.Buzzer.Tone(880, 300);
+    ble.sendMessage("ROUTE_DONE:" + String(currentNodeId));
+    Serial.println("[ROUTE] DONE -> IDLE");
+}
+
+void handleDriveCM() {
+    if (millis() - driveStartedAt >= DRIVE_TIMEOUT_MS) {
+        motors.cancelDrive();
+        Serial.println("[DRIVE] timeout, stop anyway");
+        finishRoute();
+        return;
+    }
+    if (motors.isDriveComplete()) {
+        finishRoute();
+    }
+}
+
+// ─── CRUISE_TO_RED: đi thẳng chậm (KHÔNG bám line) tới khi thấy đỏ ──
+void handleCruiseToRed() {
     static uint8_t redCount = 0;
 
-    if (handleLineRecovery()) return;   // dang mat line -> da xu ly motor
-
-    float error = sensors.readLineError();
-    motors.followLine(error);
+    motors.driveStraight(CRUISE_SPEED);
 
     if (sensors.isRedDetected()) {
         redCount++;
@@ -560,35 +591,125 @@ void handleFollowLine() {
     }
 }
 
-// ─── Line lost / recovery ─────────────────────
-// Tra ve TRUE neu robot dang mat line (da xu ly motor), FALSE neu line on dinh.
-// Goi dau moi handler bam line: mat line -> dung 1 lat roi quay tim, co line lai -> cham tuc.
-bool handleLineRecovery() {
-    uint8_t w = sensors.readLineWidth();
-
-    if (w > 0) {
-        lineLostSince = 0;
-        searchDir = 1;
-        return false;
-    }
-
-    if (lineLostSince == 0) lineLostSince = millis();
-
-    if (millis() - lineLostSince < LINE_LOST_STOP_MS) {
-        // Vua mat line 1-2 frame (co the do gap junction/lac nhe) -> dung yen cho
-        motors.stop();
-        return true;
-    }
-
-    // Mat line lau: quay tai cho tim lai line, doi chieu moi 600ms
-    if (millis() >= searchFlipAt) {
-        searchDir = -searchDir;
-        searchFlipAt = millis() + LINE_LOST_FLIP_MS;
-    }
-    MiniR4.M1.setPower(SEARCH_SPEED * searchDir);
-    MiniR4.M2.setPower(-SEARCH_SPEED * searchDir);
-    return true;
-}
+/*
+ * ══════════════════════════════════════════════════════════════
+ * LOGIC CŨ — BÁM LINE (ĐÃ COMMENT, không dùng trong luồng mới)
+ * Gồm: FOLLOW_LINE + PID, line-lost recovery, FOLLOW_TO_JUNCTION.
+ * Khôi phục khi cần quay lại luồng bám line.
+ * ══════════════════════════════════════════════════════════════
+ *
+ * // ─── Line lost / recovery state ────────────────
+ * static unsigned long lineLostSince = 0;
+ * static int8_t searchDir = 1;
+ * static unsigned long searchFlipAt = 0;
+ * unsigned long turnPauseUntil = 0;
+ * unsigned long f2jLockedAt = 0;
+ *
+ * // ─── FOLLOW_LINE ──────────────────────────────
+ * void handleFollowLine() {
+ *     static uint8_t redCount = 0;
+ *
+ *     if (handleLineRecovery()) return;   // dang mat line -> da xu ly motor
+ *
+ *     float error = sensors.readLineError();
+ *     motors.followLine(error);
+ *
+ *     if (sensors.isRedDetected()) {
+ *         redCount++;
+ *         if (redCount >= COLOR_STABLE_COUNT) {
+ *             redCount = 0;
+ *             motors.stop();
+ *             state.setState(RobotState::AT_NODE);
+ *             Serial.println("[RED] Red detected -> AT_NODE");
+ *         }
+ *     } else {
+ *         redCount = 0;
+ *     }
+ * }
+ *
+ * // ─── Line lost / recovery ─────────────────────
+ * bool handleLineRecovery() {
+ *     uint8_t w = sensors.readLineWidth();
+ *
+ *     if (w > 0) {
+ *         lineLostSince = 0;
+ *         searchDir = 1;
+ *         return false;
+ *     }
+ *
+ *     if (lineLostSince == 0) lineLostSince = millis();
+ *
+ *     if (millis() - lineLostSince < LINE_LOST_STOP_MS) {
+ *         motors.stop();
+ *         return true;
+ *     }
+ *
+ *     if (millis() >= searchFlipAt) {
+ *         searchDir = -searchDir;
+ *         searchFlipAt = millis() + LINE_LOST_FLIP_MS;
+ *     }
+ *     MiniR4.M1.setPower(SEARCH_SPEED * searchDir);
+ *     MiniR4.M2.setPower(-SEARCH_SPEED * searchDir);
+ *     return true;
+ * }
+ *
+ * // ─── TURNING cu: quay xong -> nghi 2s -> FOLLOW_TO_JUNCTION ──
+ * void handleTurning() {
+ *     if (turnPauseUntil > 0) {
+ *         if (millis() >= turnPauseUntil) {
+ *             turnPauseUntil = 0;
+ *             state.setState(RobotState::FOLLOW_TO_JUNCTION);
+ *             motors.setSpeed(POST_TURN_SPEED);
+ *             setLedMoving();
+ *             Serial.println("[TURN] pause done -> FOLLOW_TO_JUNCTION");
+ *         }
+ *         return;
+ *     }
+ *
+ *     bool timedOut = millis() - turnStartedAt >= TURN_TIMEOUT_MS;
+ *     if (motors.isTurnComplete() || timedOut) {
+ *         if (timedOut) {
+ *             motors.cancelTurn();
+ *             Serial.println("[TURN] timeout, continue anyway");
+ *         }
+ *         currentNodeId++;
+ *         nodeNotified = false;
+ *         motors.stop();
+ *         turnPauseUntil = millis() + TURN_PAUSE_AFTER_MS;
+ *         setLedStopped();
+ *     }
+ * }
+ *
+ * // ─── FOLLOW_TO_JUNCTION (dò line, bám 3s rồi dừng hẳn) ──
+ * void handleFollowToJunction() {
+ *     static unsigned long lastDebug = 0;
+ *
+ *     if (handleLineRecovery()) {
+ *         f2jLockedAt = 0;
+ *         return;
+ *     }
+ *
+ *     float error = sensors.readLineError();
+ *     motors.followLine(error);
+ *
+ *     if (millis() - lastDebug >= 500) {
+ *         lastDebug = millis();
+ *         Serial.print("[F2J] err=");
+ *         Serial.print(error, 2);
+ *         Serial.println();
+ *     }
+ *
+ *     if (f2jLockedAt == 0) f2jLockedAt = millis();
+ *     if (millis() - f2jLockedAt >= POST_TURN_FOLLOW_MS) {
+ *         motors.stop();
+ *         state.setState(RobotState::IDLE);
+ *         setLedStopped();
+ *         MiniR4.Buzzer.Tone(880, 300);
+ *         ble.sendMessage("ROUTE_DONE:" + String(currentNodeId));
+ *         Serial.println("[F2J] follow 3s done -> IDLE (route done)");
+ *     }
+ * }
+ */
 
 // ─── WAIT_CLEAR ───────────────────────────────
 void handleWaitClear() {
@@ -598,12 +719,13 @@ void handleWaitClear() {
         if (pirClearSince == 0) pirClearSince = millis();
         if (millis() - pirClearSince >= PIR_CLEAR_CONFIRM_MS) {
             state.setState(stateBeforePir);
-            motors.setSpeed(BASE_SPEED);
+            if (stateBeforePir == RobotState::DRIVE_CM) motors.driveStraight(POST_TURN_DRIVE_SPEED);
+            else motors.driveStraight(CRUISE_SPEED);
             setLedMoving();
             ble.sendMessage("STATUS:auto_resumed");
             pirClearSince = 0;
             Serial.print("[PIR] Path clear -> resume to ");
-            Serial.println(stateBeforePir == RobotState::FOLLOW_TO_JUNCTION ? "F2J" : "FOLLOW");
+            Serial.println(stateBeforePir == RobotState::DRIVE_CM ? "DRIVE" : "CRUISE");
         }
     } else {
         pirClearSince = 0;
@@ -611,12 +733,13 @@ void handleWaitClear() {
 
     if (millis() >= warnClearDeadline) {
         state.setState(stateBeforePir);
-        motors.setSpeed(BASE_SPEED);
+        if (stateBeforePir == RobotState::DRIVE_CM) motors.driveStraight(POST_TURN_DRIVE_SPEED);
+        else motors.driveStraight(CRUISE_SPEED);
         setLedMoving();
         ble.sendMessage("STATUS:auto_resumed");
         pirClearSince = 0;
         Serial.print("[PIR] Timeout -> resume to ");
-        Serial.println(stateBeforePir == RobotState::FOLLOW_TO_JUNCTION ? "F2J" : "FOLLOW");
+        Serial.println(stateBeforePir == RobotState::DRIVE_CM ? "DRIVE" : "CRUISE");
     }
 }
 
@@ -638,71 +761,5 @@ void handleAtNode() {
         beepUntil = millis() + NODE_ARRIVAL_BEEP_MS;
         Serial.print("[NODE] sent NODE_START:");
         Serial.println(currentNodeId);
-    }
-}
-
-// ─── TURNING (quay phải 90°) ──────────────────
-unsigned long turnPauseUntil = 0;
-
-void handleTurning() {
-    if (turnPauseUntil > 0) {
-        if (millis() >= turnPauseUntil) {
-            turnPauseUntil = 0;
-            state.setState(RobotState::FOLLOW_TO_JUNCTION);
-            motors.setSpeed(POST_TURN_SPEED);
-            setLedMoving();
-            Serial.println("[TURN] pause done -> FOLLOW_TO_JUNCTION (dò line 3s)");
-        }
-        return;
-    }
-
-    bool timedOut = millis() - turnStartedAt >= TURN_TIMEOUT_MS;
-    if (motors.isTurnComplete() || timedOut) {
-        if (timedOut) {
-            motors.cancelTurn();
-            Serial.println("[TURN] timeout, continue anyway");
-        }
-        currentNodeId++;
-        nodeNotified = false;
-        motors.stop();
-        turnPauseUntil = millis() + TURN_PAUSE_AFTER_MS;
-        setLedStopped();
-        Serial.print("[TURN] complete, pausing 2s (node ");
-        Serial.print(currentNodeId);
-        Serial.println(")");
-    }
-}
-
-// ─── FOLLOW_TO_JUNCTION (dò line, bám 3s rồi dừng hẳn) ──
-unsigned long f2jLockedAt = 0;
-
-void handleFollowToJunction() {
-    static unsigned long lastDebug = 0;
-
-    // Mat line: dung yen roi quay tim cho toi khi bam duoc line (dò line)
-    if (handleLineRecovery()) {
-        f2jLockedAt = 0;   // tinh lai 3s tu luc co line lai
-        return;
-    }
-
-    float error = sensors.readLineError();
-    motors.followLine(error);
-
-    if (millis() - lastDebug >= 500) {
-        lastDebug = millis();
-        Serial.print("[F2J] err=");
-        Serial.print(error, 2);
-        Serial.println();
-    }
-
-    // 3 giay chi tinh khi that su dang bam line
-    if (f2jLockedAt == 0) f2jLockedAt = millis();
-    if (millis() - f2jLockedAt >= POST_TURN_FOLLOW_MS) {
-        motors.stop();
-        state.setState(RobotState::IDLE);
-        setLedStopped();
-        MiniR4.Buzzer.Tone(880, 300);
-        ble.sendMessage("ROUTE_DONE:" + String(currentNodeId));
-        Serial.println("[F2J] follow 3s done -> IDLE (route done)");
     }
 }

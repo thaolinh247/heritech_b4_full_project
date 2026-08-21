@@ -5,11 +5,11 @@
 
 enum class RobotState {
     IDLE,
-    FOLLOW_LINE,
+    CRUISE_TO_RED,   // đi thẳng chậm (KHÔNG bám line) tới khi thấy vạch đỏ
     WAIT_CLEAR,
     AT_NODE,
     TURNING,
-    FOLLOW_TO_JUNCTION,
+    DRIVE_CM,        // đi thẳng chậm đủ DRIVE_DISTANCE_CM rồi dừng hẳn
     PAUSED,
 };
 
