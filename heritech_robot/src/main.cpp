@@ -37,6 +37,8 @@ void retryGestureInit();
 void handleCruiseToRed();
 void handleAtNode();
 void handleWaitClear();
+void handlePreTurnDrive();
+void beginTurn();
 void handleTurning();
 void handleDriveCM();
 void finishRoute();
@@ -201,6 +203,9 @@ void loop() {
         case RobotState::AT_NODE:
             handleAtNode();
             break;
+        case RobotState::PRE_TURN_DRIVE:
+            handlePreTurnDrive();
+            break;
         case RobotState::TURNING:
             handleTurning();
             break;
@@ -351,6 +356,7 @@ void checkPIR() {
         RobotState cur = state.getState();
         if (cur == RobotState::CRUISE_TO_RED) Serial.print("CRUISE");
         else if (cur == RobotState::DRIVE_CM) Serial.print("DRIVE");
+        else if (cur == RobotState::PRE_TURN_DRIVE) Serial.print("PRE");
         else if (cur == RobotState::WAIT_CLEAR) Serial.print("WAIT");
         else if (cur == RobotState::TURNING) Serial.print("TURN");
         else if (cur == RobotState::AT_NODE) Serial.print("NODE");
@@ -370,7 +376,9 @@ void checkPIR() {
     lastPIRWarn = now;
 
     RobotState cur = state.getState();
-    if (cur == RobotState::CRUISE_TO_RED || cur == RobotState::DRIVE_CM) {
+    if (cur == RobotState::CRUISE_TO_RED ||
+        cur == RobotState::DRIVE_CM ||
+        cur == RobotState::PRE_TURN_DRIVE) {
         stateBeforePir = cur;
         motors.stop();
         state.setState(RobotState::WAIT_CLEAR);
@@ -479,6 +487,7 @@ void pauseRobot() {
     RobotState cur = state.getState();
     if (cur != RobotState::CRUISE_TO_RED &&
         cur != RobotState::DRIVE_CM &&
+        cur != RobotState::PRE_TURN_DRIVE &&
         cur != RobotState::TURNING) {
         // Không đang di chuyển → không cần dừng (đã đứng yên ở node/IDLE)
         return;
@@ -503,7 +512,8 @@ void resumeFromPause() {
     if (resumeTo == RobotState::TURNING) {
         motors.startTurnRight90(); // tiếp tục cú rẽ dang dở từ đầu
         turnStartedAt = millis();
-    } else if (resumeTo == RobotState::DRIVE_CM) {
+    } else if (resumeTo == RobotState::DRIVE_CM ||
+               resumeTo == RobotState::PRE_TURN_DRIVE) {
         // Encoder vẫn giữ số đếm → chỉ chạy tiếp phần quãng đường còn lại
         motors.driveStraight(POST_TURN_DRIVE_SPEED);
     } else {
@@ -518,19 +528,41 @@ void resumeFromPause() {
 void processNextSignal() {
     if (state.getState() != RobotState::AT_NODE) return;
 
-    // Luồng mới: tín hiệu "đi tiếp" → quay phải 90° (đều 2 bánh).
+    // Luồng mới: tín hiệu "đi tiếp" → đi thẳng thêm 5cm → quay phải 90°.
     // Hành trình kết thúc sau chặng DRIVE_CM 30cm (không còn nhiều node).
     ble.sendMessage("NODE_COMPLETE:" + String(currentNodeId));
+    state.setState(RobotState::PRE_TURN_DRIVE);
+    motors.startDriveCM(PRE_TURN_DRIVE_CM);
+    driveStartedAt = millis();
+    setLedMoving();
+    pirGraceUntil = millis() + PIR_GRACE_AFTER_LEAVE_MS;
+    Serial.println("[NODE] go signal -> PRE_TURN_DRIVE (5cm)");
+}
+
+// ─── PRE_TURN_DRIVE: đi thẳng thêm 5cm rồi mới quay ──
+void handlePreTurnDrive() {
+    if (millis() - driveStartedAt >= DRIVE_TIMEOUT_MS) {
+        motors.cancelDrive();
+        Serial.println("[PRE-DRIVE] timeout, turn anyway");
+        beginTurn();
+        return;
+    }
+    if (motors.isDriveComplete()) {
+        beginTurn();
+    }
+}
+
+// ─── TURNING (quay phải 90° tại chỗ, đều 2 bánh) ──
+void beginTurn() {
+    currentNodeId++;
+    nodeNotified = false;
     state.setState(RobotState::TURNING);
     motors.startTurnRight90();
     turnStartedAt = millis();
     setLedMoving();
-    pirGraceUntil = millis() + PIR_GRACE_AFTER_LEAVE_MS;
-    Serial.print("[NODE] TURNING right 90° from node ");
-    Serial.println(currentNodeId);
+    Serial.println("[TURN] start right 90°");
 }
 
-// ─── TURNING (quay phải 90° tại chỗ, đều 2 bánh) ──
 void handleTurning() {
     bool timedOut = millis() - turnStartedAt >= TURN_TIMEOUT_MS;
     if (motors.isTurnComplete() || timedOut) {
@@ -538,8 +570,6 @@ void handleTurning() {
             motors.cancelTurn();
             Serial.println("[TURN] timeout, continue anyway");
         }
-        currentNodeId++;
-        nodeNotified = false;
         // Quay xong → đi thẳng chậm đủ 30cm rồi dừng hẳn
         state.setState(RobotState::DRIVE_CM);
         motors.startDriveCM(DRIVE_DISTANCE_CM);
@@ -719,13 +749,16 @@ void handleWaitClear() {
         if (pirClearSince == 0) pirClearSince = millis();
         if (millis() - pirClearSince >= PIR_CLEAR_CONFIRM_MS) {
             state.setState(stateBeforePir);
-            if (stateBeforePir == RobotState::DRIVE_CM) motors.driveStraight(POST_TURN_DRIVE_SPEED);
-            else motors.driveStraight(CRUISE_SPEED);
+            if (stateBeforePir == RobotState::DRIVE_CM ||
+                stateBeforePir == RobotState::PRE_TURN_DRIVE) {
+                motors.driveStraight(POST_TURN_DRIVE_SPEED);
+            } else {
+                motors.driveStraight(CRUISE_SPEED);
+            }
             setLedMoving();
             ble.sendMessage("STATUS:auto_resumed");
             pirClearSince = 0;
-            Serial.print("[PIR] Path clear -> resume to ");
-            Serial.println(stateBeforePir == RobotState::DRIVE_CM ? "DRIVE" : "CRUISE");
+            Serial.println("[PIR] Path clear -> resume");
         }
     } else {
         pirClearSince = 0;
@@ -733,13 +766,16 @@ void handleWaitClear() {
 
     if (millis() >= warnClearDeadline) {
         state.setState(stateBeforePir);
-        if (stateBeforePir == RobotState::DRIVE_CM) motors.driveStraight(POST_TURN_DRIVE_SPEED);
-        else motors.driveStraight(CRUISE_SPEED);
+        if (stateBeforePir == RobotState::DRIVE_CM ||
+            stateBeforePir == RobotState::PRE_TURN_DRIVE) {
+            motors.driveStraight(POST_TURN_DRIVE_SPEED);
+        } else {
+            motors.driveStraight(CRUISE_SPEED);
+        }
         setLedMoving();
         ble.sendMessage("STATUS:auto_resumed");
         pirClearSince = 0;
-        Serial.print("[PIR] Timeout -> resume to ");
-        Serial.println(stateBeforePir == RobotState::DRIVE_CM ? "DRIVE" : "CRUISE");
+        Serial.println("[PIR] Timeout -> resume");
     }
 }
 

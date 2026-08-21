@@ -22,6 +22,7 @@ const char* StateMachine::getStateName() {
         case RobotState::CRUISE_TO_RED:      return "CRUISE_TO_RED";
         case RobotState::WAIT_CLEAR:         return "WAIT_CLEAR";
         case RobotState::AT_NODE:            return "AT_NODE";
+        case RobotState::PRE_TURN_DRIVE:     return "PRE_TURN_DRIVE";
         case RobotState::TURNING:            return "TURNING";
         case RobotState::DRIVE_CM:           return "DRIVE_CM";
         case RobotState::PAUSED:             return "PAUSED";

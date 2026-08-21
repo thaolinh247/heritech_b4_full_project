@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed
+- **Thêm 5cm trước khi quay + sửa góc pivot (21/08)**: (1) nhận tín hiệu "đi tiếp" giờ robot đi thẳng thêm `PRE_TURN_DRIVE_CM=5cm` (state mới `PRE_TURN_DRIVE`, dùng chung cơ chế encoder với `DRIVE_CM`) rồi mới quay phải 90°. (2) `TURN_90_DEGREES` giảm 415 → **208**: 415 là số của turn 1-bánh cũ, pivot tại chỗ mỗi bánh chỉ đi nửa cung — thực tế để 415 robot quay ~180° (đúng 2×), khớp lý thuyết nửa cung.
+
 ### Fixed
 - **Quay sai chiều sau khi thấy đỏ (21/08)**: pivot turn mới bị xoay TRAI thay vì phải — nguyên nhân: M1/M2 ngược giả định (M2 mới là bánh trái, chứng minh bởi cú quay cũ chỉ chạy M2 tới mà robot re phải). Đảo dấu trong `startTurnRight90()`: `M1.setPower(-TURN_SPEED)` (bánh phải lùi), `M2.setPower(+TURN_SPEED)` (bánh trái tới). Lưu ý: `TURN_90_DEGREES=415` được hiệu chỉnh cho cơ chế quay cũ (1 bánh) — quay tại chỗ có thể cần tinh chỉnh lại (quay thiếu → tăng, quay thừa → giảm).
 

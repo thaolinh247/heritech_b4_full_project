@@ -58,8 +58,14 @@
 
 // ─── Turn (quay phải 90° tại chỗ, đều 2 bánh) ──
 #define TURN_SPEED             30      // toc do quay (0-100)
-#define TURN_90_DEGREES        415.0f  // encoder degrees cho 90° pivot turn
+// Pivot turn: moi banh chi di NUA cung tron so voi turn 1-banh cu (415).
+// Test 21/08: de 415 thi robot quay ~180° -> chinh xac can mot nua = ~208
+#define TURN_90_DEGREES        208.0f  // encoder degrees (moi banh) cho 90° pivot turn
 #define TURN_TIMEOUT_MS        5000    // qua lau van coi nhu turn xong (chong ket)
+
+// ─── Di thang truoc khi quay ────────────────────
+// Nhan tin hieu "di tiep" -> di thang them 5cm ROI moi quay phai 90°
+#define PRE_TURN_DRIVE_CM      5.0f
 
 // Junction (van dung boi sensor_manager.cpp — khong goi trong luong moi)
 #define JUNCTION_LEFT_MIN      2

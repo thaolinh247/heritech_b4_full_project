@@ -8,6 +8,7 @@ enum class RobotState {
     CRUISE_TO_RED,   // đi thẳng chậm (KHÔNG bám line) tới khi thấy vạch đỏ
     WAIT_CLEAR,
     AT_NODE,
+    PRE_TURN_DRIVE,  // nhận "đi tiếp" → đi thẳng thêm PRE_TURN_DRIVE_CM rồi mới quay
     TURNING,
     DRIVE_CM,        // đi thẳng chậm đủ DRIVE_DISTANCE_CM rồi dừng hẳn
     PAUSED,
