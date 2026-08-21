@@ -396,14 +396,22 @@ void checkPIR() {
     if (cur == RobotState::CRUISE_TO_RED ||
         cur == RobotState::DRIVE_CM ||
         cur == RobotState::PRE_TURN_DRIVE) {
+        // Đang di chuyển → dừng 5s rồi đi tiếp
         stateBeforePir = cur;
         motors.stop();
         state.setState(RobotState::WAIT_CLEAR);
         warnClearDeadline = now + PIR_PAUSE_MS;   // dung co dinh 5s roi di tiep
         setLedStopped();
         MiniR4.Buzzer.Tone(800, BUZZER_ALARM_MS);
+        beepUntil = now + BUZZER_ALARM_MS;
         ble.sendMessage("WARN:person");
         Serial.println("[PIR] >>> PAUSE 5s <<<");
+    } else {
+        // Đứng yên (IDLE/chờ node/quay) → vẫn CẢNH BÁO app + còi, không đổi state
+        MiniR4.Buzzer.Tone(800, BUZZER_ALARM_MS);
+        beepUntil = now + BUZZER_ALARM_MS;
+        ble.sendMessage("WARN:person");
+        Serial.println("[PIR] person detected (stationary) -> WARN only");
     }
 }
 
