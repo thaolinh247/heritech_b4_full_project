@@ -61,7 +61,7 @@
 // rồi bò hiệu chỉnh theo IMU (thiếu thì bò tới, lố thì bò lui, tối đa 4 lượt)
 #define TURN_FULL_SPEED        28      // toc do quay nhanh ban dau (0-100)
 #define TURN_SLOW_SPEED        12      // toc do cham khi gan dich
-#define TURN_90_DEGREES        210.0f  // encoder degrees (moi banh) cho 90° pivot turn
+#define TURN_90_DEGREES        212.0f  // encoder degrees (moi banh) cho 90° pivot turn
 #define TURN_DECEL_ZONE_DEG    30.0f   // con <=30° (theo encoder) thi giam xuong slow speed
 #define TURN_TOLERANCE_DEG     3.5f    // sai so chap nhan (theo IMU)
 #define TURN_SETTLE_MS         250     // dung xe -> cho quan tinh on dinh roi moi do lai
@@ -75,8 +75,15 @@
 #define TURN_IMU_AXIS          5
 
 // ─── Di thang truoc khi quay ────────────────────
-// Nhan tin hieu "di tiep" -> di thang them 5cm ROI moi quay phai 90°
+// Thay doi: KHONG cho cho tin hieu "di tiep" nua — thay vach do la tu di tiep
 #define PRE_TURN_DRIVE_CM      8.0f
+#define AT_NODE_AUTO_MS        1500    // dung o vach do bao lau truoc khi tu di tiep (0 = di ngay)
+
+// ─── Di thang thang hang ────────────────────────
+// Dung setSpeed (PID cua lower MCU) de 2 banh deu toc do tuyet doi -> khong lac.
+// DRIVE_TRIM: bu neu van con lech. Robot lech PHAI -> tang (+, banh phai nhanh hon),
+// lech TRAI -> giam am. Buoc 1 hoac 2.
+#define DRIVE_TRIM             0
 
 // Junction (van dung boi sensor_manager.cpp — khong goi trong luong moi)
 #define JUNCTION_LEFT_MIN      2

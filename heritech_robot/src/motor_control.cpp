@@ -8,9 +8,11 @@ void MotorControl::begin() {
 }
 
 // ─── Đi thẳng đều 2 bánh ──────────────────────
+// Dùng setSpeed (PID tốc độ của lower MCU) thay vì setPower: 2 bánh được
+// giữ đồng đều tuyệt đối về tốc độ → robot đi thẳng nhất có thể.
 void MotorControl::driveStraight(int16_t power) {
-    MiniR4.M1.setPower(power);
-    MiniR4.M2.setPower(power);
+    MiniR4.M1.setSpeed(power + DRIVE_TRIM);   // bánh phải
+    MiniR4.M2.setSpeed(power);                // bánh trái
 }
 
 void MotorControl::stop() {

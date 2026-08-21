@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 ### Changed
+- **Bỏ chờ lệnh "đi tiếp" + đi thẳng bằng PID tốc độ (21/08)**: (1) tới vạch đỏ robot chỉ dừng ngắn `AT_NODE_AUTO_MS=1500ms` (còi + `NODE_START` cho app) rồi **tự đi tiếp** — không còn chờ tín hiệu ngoài; lệnh "đi tiếp" từ app vẫn được nhận để đi sớm hơn nếu gửi trong khoảng dừng. (2) `driveStraight()` đổi từ `setPower` sang **`setSpeed` (PID của lower MCU)** — 2 bánh giữ tốc độ đồng đều tuyệt đối, đi thẳng hơn hẳn; thêm núm `DRIVE_TRIM` (lech phải → +, lech trái → −). (3) `TURN_90_DEGREES` 210 → **212** (vẫn hơi thiếu).
+
+### Changed
 - **Tinh chỉnh theo test (21/08)**: `PRE_TURN_DRIVE_CM` 5 → **8cm**; `TURN_90_DEGREES` 208 → **210** (đang quay hơi thiếu).
 
 ### Changed
