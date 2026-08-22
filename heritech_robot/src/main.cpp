@@ -1,7 +1,7 @@
 // HeritageBuddy Robot — LUỒNG MỚI (không bám line)
 // Hành trình: CRUISE_TO_RED (đi thẳng chậm ~20, KHÔNG bám line, tới khi thấy đỏ)
 //   -> AT_NODE (còi + NODE_START, DỪNG CHỜ tín hiệu "đi tiếp")
-//   -> PRE_TURN_DRIVE (nhận lệnh → đi thẳng thêm 8cm)
+//   -> PRE_TURN_DRIVE (nhận lệnh → đi thẳng thêm 7cm)
 //   -> TURNING (quay phải 90° TẠI CHỎ, đều 2 bánh, encoder + IMU hiệu chỉnh)
 //   -> DRIVE_CM (đi thẳng chậm đủ 30cm rồi dừng hẳn + ROUTE_DONE)
 // + PIR motion detection (mặc định TẮT, bật bằng PIR_MODE:ON)
@@ -149,10 +149,19 @@ void printSensorDebug() {
     Serial.print(" pirEn=");
     Serial.print(pirEnabled ? "ON" : "OFF");          // PIR co dang hoat dong khong
     Serial.print(" gest=");
-    Serial.print(sensors.isGestureReady() ? "OK" : "OFF");
-    Serial.print("(");
-    Serial.print(sensors.readGestureNonBlocking());
-    Serial.print(")");
+    if (!sensors.isGestureReady()) {
+        Serial.print("OFF(reinit...)");
+    } else if (!sensors.gestureLastReadOK()) {
+        Serial.print("NO-I2C(f0=ff f1=ff)");
+    } else {
+        // In raw flag bytes lan doc GAN NHAT cua checkGesture() — khong doc
+        // them lan nua vi moi lan doc deu XOA flag (moc mat su kien gesture)
+        Serial.print("OK(f0=");
+        Serial.print(sensors.gestureLastFlag0(), HEX);
+        Serial.print(" f1=");
+        Serial.print(sensors.gestureLastFlag1(), HEX);
+        Serial.print(")");
+    }
     Serial.print(" sw=");
     Serial.println(sensors.readSwitch() ? "PRESSED" : "off");
 }
@@ -568,7 +577,9 @@ void startPreTurnDrive() {
     driveStartedAt = millis();
     setLedMoving();
     pirGraceUntil = millis() + PIR_GRACE_AFTER_LEAVE_MS;
-    Serial.println("[NODE] go signal -> PRE_TURN_DRIVE (8cm)");
+    Serial.print("[NODE] go signal -> PRE_TURN_DRIVE (");
+    Serial.print(PRE_TURN_DRIVE_CM, 0);
+    Serial.println("cm)");
 }
 
 void processNextSignal() {
@@ -576,7 +587,7 @@ void processNextSignal() {
     startPreTurnDrive();
 }
 
-// ─── PRE_TURN_DRIVE: đi thẳng thêm 5cm rồi mới quay ──
+// ─── PRE_TURN_DRIVE: đi thẳng thêm 7cm rồi mới quay ──
 void handlePreTurnDrive() {
     if (millis() - driveStartedAt >= DRIVE_TIMEOUT_MS) {
         motors.cancelDrive();

@@ -55,7 +55,10 @@
 
 // ─── Gesture (cảm biến cử chỉ) ─────────────────
 #define GESTURE_REINIT_INTERVAL_MS 2000
-#define GESTURE_MAX_RETRY      20
+// Doc I2C that bai lien tiep bao nhieu lan (~20ms/lan) thi xem bus chet,
+// tu dong re-init sensor. Truoc day khong co watchdog nay: sensor bi nhieu
+// motor lam treo I2C la im mai (tra ve 0) cho den khi restart.
+#define GESTURE_FAIL_LIMIT     30
 
 // ─── Turn (quay phải 90° tại chỗ, đều 2 bánh) ──
 // 3 giai đoạn: quay nhanh → còn ≤30° giảm tốc → dừng, chờ quán tính,
@@ -64,23 +67,26 @@
 #define TURN_SLOW_SPEED        12      // toc do cham khi gan dich
 #define TURN_90_DEGREES        216.0f  // encoder degrees (moi banh) cho 90° pivot turn
 #define TURN_DECEL_ZONE_DEG    30.0f   // con <=30° (theo encoder) thi giam xuong slow speed
-#define TURN_TOLERANCE_DEG     3.5f    // sai so chap nhan (theo IMU)
+#define TURN_TOLERANCE_DEG     2.5f    // sai so chap nhan (theo IMU)
 #define TURN_SETTLE_MS         250     // dung xe -> cho quan tinh on dinh roi moi do lai
 #define TURN_CREEP_SPEED       7       // toc do bo hieu chinh
 #define TURN_CREEP_MS          500     // moi luat bo toi da 500ms
 #define TURN_CREEP_SETTLE_MS   200     // nghi giua cac luat bo
 #define TURN_CORRECT_MAX_ROUNDS 4      // toi da 4 luat hieu chinh
 #define TURN_TIMEOUT_MS        12000   // phong ket (gom ca thoi gian hieu chinh)
-// Hieu chinh IMU sau khi quay (cho quan tinh + bo bu goc): 1 = bat, 0 = tat.
-// Tat -> quay du target encoder la tien luon sang chặng 30cm, khong dung nghi.
-#define TURN_IMU_CORRECT       0
+// Hieu chinh IMU sau khi quay: 1 = bat, 0 = tat.
+// BAT (khuyen dung): quay du target encoder -> cho quan tinh -> do goc IMU
+//   theo DELTA yaw tu luc bat dau quay (KHONG goi resetIMUValues nua — lenh
+//   ay block UART ~1s). Thieu thi bo toi, lo thi bo lui, toi da 4 luot.
+// Tat -> quay du target encoder la tien luon, chặn sau chay lien.
+#define TURN_IMU_CORRECT       1
 // Tru doc IMU de do goc quay: 3=Roll, 4=Pitch, 5=Yaw (board nam thang -> Yaw).
 // Xem debug [TURN] ax=... : tru nao tang dan khi quay thi dung tru nay.
 #define TURN_IMU_AXIS          5
 
 // ─── Di thang truoc khi quay ────────────────────
-// Thay vach do -> mo node -> DUNG CHO tin hieu "di tiep" -> di thang 8cm -> quay
-#define PRE_TURN_DRIVE_CM      6.0f
+// Thay vach do -> mo node -> DUNG CHO tin hieu "di tiep" -> di thang 7cm -> quay
+#define PRE_TURN_DRIVE_CM      7.0f
 
 // ─── Di thang thang hang ────────────────────────
 // Dung setSpeed (PID cua lower MCU) de 2 banh deu toc do tuyet doi -> khong lac.

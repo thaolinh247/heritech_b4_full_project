@@ -29,8 +29,18 @@ void MotorControl::stop() {
 //   2. Đủ target (encoder) → cắt motor, chờ TURN_SETTLE_MS cho quán tính ổn định
 //   3. Đo lại góc bằng IMU: thiếu → bò tới, lố → bò lui (speed 7,
 //      tối đa 4 lượt × 500ms) tới khi sai số ≤ TURN_TOLERANCE_DEG
-// IMU chỉ dùng để HIỆU CHỈNH — nếu IMU không phản hồi (_imuSeenMove == false)
-// thì bỏ qua hiệu chỉnh, kết quả theo encoder thuần (an toàn).
+// Góc IMU tính theo DELTA yaw kể từ lúc bắt đầu quay (_yawStart) — KHÔNG gọi
+// resetIMUValues() vì lệnh đó block UART với lower MCU tới ~1s.
+// Nếu IMU không phản hồi (_imuSeenMove == false) thì bỏ qua hiệu chỉnh,
+// kết quả theo encoder thuần (an toàn).
+
+// Chuẩn hoá độ lệch góc về [-180, +180] để tránh nhảy số khi yaw wrap
+static float wrap180(float d) {
+    while (d > 180.0f) d -= 360.0f;
+    while (d < -180.0f) d += 360.0f;
+    return d;
+}
+
 void MotorControl::startTurnRight90() {
     _turning = true;
     _turnTargetDegrees = TURN_90_DEGREES;
@@ -41,7 +51,7 @@ void MotorControl::startTurnRight90() {
     MiniR4.M1.resetCounter();
     MiniR4.M2.resetCounter();
 #if TURN_IMU_CORRECT
-    MiniR4.Motion.resetIMUValues();   // goc quay bat dau tu 0 (co the block UART ~1s)
+    _yawStart = readTurnAngle();   // mốc góc ban đầu — quay bao nhiêu lần cũng đúng tương đối
 #endif
     spinRight(TURN_FULL_SPEED);
     Serial.print("[TURN] start target=");
@@ -51,7 +61,7 @@ void MotorControl::startTurnRight90() {
 bool MotorControl::isTurnComplete() {
     if (!_turning) return true;
 #if TURN_IMU_CORRECT
-    float yaw = fabsf(readTurnAngle());
+    float yaw = wrap180(readTurnAngle() - _yawStart);   // góc đã quay thực tế
 #endif
 
     switch (_turnPhase) {

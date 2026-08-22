@@ -37,6 +37,11 @@ public:
     bool isGestureReady();
     bool reinitGesture();
 
+    // Debug: ket qua doc flag gan nhat (f0/f1 = 0xFF khi I2C khong phan hoi)
+    bool gestureLastReadOK() { return _gestLastReadOK; }
+    uint8_t gestureLastFlag0() { return _gestFlag0; }
+    uint8_t gestureLastFlag1() { return _gestFlag1; }
+
     // Junction detection
     bool isLeftJunction();
     bool isRightJunction();
@@ -50,7 +55,10 @@ private:
     MatrixColorV3    _colorSensor;
     MatrixGesture    _gestureSensor;
     bool             _gestureOK = false;
-    uint8_t          _gestureRetryCount = 0;
+    uint16_t         _gestFailCount = 0;   // so lan doc I2C lien tiep that bai
+    bool             _gestLastReadOK = false;
+    uint8_t          _gestFlag0 = 0;
+    uint8_t          _gestFlag1 = 0;
     // Module PIR: idle = LOW, co nguoi = HIGH -> ACTIVE-HIGH
     // (chot boi 2 lan test 21/08: aLow lam robot im lap hoan toan vi raw keo=1
     //  vinh vien; aHigh thi cac dot H vai giay khop chinh xac theo tay)

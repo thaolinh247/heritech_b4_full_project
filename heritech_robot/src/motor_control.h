@@ -44,5 +44,6 @@ private:
     unsigned long _lastTurnDebug;
     uint8_t _correctRound;
     bool _imuSeenMove;   // IMU có phản hồi trong lúc quay không
+    float _yawStart;     // góc IMU tại lúc bắt đầu quay (để tính DELTA)
 };
 #endif

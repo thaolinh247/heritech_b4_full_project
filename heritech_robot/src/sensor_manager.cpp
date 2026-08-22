@@ -99,14 +99,26 @@ bool SensorManager::isGestureReady() { return _gestureOK; }
 
 bool SensorManager::reinitGesture() {
     if (_gestureOK) return true;
-    if (_gestureRetryCount >= GESTURE_MAX_RETRY) return false;
-    _gestureRetryCount++;
+    // Thu lai VOI HAN (moi 2s do loop dieu khien) — truoc day chi cho phep
+    // 20 lan (~40s) roi tu bo vinh vien den khi restart, de sensor cam cham/
+    // long roi bi "chet" mai khong hoi phuc.
+    _gestFailCount = 0;
     return initGestureSensor();
 }
 
 int SensorManager::readGesture() {
     if (!_gestureOK) return 0;
     return _gestureSensor.getGesture();
+}
+
+// Doc 1 thanh ghi flag cua PAJ7620 (Bank 0). false = I2C khong phan hoi.
+static bool readGestureFlag(TwoWire* wire, uint8_t addr, uint8_t reg, uint8_t& out) {
+    wire->beginTransmission(addr);
+    wire->write(reg);
+    if (wire->endTransmission() != 0) return false;
+    if (wire->requestFrom(addr, (uint8_t)1) != 1) return false;
+    out = wire->read();
+    return true;
 }
 
 int SensorManager::readGestureNonBlocking() {
@@ -124,24 +136,35 @@ int SensorManager::readGestureNonBlocking() {
     uint8_t addr = PAJ7620_IIC_ADDR;
 
     // Read flag_1 (0x44) first — same as library getGesture()
-    wire->beginTransmission(addr);
-    wire->write(PAJ7620_ADDR_GES_PS_DET_FLAG_1);
-    wire->endTransmission();
-    wire->requestFrom(addr, (uint8_t)1);
-    if (!wire->available()) return 0;
-    uint8_t flag1 = wire->read();
-
-    // Wave detected (bit 0 of flag_1) — skip to avoid 1s block
-    // Just return wave gesture code
-    if (flag1 & 0x01) return 9;
+    uint8_t flag1 = 0;
+    bool ok1 = readGestureFlag(wire, addr, PAJ7620_ADDR_GES_PS_DET_FLAG_1, flag1);
 
     // Read flag_0 (0x43) — basic gestures
-    wire->beginTransmission(addr);
-    wire->write(PAJ7620_ADDR_GES_PS_DET_FLAG_0);
-    wire->endTransmission();
-    wire->requestFrom(addr, (uint8_t)1);
-    if (!wire->available()) return 0;
-    uint8_t flag0 = wire->read();
+    uint8_t flag0 = 0;
+    bool ok0 = readGestureFlag(wire, addr, PAJ7620_ADDR_GES_PS_DET_FLAG_0, flag0);
+
+    if (!ok1 || !ok0) {
+        _gestLastReadOK = false;
+        _gestFlag0 = 0xFF;
+        _gestFlag1 = 0xFF;
+        // Bus chet (thuong do nhieu motor / mat nguon luc): dem du so lan
+        // lien tiep -> danh dau mat sensor de vong loop tu re-init lai.
+        _gestFailCount++;
+        if (_gestFailCount >= GESTURE_FAIL_LIMIT) {
+            Serial.println("[Sensor] Gesture I2C dead -> reinit");
+            _gestureOK = false;
+            _gestFailCount = 0;
+        }
+        return 0;
+    }
+
+    _gestFailCount = 0;
+    _gestLastReadOK = true;
+    _gestFlag0 = flag0;
+    _gestFlag1 = flag1;
+
+    // Wave detected (bit 0 of flag_1)
+    if (flag1 & 0x01) return 9;
 
     // Map register bits to gesture values (matches library)
     if (flag0 & 0x01) return 1;   // Right

@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Gesture sensor (PAJ7620) "không nhận" — 2 lỗi firmware (21/08)**:
+  1. **Tự bỏ sau ~40s**: `reinitGesture()` bị chặn bởi `GESTURE_MAX_RETRY=20` × 2s — nếu sensor không init được trong ~40s đầu (cắm dây lỏng, khởi động muộn, nhiễu lúc boot) thì firmware **từ bỏ vĩnh viễn đến khi restart**. Bỏ giới hạn: giờ thử lại mỗi 2s vô thời hạn.
+  2. **Không có watchdog bus I2C**: khi đang chạy, nhược motor/dao động nguồn có thể làm treo giao dịch I2C của PAJ7620 → `readGestureNonBlocking()` trả 0 mãi mà `_gestureOK` vẫn true → không bao giờ re-init. Thêm `GESTURE_FAIL_LIMIT=30` lần đọc thất bại liên tiếp (~0.6s) → tự đánh dấu mất sensor và re-init ở vòng loop kế tiếp. Kèm cache raw flag bytes (`f0/f1`) in ra log `[SENSOR] gest=OK(f0=.. f1=..)` / `NO-I2C` / `OFF(reinit...)` để chẩn đoán nhanh; bỏ luôn lần đọc gesture thừa trong debug (mỗi lần đọc đều xoá flag — có thể ăn mất sự kiện).
+- **Quay chưa vuông 90° (21/08)**: bật lại hiệu chỉnh IMU sau quay (`TURN_IMU_CORRECT 0→1`, tolerance 3.5→2.5°) nhưng **bỏ `resetIMUValues()`** (block UART lower MCU ~1s đầu mỗi cú quay): góc IMU giờ tính theo DELTA yaw từ mốc `_yawStart` ghi tại lúc bắt đầu quay + chuẩn hoá wrap ±180°. Luồng: encoder quay nhanh → còn ≤30° giảm tốc → đủ target cắt motor, chờ quán tính 250ms → bò tới/lùi theo IMU tối đa 4 lượt đến sai số ≤2.5°. Nếu IMU không phản hồi thì tự bỏ qua hiệu chỉnh (kết quả theo encoder thuần như cũ).
+- **Log stale "(8cm)"**: `startPreTurnDrive()` in hardcoded "8cm" dù config đã đổi nhiều lần — giờ in giá trị `PRE_TURN_DRIVE_CM` thật.
+
+### Changed
+- **Đoạn đi thẳng trước khi quay 6cm → 7cm (21/08)**: `PRE_TURN_DRIVE_CM = 7.0f` để robot ra đủ xa vạch đỏ trước khi pivot phải 90°.
+
 ### Changed
 - **Chốt cực PIR = ACTIVE-HIGH (21/08)**: mặc định aLow làm robot **im lặng hoàn toàn** — chân thực tế nằm ở LOW nên raw=1 vĩnh viễn, bị tính là một sự kiện ngay khi khởi động rồi kẹt "đã tiêu thụ" mãi. Đảo về `_pirActiveLow=false` (idle L, người H, khớp log test có các đợt H theo tay). Kết hợp bộ lọc 250ms của commit trước: đưa tay ≥250ms → báo đúng 1 lần; rút ra rồi vào lại → báo lần mới.
 - **Lọc PIR chống báo loạn (21/08)**: thay cooldown 3s bằng 2 lớp lọc — (1) phải thấy "có người" **du truyền liên tục ≥ `PIR_CONFIRM_MS=250ms`** mới tin (nhiễu EMI nháy 1-2 mẫu là bị loại); (2) mỗi lần xuất hiện chỉ báo **một lần**, tay phải rút ra rồi đưa vào lại mới tính lượt mới. Áp dụng cho cả trạng thái đứng yên lẫn di chuyển.
